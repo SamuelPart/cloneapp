@@ -46,7 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.myiptv.clean.data.repository.TdtChannelsRepository
+import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
@@ -105,7 +105,7 @@ fun HomeScreen(
         Column(modifier = Modifier.padding(start = horizontalPadding)) {
             SectionTitle("Ahora en vivo", "Ver todos", onOpenChannels, modifier = Modifier.padding(end = horizontalPadding))
             if (viewModel.liveChannels.isEmpty()) {
-                Text("Los canales de TDTChannels todavía no están disponibles.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
+                Text("Los canales de TDTChannels e IPTV-org todavía no están disponibles.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
                     items(viewModel.liveChannels.take(8), key = LiveChannel::id) { channel ->
@@ -266,7 +266,7 @@ fun ChannelsScreen(
         PageHeading(
             eyebrow = "Señal en directo",
             title = "Canales",
-            description = "Lista pública de televisión de TDTChannels."
+            description = "Canales de TDTChannels e IPTV-org para Perú."
         )
         SearchBox(
             value = viewModel.query,
@@ -282,12 +282,12 @@ fun ChannelsScreen(
         )
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("${viewModel.filteredChannels.size} canales", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
-            Text(viewModel.errorMessage.ifBlank { "Fuente: TDTChannels" }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text(viewModel.errorMessage.ifBlank { ChannelCatalogRepository.statusMessage }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
         if (viewModel.filteredChannels.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 when {
-                    viewModel.isLoading -> EmptyState(Icons.Filled.LiveTv, "Cargando canales", "Consultando la lista oficial de TDTChannels.")
+                    viewModel.isLoading -> EmptyState(Icons.Filled.LiveTv, "Cargando canales", "Consultando TDTChannels e IPTV-org.")
                     viewModel.errorMessage.isNotBlank() -> EmptyState(Icons.Filled.LiveTv, "No se pudo cargar la lista", viewModel.errorMessage, "Reintentar", viewModel::refresh)
                     else -> EmptyState(Icons.Filled.Search, "No hay canales", "No se encontraron canales para este filtro.")
                 }
@@ -380,7 +380,7 @@ fun FavoritesScreen(
     onExplore: () -> Unit
 ) {
     val media = TmdbRepository.cachedCatalog().filter { it.id in savedIds }
-    val channels = TdtChannelsRepository.cachedChannels().filter { it.id in savedIds }
+    val channels = ChannelCatalogRepository.cachedChannels().filter { it.id in savedIds }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Tu colección", "Mi lista", "Todo lo que guardaste, en un solo lugar.")
         if (media.isEmpty() && channels.isEmpty()) {
@@ -455,7 +455,7 @@ fun SearchScreen(
                 }
                 if (viewModel.channels.isNotEmpty()) {
                     Column {
-                        SectionTitle("Canales de TDTChannels")
+                        SectionTitle("Canales de TV")
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(viewModel.channels.take(12), key = LiveChannel::id) { channel ->
                                 CompactChannelCard(channel, modifier = Modifier.width(if (isTv) 320.dp else 280.dp)) { onOpenChannel(channel.id) }

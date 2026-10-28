@@ -43,10 +43,14 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem as ExoMediaItem
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.source.DefaultMediaSourceFactory
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
 import com.google.android.exoplayer2.ui.PlayerView
+import com.google.android.exoplayer2.upstream.DefaultDataSource
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
+import com.google.android.exoplayer2.util.Util
+import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.LocalMediaSources
-import com.myiptv.clean.data.repository.TdtChannelsRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
@@ -57,7 +61,7 @@ fun PlayerScreen(
     val context = LocalContext.current
     val episodeReference = remember(contentId) { parseEpisodeSourceId(contentId) }
     val mediaId = episodeReference?.mediaId ?: contentId
-    val channel = remember(contentId) { TdtChannelsRepository.cachedChannel(contentId) }
+    val channel = remember(contentId) { ChannelCatalogRepository.cachedChannel(contentId) }
     val media = remember(mediaId) { TmdbRepository.cachedMedia(mediaId) }
     val savedSource = remember(contentId) { LocalMediaSources.get(context, contentId) }
     val sourceUrl = channel?.streamUrl ?: savedSource?.url ?: if (episodeReference == null) media?.streamUrl else null
@@ -72,7 +76,7 @@ fun PlayerScreen(
         episodeReference == null -> media.title
         else -> "${media.title} · T${episodeReference.seasonNumber} · E${episodeReference.episodeNumber}"
     }
-    val isChannelReference = contentId.startsWith("tdt_")
+    val isChannelReference = contentId.startsWith("tdt_") || contentId.startsWith("iptv_")
 
     BackHandler(onBack = onBack)
     if (sourceUrl.isNullOrBlank()) {
@@ -81,7 +85,7 @@ fun PlayerScreen(
                 Icon(if (isChannelReference) Icons.Filled.LiveTv else Icons.Filled.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(38.dp))
                 Text("Fuente de reproducción no disponible", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Text(
-                    if (isChannelReference) "No se encontró una señal activa de TDTChannels para este canal."
+                    if (isChannelReference) "No se encontró una señal activa de TDTChannels o IPTV-org para este canal."
                     else "TMDb solo aporta metadatos. Añade un enlace directo autorizado o un embed iframe en la ficha del título.",
                     color = Color.White.copy(alpha = 0.74f), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center
                 )
@@ -131,12 +135,8 @@ fun PlayerScreen(
                 )
             }
         } else {
-            val exoPlayer = remember(sourceUrl) {
-                ExoPlayer.Builder(context).build().apply {
-                    setMediaItem(ExoMediaItem.fromUri(Uri.parse(sourceUrl)))
-                    prepare()
-                    playWhenReady = true
-                }
+            val exoPlayer = remember(sourceUrl, channel?.userAgent, channel?.referrer) {
+                createExoPlayer(context, sourceUrl.orEmpty(), channel?.userAgent, channel?.referrer)
             }
             var playbackError by remember(sourceUrl) { mutableStateOf("") }
             DisposableEffect(exoPlayer) {
@@ -174,7 +174,7 @@ fun PlayerScreen(
                 PlayerBackButton(onBack)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(if (channel != null) "TDTChannels" else if (sourceType == MediaPlaybackType.IFRAME) "Embed" else "Enlace directo", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+                    Text(if (channel != null) channel.sourceName else if (sourceType == MediaPlaybackType.IFRAME) "Embed" else "Enlace directo", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -191,6 +191,28 @@ private fun PlayerBackButton(onBack: () -> Unit) {
             Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", modifier = Modifier.size(21.dp))
         }
     }
+}
+
+private fun createExoPlayer(
+    context: android.content.Context,
+    streamUrl: String,
+    userAgent: String?,
+    referrer: String?
+): ExoPlayer {
+    val httpFactory = DefaultHttpDataSource.Factory()
+        .setUserAgent(userAgent?.takeIf(String::isNotBlank) ?: Util.getUserAgent(context, "CLEAN IPTV"))
+    referrer?.takeIf(String::isNotBlank)?.let { value ->
+        httpFactory.setDefaultRequestProperties(mapOf("Referer" to value))
+    }
+    val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+    return ExoPlayer.Builder(context)
+        .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+        .build()
+        .apply {
+            setMediaItem(ExoMediaItem.fromUri(Uri.parse(streamUrl)))
+            prepare()
+            playWhenReady = true
+        }
 }
 
 private data class EpisodeSourceReference(

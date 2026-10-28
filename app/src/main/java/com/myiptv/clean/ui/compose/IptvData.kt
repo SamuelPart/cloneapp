@@ -47,7 +47,10 @@ data class LiveChannel(
     val streamUrl: String,
     val accent: Long,
     val logoUrl: String? = null,
-    val epgId: String? = null
+    val epgId: String? = null,
+    val sourceName: String = "TDTChannels",
+    val userAgent: String? = null,
+    val referrer: String? = null
 )
 
 data class ContentCategory(

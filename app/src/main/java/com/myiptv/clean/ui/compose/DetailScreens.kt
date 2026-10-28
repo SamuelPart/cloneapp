@@ -55,9 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.ConfiguredMediaSource
 import com.myiptv.clean.data.repository.LocalMediaSources
-import com.myiptv.clean.data.repository.TdtChannelsRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
@@ -68,11 +68,11 @@ fun ChannelDetailScreen(
     isFavorite: (String) -> Boolean,
     onToggleFavorite: (String) -> Unit
 ) {
-    val channel = TdtChannelsRepository.cachedChannel(channelId)
+    val channel = ChannelCatalogRepository.cachedChannel(channelId)
     if (channel == null) {
         Column(Modifier.fillMaxSize().padding(24.dp)) {
             DetailBackButton(onBack)
-            EmptyState(Icons.Filled.LiveTv, "Canal no disponible", "Actualiza la lista de TDTChannels y vuelve a intentarlo.")
+            EmptyState(Icons.Filled.LiveTv, "Canal no disponible", "Actualiza las fuentes de canales y vuelve a intentarlo.")
         }
         return
     }
@@ -87,7 +87,7 @@ fun ChannelDetailScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             DetailBackButton(onBack)
-            Text("Televisión abierta  /  ${channel.name}", modifier = Modifier.padding(start = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("TV en directo  /  ${channel.name}", modifier = Modifier.padding(start = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box(
             modifier = Modifier
@@ -111,8 +111,8 @@ fun ChannelDetailScreen(
                     }
                 }
                 Text(channel.name, color = Color.White, style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text("Señal de televisión en abierto", color = Color.White.copy(alpha = 0.86f), style = MaterialTheme.typography.titleMedium)
-                Text("Fuente: TDTChannels", color = Color.White.copy(alpha = 0.66f), style = MaterialTheme.typography.bodySmall)
+                Text("Emisión de televisión en directo", color = Color.White.copy(alpha = 0.86f), style = MaterialTheme.typography.titleMedium)
+                Text("Fuente: ${channel.sourceName}", color = Color.White.copy(alpha = 0.66f), style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 5.dp)) {
                     PrimaryButton("Ver canal", Icons.Filled.PlayArrow, onClick = { onPlay(channel.id) })
                     Surface(
@@ -141,7 +141,7 @@ fun ChannelDetailScreen(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SectionTitle("Información de la señal")
                 DetailInfoRow("Categoría", channel.category)
-                DetailInfoRow("Origen", "TDTChannels · lista pública de TV")
+                DetailInfoRow("Origen", channel.sourceName)
                 channel.epgId?.let { DetailInfoRow("ID EPG", it) }
             }
             Text(

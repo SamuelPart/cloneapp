@@ -1,11 +1,11 @@
 # Clean IPTV
 
-Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. El catálogo de películas y series usa metadatos de TMDb; los canales se cargan desde la lista pública de TDTChannels. TMDb no proporciona vídeo: cada película o serie necesita que el usuario configure una fuente de reproducción directa o un embed iframe autorizado.
+Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. El catálogo de películas y series usa metadatos de TMDb; los canales se combinan desde TDTChannels y IPTV-org (emisiones de Perú). TMDb no proporciona vídeo: cada película o serie necesita que el usuario configure una fuente de reproducción directa o un embed iframe autorizado.
 
 ## Fuentes y comportamiento
 
 - **Películas y series:** TMDb aporta títulos, géneros, búsqueda, fichas, reparto, temporadas, episodios, pósteres e imágenes. Sin una API Key válida, la app muestra estados vacíos/configuración; no sustituye resultados por contenido de muestra.
-- **Canales:** se descarga y analiza `https://www.tdtchannels.com/lists/tv.m3u8`. Se muestran los canales con enlace HTTP/HTTPS reproducible y sus metadatos M3U (categoría, logo e ID EPG cuando estén presentes). La programación EPG no está integrada.
+- **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta metadatos y enlaces directos desde `https://iptv-org.github.io/api/channels.json` y `streams.json`; se limita a Perú y se omiten canales NSFW y streams marcados `Geo-blocked`. Se usan únicamente URLs HTTP/HTTPS directas del catálogo; no se extraen enlaces de páginas embed ni se eluden bloqueos. La programación EPG no está integrada.
 - **Reproducción de vídeo:** admite enlaces directos compatibles con ExoPlayer (incluidos HLS/DASH) y páginas/URLs de embed iframe mediante WebView. Las fuentes de películas y series se guardan en el almacenamiento privado del dispositivo; no hay catálogo de enlaces de vídeo incluido.
 - **Descargas e historial:** todavía no están implementados y muestran estados vacíos, no datos ficticios.
 - **Favoritos:** se mantienen en memoria durante la sesión actual.
@@ -35,6 +35,16 @@ Este producto utiliza la API de TMDb, pero no está avalado ni certificado por T
 
 No hay enlaces de películas/series preconfigurados: TMDb entrega metadatos e imágenes, no derechos ni fuentes de reproducción.
 
+## API local para M3U directo autorizado
+
+`tools/authorized_m3u_api.py` carga un archivo EXTINF M3U/M3U8 local y expone un catálogo de IDs con una redirección 302 a la URL HTTP/HTTPS exacta de cada stream directo reconocido por extensión (HLS, DASH, audio o vídeo). Ignora enlaces a páginas web y otros formatos; no abre páginas, resuelve iframes, extrae tokens/cookies, evade anti-bot ni retransmite el flujo.
+
+```bash
+python3 tools/authorized_m3u_api.py /ruta/a/catalogo-autorizado.m3u8
+```
+
+La API escucha solo en `127.0.0.1:8765`: `GET /catalog`, `GET /health` y `GET /play?id=<id>`. El cliente debe seguir la redirección. No acepta URLs arbitrarias en la petición ni almacena tokens. Un 302 no puede inyectar `Referer`/`User-Agent`; en la app Android se usan únicamente los valores explícitos publicados por IPTV-org para sus streams directos. Ningún método garantiza cero fallos: la disponibilidad, el formato, la región y las condiciones dependen del proveedor.
+
 ## Abrir en Android Studio
 
 1. Selecciona **Get from VCS** (o **File → New → Project from Version Control**).
@@ -56,14 +66,16 @@ cd cloneapp
 - Android Studio compatible con Android Gradle Plugin 8.5.2.
 - JDK 17 o 21 para ejecutar Gradle; el bytecode de la app usa Java 17.
 - Android SDK 34.
-- Conexión a Internet para Gradle, TMDb y la lista de TDTChannels.
+- Conexión a Internet para Gradle, TMDb, TDTChannels e IPTV-org.
+- Python 3.10 o posterior, solo si se utiliza la API local opcional para M3U.
 
 ## Estructura
 
 - `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación, reproducción, componentes y ViewModels.
-- `app/src/main/java/com/myiptv/clean/data/api`: clientes de TMDb y TDTChannels.
-- `app/src/main/java/com/myiptv/clean/data/repository`: carga de datos TMDb/TDTChannels y fuentes de reproducción locales.
-- `app/src/main/java/com/myiptv/clean/data/model`: modelos de respuesta TMDb.
+- `app/src/main/java/com/myiptv/clean/data/api`: clientes de TMDb, TDTChannels e IPTV-org.
+- `app/src/main/java/com/myiptv/clean/data/repository`: catálogos TMDb/TDTChannels/IPTV-org y fuentes de reproducción locales.
+- `app/src/main/java/com/myiptv/clean/data/model`: modelos de respuesta TMDb e IPTV-org.
+- `tools/authorized_m3u_api.py`: API local de redirección para entradas directas de un M3U autorizado.
 - `app/src/main/java/com/myiptv/clean/ui/welcome`: bienvenida inicial.
 - `app/src/main/res`: recursos y pantallas heredadas.
 - `gradle/wrapper`: versión fija de Gradle.

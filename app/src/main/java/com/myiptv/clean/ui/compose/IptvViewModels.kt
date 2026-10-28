@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.myiptv.clean.data.repository.TdtChannelsRepository
+import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -28,7 +28,7 @@ class HomeViewModel : ViewModel() {
         private set
 
     private var mediaStatus = if (TmdbRepository.isConfigured) "Consultando catálogo TMDb…" else "TMDb requiere una clave API local."
-    private var channelStatus = "Consultando la lista de TDTChannels…"
+    private var channelStatus = "Consultando TDTChannels e IPTV-org…"
 
     init {
         loadChannels()
@@ -38,10 +38,10 @@ class HomeViewModel : ViewModel() {
     private fun loadChannels() {
         viewModelScope.launch {
             try {
-                liveChannels = TdtChannelsRepository.refresh()
-                channelStatus = "Canales públicos cargados desde TDTChannels."
+                liveChannels = ChannelCatalogRepository.refresh()
+                channelStatus = ChannelCatalogRepository.statusMessage
             } catch (_: Exception) {
-                channelStatus = "No se pudo cargar la lista de TDTChannels."
+                channelStatus = ChannelCatalogRepository.statusMessage
             }
             updateStatus()
         }
@@ -105,19 +105,21 @@ class ChannelsViewModel : ViewModel() {
         }
 
     init {
-        refresh()
+        load(force = false)
     }
 
-    fun refresh() {
+    fun refresh() = load(force = true)
+
+    private fun load(force: Boolean) {
         if (isLoading) return
         isLoading = true
         viewModelScope.launch {
             try {
-                channels = TdtChannelsRepository.refresh()
-                errorMessage = ""
+                channels = ChannelCatalogRepository.refresh(force = force)
+                errorMessage = ChannelCatalogRepository.statusMessage.takeIf { it.startsWith("Carga parcial") }.orEmpty()
             } catch (_: Exception) {
-                channels = TdtChannelsRepository.cachedChannels()
-                errorMessage = "No fue posible actualizar TDTChannels. Comprueba tu conexión."
+                channels = ChannelCatalogRepository.cachedChannels()
+                errorMessage = ChannelCatalogRepository.statusMessage
             } finally {
                 isLoading = false
             }
@@ -234,7 +236,7 @@ class SearchViewModel : ViewModel() {
     private var remoteResults by mutableStateOf<List<MediaItem>?>(null)
     var featuredMedia by mutableStateOf(TmdbRepository.cachedCatalog())
         private set
-    var channels by mutableStateOf<List<LiveChannel>>(TdtChannelsRepository.cachedChannels())
+    var channels by mutableStateOf<List<LiveChannel>>(ChannelCatalogRepository.cachedChannels())
         private set
 
     var query: String
@@ -279,9 +281,9 @@ class SearchViewModel : ViewModel() {
     init {
         viewModelScope.launch {
             try {
-                channels = TdtChannelsRepository.refresh()
+                channels = ChannelCatalogRepository.refresh()
             } catch (_: Exception) {
-                channels = TdtChannelsRepository.cachedChannels()
+                channels = ChannelCatalogRepository.cachedChannels()
             }
         }
         if (TmdbRepository.isConfigured) {
