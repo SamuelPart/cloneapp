@@ -250,7 +250,7 @@ fun MediaPosterCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("★", color = Color(0xFFFFC56E), style = MaterialTheme.typography.labelMedium)
             Text(
-                text = " ${item.rating}  ·  ${item.year}",
+                text = " ${item.rating}  ·  ${item.year.takeIf { it > 0 } ?: "—"}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1
@@ -261,31 +261,38 @@ fun MediaPosterCard(
 
 @Composable
 fun PosterArtwork(item: MediaItem, modifier: Modifier = Modifier, showTitle: Boolean = true) {
-    val colorA = Color(item.colorA)
-    val colorB = Color(item.colorB)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(15.dp))
-            .background(Brush.linearGradient(listOf(colorA, colorB, Color(0xFF101725))))
+            .background(Brush.linearGradient(listOf(Color(item.colorA), Color(item.colorB), Color(0xFF101725))))
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val glow = Color.White.copy(alpha = 0.11f)
-            drawCircle(glow, radius = size.maxDimension * 0.34f, center = Offset(size.width * 0.78f, size.height * 0.23f))
-            drawCircle(Color(item.colorA).copy(alpha = 0.28f), radius = size.maxDimension * 0.42f, center = Offset(size.width * 0.2f, size.height * 0.75f))
-            for (index in 0..6) {
-                val y = size.height * (0.42f + index * 0.085f)
-                drawLine(
-                    color = Color.White.copy(alpha = 0.07f),
-                    start = Offset(size.width * 0.02f, y),
-                    end = Offset(size.width * 0.98f, y - size.height * 0.12f),
-                    strokeWidth = 1.dp.toPx()
+        if (item.posterUrl.isNullOrBlank()) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val glow = Color.White.copy(alpha = 0.11f)
+                drawCircle(glow, radius = size.maxDimension * 0.34f, center = Offset(size.width * 0.78f, size.height * 0.23f))
+                drawCircle(Color(item.colorA).copy(alpha = 0.28f), radius = size.maxDimension * 0.42f, center = Offset(size.width * 0.2f, size.height * 0.75f))
+                for (index in 0..6) {
+                    val y = size.height * (0.42f + index * 0.085f)
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.07f),
+                        start = Offset(size.width * 0.02f, y),
+                        end = Offset(size.width * 0.98f, y - size.height * 0.12f),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.18f),
+                    radius = size.minDimension * 0.13f,
+                    center = Offset(size.width * 0.76f, size.height * 0.25f),
+                    style = Stroke(width = 1.4.dp.toPx())
                 )
             }
-            drawCircle(
-                color = Color.White.copy(alpha = 0.18f),
-                radius = size.minDimension * 0.13f,
-                center = Offset(size.width * 0.76f, size.height * 0.25f),
-                style = Stroke(width = 1.4.dp.toPx())
+        } else {
+            coil.compose.AsyncImage(
+                model = item.posterUrl,
+                contentDescription = "Póster de ${item.title}",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
         }
         if (showTitle) {
@@ -305,7 +312,7 @@ fun PosterArtwork(item: MediaItem, modifier: Modifier = Modifier, showTitle: Boo
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${item.year}  ·  ${item.genres.firstOrNull().orEmpty()}",
+                    text = "${item.year.takeIf { it > 0 } ?: "—"}  ·  ${item.genres.firstOrNull().orEmpty()}",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White.copy(alpha = 0.78f),
                     maxLines = 1

@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
 fun ChannelDetailScreen(
@@ -179,23 +181,85 @@ fun MediaDetailScreen(
     isFavorite: (String) -> Boolean,
     onToggleFavorite: (String) -> Unit
 ) {
-    val item = DemoCatalog.media.find { it.id == mediaId }
-    if (item == null) {
+    val initialItem = remember(mediaId) {
+        TmdbRepository.cachedMedia(mediaId) ?: DemoCatalog.media.find { it.id == mediaId }
+    }
+    val isTmdbItem = mediaId.startsWith("tmdb_") && TmdbRepository.isConfigured
+    var detailLoading by remember(mediaId) { mutableStateOf(initialItem == null && isTmdbItem) }
+    val loadedItem by produceState<MediaItem?>(initialValue = initialItem, key1 = mediaId) {
+        if (isTmdbItem) {
+            try {
+                value = TmdbRepository.details(mediaId) ?: value
+            } catch (_: Exception) {
+                // Preserve the cached list item if the details request is temporarily unavailable.
+            } finally {
+                detailLoading = false
+            }
+        }
+    }
+    if (loadedItem == null) {
         Column(Modifier.fillMaxSize().padding(24.dp)) {
             DetailBackButton(onBack)
-            EmptyState(Icons.Filled.Movie, "Título no disponible", "No encontramos este elemento en la muestra.")
+            EmptyState(
+                Icons.Filled.Movie,
+                if (detailLoading) "Cargando ficha" else "Título no disponible",
+                if (detailLoading) "Consultando la información del título…" else "No pudimos cargar este título. Revisa tu conexión con TMDb."
+            )
         }
         return
     }
+    val item = loadedItem ?: return
     val isTv = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
     val favorite = isFavorite(item.id)
     var favoriteFocused by remember { mutableStateOf(false) }
-    var selectedSeason by remember { mutableStateOf(1) }
+    var selectedSeason by remember(item.id) { mutableStateOf(1) }
+    val isRemoteSeries = item.kind == MediaKind.SERIES && item.tmdbId != null && item.tmdbMediaType == "tv"
+    val demoEpisodes = remember(item.id, selectedSeason) { sampleEpisodesForSeason(selectedSeason) }
+    var episodeNotice by remember(item.id, selectedSeason) {
+        mutableStateOf(if (isRemoteSeries) "Cargando episodios…" else "Episodios de demostración.")
+    }
+    val episodes by produceState<List<MediaEpisode>>(
+        initialValue = if (isRemoteSeries) emptyList() else demoEpisodes,
+        key1 = item.id,
+        key2 = selectedSeason
+    ) {
+        if (isRemoteSeries && TmdbRepository.isConfigured) {
+            try {
+                value = TmdbRepository.seasonEpisodes(item.tmdbId!!, selectedSeason)
+                episodeNotice = if (value.isEmpty()) "TMDb no devolvió episodios para esta temporada." else "Episodios y sinopsis obtenidos de TMDb."
+            } catch (_: Exception) {
+                value = emptyList()
+                episodeNotice = "No se pudieron cargar los episodios desde TMDb."
+            }
+        } else {
+            value = demoEpisodes
+            episodeNotice = "Episodios de demostración."
+        }
+    }
+    val seasons = (1..(item.seasonCount ?: 2).coerceIn(1, 20)).toList()
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             DetailBackButton(onBack)
             Text("${if (item.kind == MediaKind.SERIES) "Series" else "Películas"}  /  ${item.title}", modifier = Modifier.padding(start = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = if (isTv) 36.dp else 18.dp)
+                .height(if (isTv) 260.dp else 165.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Brush.linearGradient(listOf(Color(item.colorA), Color(item.colorB), Color(0xFF121827))))
+        ) {
+            if (!item.backdropUrl.isNullOrBlank()) {
+                coil.compose.AsyncImage(
+                    model = item.backdropUrl,
+                    contentDescription = "Fondo de ${item.title}",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.08f), Color(0xFF10131F).copy(alpha = 0.92f)))))
         }
 
         Row(
@@ -207,10 +271,10 @@ fun MediaDetailScreen(
                 PosterArtwork(item, Modifier.fillMaxSize())
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (isTv) 12.dp else 8.dp)) {
-                Text(if (item.kind == MediaKind.SERIES) "SERIE ORIGINAL" else "PELÍCULA DESTACADA", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+                    Text(if (item.kind == MediaKind.SERIES) "SERIE" else "PELÍCULA", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
                 Text(item.title, color = MaterialTheme.colorScheme.onBackground, style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("${item.year}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    Text(item.year.takeIf { it > 0 }?.toString() ?: "—", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(item.duration, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -237,8 +301,8 @@ fun MediaDetailScreen(
             if (item.kind == MediaKind.SERIES) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionTitle("Episodios")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        (1..2).forEach { season ->
+                    Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        seasons.forEach { season ->
                             androidx.compose.material3.FilterChip(
                                 selected = selectedSeason == season,
                                 onClick = { selectedSeason = season },
@@ -246,49 +310,56 @@ fun MediaDetailScreen(
                             )
                         }
                     }
-                    val episodes = if (selectedSeason == 1) {
-                        listOf(
-                            SeriesEpisode("01", "La señal", "42 min", "Un hallazgo inesperado pone en marcha una investigación."),
-                            SeriesEpisode("02", "Luces lejanas", "39 min", "El equipo sigue una pista hasta el otro lado de la ciudad."),
-                            SeriesEpisode("03", "Punto ciego", "44 min", "Una vieja amistad cambia el rumbo del caso.")
-                        )
+                    if (episodes.isEmpty()) {
+                        Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     } else {
-                        listOf(
-                            SeriesEpisode("01", "Regreso", "46 min", "La ciudad ha cambiado y las respuestas también."),
-                            SeriesEpisode("02", "Frecuencia", "41 min", "Una transmisión revela un nuevo patrón."),
-                            SeriesEpisode("03", "La última luz", "48 min", "Todo converge en una noche decisiva.")
-                        )
+                        episodes.forEach { episode ->
+                            EpisodeRow(episode, onClick = { onPlay(item.id) })
+                        }
+                        Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                     }
-                    episodes.forEach { episode ->
-                        EpisodeRow(episode, onClick = { onPlay(item.id) })
-                    }
-                    Text("Episodios y sinopsis de demostración.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                 }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionTitle("Detalles")
-                    DetailInfoRow("Audio", "Español · configuración de ejemplo")
-                    DetailInfoRow("Calidad", item.quality)
-                    DetailInfoRow("Géneros", item.genres.joinToString(", "))
-                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SectionTitle("Información")
+                DetailInfoRow("Año", item.year.takeIf { it > 0 }?.toString() ?: "—")
+                DetailInfoRow("Reparto", item.castNames.take(5).joinToString(", ").ifBlank { "No disponible" })
+                DetailInfoRow("Géneros", item.genres.joinToString(", ").ifBlank { "No disponible" })
             }
             Column {
                 SectionTitle("También te puede gustar")
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(DemoCatalog.media.filter { it.id != item.id }.take(5), key = MediaItem::id) { recommendation ->
+                    items((TmdbRepository.cachedCatalog() + DemoCatalog.media).distinctBy(MediaItem::id).filter { it.id != item.id }.take(5), key = MediaItem::id) { recommendation ->
                         MediaPosterCard(recommendation, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(recommendation.id) })
                     }
                 }
             }
-            Text("Ficha descriptiva de demostración · No hay contenido multimedia conectado.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text(
+                if (item.tmdbId != null) "Metadatos e imágenes proporcionados por TMDb. La reproducción no está conectada a un stream real."
+                else "Ficha de muestra · No hay contenido multimedia conectado.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
 
-private data class SeriesEpisode(val number: String, val title: String, val duration: String, val synopsis: String)
+private fun sampleEpisodesForSeason(season: Int): List<MediaEpisode> = if (season == 1) {
+    listOf(
+        MediaEpisode(1, "La señal", "42 min", "Un hallazgo inesperado pone en marcha una investigación."),
+        MediaEpisode(2, "Luces lejanas", "39 min", "El equipo sigue una pista hasta el otro lado de la ciudad."),
+        MediaEpisode(3, "Punto ciego", "44 min", "Una vieja amistad cambia el rumbo del caso.")
+    )
+} else {
+    listOf(
+        MediaEpisode(1, "Regreso", "46 min", "La ciudad ha cambiado y las respuestas también."),
+        MediaEpisode(2, "Frecuencia", "41 min", "Una transmisión revela un nuevo patrón."),
+        MediaEpisode(3, "La última luz", "48 min", "Todo converge en una noche decisiva.")
+    )
+}
 
 @Composable
-private fun EpisodeRow(episode: SeriesEpisode, onClick: () -> Unit) {
+private fun EpisodeRow(episode: MediaEpisode, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(16.dp)
     Row(
@@ -302,10 +373,18 @@ private fun EpisodeRow(episode: SeriesEpisode, onClick: () -> Unit) {
             ),
             contentAlignment = Alignment.Center
         ) {
+            if (!episode.stillUrl.isNullOrBlank()) {
+                coil.compose.AsyncImage(
+                    model = episode.stillUrl,
+                    contentDescription = "Imagen del episodio ${episode.number}",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             Icon(Icons.Filled.PlayArrow, contentDescription = "Reproducir episodio ${episode.number}", tint = Color.White, modifier = Modifier.size(27.dp))
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("EPISODIO ${episode.number}  ·  ${episode.duration}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            Text("EPISODIO ${episode.number.toString().padStart(2, '0')}  ·  ${episode.duration}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
             Text(episode.title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(episode.synopsis, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }

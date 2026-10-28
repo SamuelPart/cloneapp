@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
 fun DownloadsScreen(
@@ -263,7 +264,14 @@ fun SettingsScreen(
         Column(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface).padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text("Acerca de CLEAN IPTV", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text("Versión 1.0.0 · Interfaz de demostración", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-            Text("No hay proveedor IPTV, cuenta ni streams configurados.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text(
+                if (TmdbRepository.isConfigured) "Metadatos, fichas e imágenes: TMDb."
+                else "TMDb está desconectado: configura la clave local para cargar metadatos e imágenes.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall
+            )
+            Text("Este producto utiliza la API de TMDb, pero no está avalado ni certificado por TMDb.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text("Canales, EPG y reproducción no están conectados a una fuente IPTV real.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

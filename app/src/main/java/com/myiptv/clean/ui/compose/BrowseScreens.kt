@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
 fun HomeScreen(
@@ -62,7 +63,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val horizontalPadding = if (isTv) 36.dp else 18.dp
-    val featured = viewModel.featured.first()
+    val featured = viewModel.featured
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
@@ -139,7 +140,7 @@ fun HomeScreen(
         }
 
         Text(
-            "Catálogo y programación de demostración · Conecta una fuente IPTV para ver contenido real.",
+            viewModel.statusMessage,
             modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 4.dp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium
@@ -163,6 +164,14 @@ private fun FeaturedHero(
             .clip(shape)
             .background(Brush.linearGradient(listOf(Color(item.colorA), Color(item.colorB), Color(0xFF141327))))
     ) {
+        if (!item.backdropUrl.isNullOrBlank()) {
+            coil.compose.AsyncImage(
+                model = item.backdropUrl,
+                contentDescription = "Fondo de ${item.title}",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(Color.White.copy(alpha = 0.1f), size.maxDimension * 0.47f, androidx.compose.ui.geometry.Offset(size.width * 0.82f, size.height * 0.2f))
             drawCircle(Color(item.colorA).copy(alpha = 0.6f), size.maxDimension * 0.34f, androidx.compose.ui.geometry.Offset(size.width * 0.96f, size.height * 0.78f))
@@ -193,7 +202,7 @@ private fun FeaturedHero(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color(0xFFFFD38B), modifier = Modifier.size(17.dp))
-                    Text("DESTACADO DE LA SEMANA", color = Color(0xFFFFD38B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                    Text(if (item.tmdbId != null) "DESTACADO EN TMDb" else "DESTACADO DE LA SEMANA", color = Color(0xFFFFD38B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                 }
                 Text(
                     item.title,
@@ -204,7 +213,7 @@ private fun FeaturedHero(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "${item.year}   ·   ${item.genres.take(2).joinToString(" / ")}   ·   ★ ${item.rating}   ·   ${item.quality}",
+                    "${item.year.takeIf { it > 0 } ?: "—"}   ·   ${item.genres.take(2).joinToString(" / ")}   ·   ★ ${item.rating}   ·   ${item.quality}",
                     color = Color.White.copy(alpha = 0.82f),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
@@ -304,8 +313,8 @@ fun BrowseMediaScreen(
     viewModel: MoviesViewModel = viewModel()
 ) {
     val screenTitle = if (kind == MediaKind.MOVIE) "Películas" else "Series"
-    val items = viewModel.filteredMovies.filter { it.kind == kind }
-    val genres = if (kind == MediaKind.MOVIE) DemoCatalog.movieGenres else listOf("Todos", "Aventura", "Drama", "Misterio", "Suspenso", "Familia")
+    val items = viewModel.itemsFor(kind)
+    val genres = viewModel.genresFor(kind)
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading(
             eyebrow = if (kind == MediaKind.MOVIE) "Historias para cada momento" else "Nuevos episodios",
@@ -325,7 +334,7 @@ fun BrowseMediaScreen(
             onSelect = { viewModel.selectedTab = it },
             modifier = Modifier.padding(bottom = 7.dp)
         )
-        Text("${items.size} títulos · Catálogo de demostración", modifier = Modifier.padding(vertical = 5.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+        Text("${items.size} títulos · ${viewModel.statusMessage}", modifier = Modifier.padding(vertical = 5.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (items.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 EmptyState(Icons.Filled.Movie, "Sin resultados", "Cambia el filtro o busca otro título.")
@@ -361,7 +370,7 @@ fun FavoritesScreen(
     onOpenChannel: (String) -> Unit,
     onExplore: () -> Unit
 ) {
-    val media = DemoCatalog.media.filter { it.id in savedIds }
+    val media = (DemoCatalog.media + TmdbRepository.cachedCatalog()).distinctBy(MediaItem::id).filter { it.id in savedIds }
     val channels = DemoCatalog.channels.filter { it.id in savedIds }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Tu colección", "Mi lista", "Todo lo que guardaste, en un solo lugar.")
@@ -416,6 +425,7 @@ fun SearchScreen(
     viewModel: SearchViewModel = viewModel()
 ) {
     val recent = DemoCatalog.recentSearches
+    val trendingMedia = TmdbRepository.cachedCatalog().ifEmpty { DemoCatalog.media }.sortedByDescending(MediaItem::rating).take(5)
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Encuentra tu próximo favorito", "Buscar", "Películas, series y canales en un solo lugar.")
         SearchBox(
@@ -441,7 +451,7 @@ fun SearchScreen(
                 Column {
                     SectionTitle("Tendencias")
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(DemoCatalog.media.sortedByDescending(MediaItem::rating).take(5), key = MediaItem::id) { item ->
+                        items(trendingMedia, key = MediaItem::id) { item ->
                             MediaPosterCard(item, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(item.id) })
                         }
                     }
@@ -454,7 +464,7 @@ fun SearchScreen(
                         }
                     }
                 }
-                Text("Los resultados mostrados son datos de ejemplo.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                Text(viewModel.statusMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
         } else {
             val mediaResults = viewModel.mediaResults
@@ -465,7 +475,7 @@ fun SearchScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 18.dp, bottom = 22.dp)
             ) {
                 item {
-                    Text("Resultados de demostración", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                    Text(viewModel.statusMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
                 }
                 if (channelResults.isNotEmpty()) {
                     item {

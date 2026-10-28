@@ -23,7 +23,22 @@ data class MediaItem(
     val quality: String,
     val colorA: Long,
     val colorB: Long,
-    val streamUrl: String? = null
+    val streamUrl: String? = null,
+    val posterUrl: String? = null,
+    val backdropUrl: String? = null,
+    val tmdbId: Long? = null,
+    val tmdbMediaType: String? = null,
+    val castNames: List<String> = emptyList(),
+    val seasonCount: Int? = null,
+    val episodeCount: Int? = null
+)
+
+data class MediaEpisode(
+    val number: Int,
+    val title: String,
+    val duration: String,
+    val synopsis: String,
+    val stillUrl: String? = null
 )
 
 data class ProgramItem(
