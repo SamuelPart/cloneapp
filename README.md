@@ -30,10 +30,20 @@ cd cloneapp
 
 ## Requisitos
 
-- Android Studio compatible con Android Gradle Plugin 8.2.2.
-- JDK 17.
+- Android Studio compatible con Android Gradle Plugin 8.5.2.
+- JDK 17 o 21 para ejecutar Gradle; no usar JDK 25 con Gradle 8.7. El bytecode de la app sigue configurado para Java 17.
 - Android SDK 34 instalado desde SDK Manager.
 - Conexión a Internet la primera vez para descargar Gradle y dependencias.
+
+En Kali Linux, si tienes instalado OpenJDK 21, puedes probarlo en la terminal así:
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$PATH"
+java -version
+```
+
+Selecciona esa misma carpeta como **Gradle JDK** en Android Studio. Gradle 8.7 no es compatible con Java 25.
 
 ## Estructura
 
