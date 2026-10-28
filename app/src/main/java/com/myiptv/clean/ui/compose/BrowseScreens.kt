@@ -105,10 +105,10 @@ fun HomeScreen(
         Column(modifier = Modifier.padding(start = horizontalPadding)) {
             SectionTitle("Ahora en vivo", "Ver todos", onOpenChannels, modifier = Modifier.padding(end = horizontalPadding))
             if (viewModel.liveChannels.isEmpty()) {
-                Text("Los canales de TDTChannels e IPTV-org todavía no están disponibles.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
+                Text("Los canales de televisión todavía no están disponibles.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
-                    items(viewModel.liveChannels.take(8), key = LiveChannel::id) { channel ->
+                    items(viewModel.liveChannels, key = LiveChannel::id) { channel ->
                         CompactChannelCard(channel = channel, modifier = Modifier.width(if (isTv) 330.dp else 286.dp)) {
                             onOpenChannel(channel.id)
                         }
@@ -262,11 +262,12 @@ fun ChannelsScreen(
     onOpenChannel: (String) -> Unit,
     viewModel: ChannelsViewModel = viewModel()
 ) {
+    val filteredChannels = viewModel.filteredChannels
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading(
             eyebrow = "Señal en directo",
             title = "Canales",
-            description = "Canales de TDTChannels e IPTV-org para Perú."
+            description = "Emisiones en directo de distintos países."
         )
         SearchBox(
             value = viewModel.query,
@@ -281,13 +282,13 @@ fun ChannelsScreen(
             modifier = Modifier.padding(bottom = 10.dp)
         )
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("${viewModel.filteredChannels.size} canales", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+            Text("${filteredChannels.size} canales", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
             Text(viewModel.errorMessage.ifBlank { ChannelCatalogRepository.statusMessage }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
-        if (viewModel.filteredChannels.isEmpty()) {
+        if (filteredChannels.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 when {
-                    viewModel.isLoading -> EmptyState(Icons.Filled.LiveTv, "Cargando canales", "Consultando TDTChannels e IPTV-org.")
+                    viewModel.isLoading -> EmptyState(Icons.Filled.LiveTv, "Cargando canales", "Consultando emisiones en directo.")
                     viewModel.errorMessage.isNotBlank() -> EmptyState(Icons.Filled.LiveTv, "No se pudo cargar la lista", viewModel.errorMessage, "Reintentar", viewModel::refresh)
                     else -> EmptyState(Icons.Filled.Search, "No hay canales", "No se encontraron canales para este filtro.")
                 }
@@ -300,7 +301,7 @@ fun ChannelsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(viewModel.filteredChannels, key = LiveChannel::id) { channel ->
+                items(filteredChannels, key = LiveChannel::id) { channel ->
                     ChannelCard(channel = channel, modifier = Modifier.fillMaxWidth()) { onOpenChannel(channel.id) }
                 }
             }
@@ -457,7 +458,7 @@ fun SearchScreen(
                     Column {
                         SectionTitle("Canales de TV")
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(viewModel.channels.take(12), key = LiveChannel::id) { channel ->
+                            items(viewModel.channels, key = LiveChannel::id) { channel ->
                                 CompactChannelCard(channel, modifier = Modifier.width(if (isTv) 320.dp else 280.dp)) { onOpenChannel(channel.id) }
                             }
                         }
@@ -479,13 +480,9 @@ fun SearchScreen(
                     Text(viewModel.statusMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
                 }
                 if (channelResults.isNotEmpty()) {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            SectionTitle("Canales")
-                            channelResults.forEach { channel ->
-                                ChannelCard(channel, modifier = Modifier.fillMaxWidth()) { onOpenChannel(channel.id) }
-                            }
-                        }
+                    item { SectionTitle("Canales") }
+                    items(channelResults, key = LiveChannel::id) { channel ->
+                        ChannelCard(channel, modifier = Modifier.fillMaxWidth()) { onOpenChannel(channel.id) }
                     }
                 }
                 if (mediaResults.isNotEmpty()) {

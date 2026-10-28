@@ -356,7 +356,7 @@ fun ChannelCard(
             Spacer(Modifier.height(4.dp))
             Text(channel.category, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(7.dp))
-            Text("Señal directa · ${channel.sourceName}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall)
+            Text("Emisión en directo", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall)
         }
         Icon(Icons.Filled.PlayArrow, contentDescription = "Ver ${channel.name}", tint = MaterialTheme.colorScheme.primary)
     }
@@ -384,7 +384,7 @@ fun CompactChannelCard(channel: LiveChannel, modifier: Modifier = Modifier, onCl
             }
             LiveBadge()
         }
-        Text("Señal directa · ${channel.sourceName}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text("Emisión en directo", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(channel.category, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

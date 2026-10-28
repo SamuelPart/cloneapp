@@ -14,7 +14,7 @@ object ChannelCatalogRepository {
     @Volatile
     private var lastRefreshAt: Long = 0L
     @Volatile
-    var statusMessage: String = "Fuentes de canales: TDTChannels e IPTV-org (Perú)."
+    var statusMessage: String = "Preparando canales en directo."
         private set
 
     suspend fun refresh(force: Boolean = false): List<LiveChannel> {
@@ -25,13 +25,13 @@ object ChannelCatalogRepository {
                 return channelCache
             }
 
-            val errors = mutableListOf<String>()
+            var hadUpdateFailure = false
             val tdtChannels = try {
                 TdtChannelsRepository.refresh()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                errors += "TDTChannels"
+                hadUpdateFailure = true
                 TdtChannelsRepository.cachedChannels()
             }
             val iptvOrgChannels = try {
@@ -39,25 +39,23 @@ object ChannelCatalogRepository {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                errors += "IPTV-org"
+                hadUpdateFailure = true
                 IptvOrgRepository.cachedChannels()
             }
-            if (IptvOrgRepository.lastErrorMessage.isNotBlank() && "IPTV-org" !in errors) {
-                errors += "IPTV-org"
-            }
+            if (IptvOrgRepository.lastErrorMessage.isNotBlank()) hadUpdateFailure = true
 
             val combined = (tdtChannels + iptvOrgChannels).distinctBy(LiveChannel::id)
             if (combined.isEmpty()) {
-                statusMessage = "No se pudo cargar ningún canal desde TDTChannels ni IPTV-org."
+                statusMessage = "No se pudieron cargar canales. Comprueba la conexión e inténtalo de nuevo."
                 throw IOException(statusMessage)
             }
 
             channelCache = combined
             lastRefreshAt = now
-            statusMessage = if (errors.isEmpty()) {
-                "Fuentes activas: TDTChannels e IPTV-org (Perú)."
+            statusMessage = if (hadUpdateFailure) {
+                "No se pudieron actualizar todos los canales; se muestran los disponibles."
             } else {
-                "Carga parcial; no se pudo actualizar: ${errors.distinct().joinToString(" y ")}."
+                "Canales en directo actualizados."
             }
             return combined
         } finally {

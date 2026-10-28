@@ -112,7 +112,6 @@ fun ChannelDetailScreen(
                 }
                 Text(channel.name, color = Color.White, style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("Emisión de televisión en directo", color = Color.White.copy(alpha = 0.86f), style = MaterialTheme.typography.titleMedium)
-                Text("Fuente: ${channel.sourceName}", color = Color.White.copy(alpha = 0.66f), style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 5.dp)) {
                     PrimaryButton("Ver canal", Icons.Filled.PlayArrow, onClick = { onPlay(channel.id) })
                     Surface(
@@ -141,7 +140,6 @@ fun ChannelDetailScreen(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SectionTitle("Información de la señal")
                 DetailInfoRow("Categoría", channel.category)
-                DetailInfoRow("Origen", channel.sourceName)
                 channel.epgId?.let { DetailInfoRow("ID EPG", it) }
             }
             Text(
@@ -294,8 +292,8 @@ fun MediaDetailScreen(
         Column(modifier = Modifier.padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             if (playbackUrl.isNullOrBlank()) {
                 Text(
-                    if (item.kind == MediaKind.SERIES) "TMDb aporta información e imágenes. Añade una fuente autorizada para la serie o un enlace independiente junto a cada episodio."
-                    else "TMDb aporta información e imágenes; añade un enlace de vídeo directo autorizado o un embed iframe para reproducir este título.",
+                    if (item.kind == MediaKind.SERIES) "Añade una fuente de reproducción para la serie o un enlace independiente junto a cada episodio."
+                    else "Añade un enlace de vídeo directo o un embed iframe para reproducir este título.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -348,7 +346,6 @@ fun MediaDetailScreen(
                     }
                 }
             }
-            Text("Metadatos e imágenes: TMDb. Los derechos de cada enlace de reproducción corresponden a su fuente.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
     }
 

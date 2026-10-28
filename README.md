@@ -1,11 +1,11 @@
 # Clean IPTV
 
-Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. El catálogo de películas y series usa metadatos de TMDb; los canales se combinan desde TDTChannels y IPTV-org (emisiones de Perú). TMDb no proporciona vídeo: cada película o serie necesita que el usuario configure una fuente de reproducción directa o un embed iframe autorizado.
+Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. El catálogo de películas y series usa metadatos de TMDb; los canales combinan la lista pública de TDTChannels con emisiones directas de IPTV-org de distintos países. TMDb no proporciona vídeo: cada película o serie necesita que el usuario configure una fuente de reproducción directa o un embed iframe autorizado.
 
 ## Fuentes y comportamiento
 
 - **Películas y series:** TMDb aporta títulos, géneros, búsqueda, fichas, reparto, temporadas, episodios, pósteres e imágenes. Sin una API Key válida, la app muestra estados vacíos/configuración; no sustituye resultados por contenido de muestra.
-- **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta metadatos y enlaces directos desde `https://iptv-org.github.io/api/channels.json` y `streams.json`; se limita a Perú y se omiten canales NSFW y streams marcados `Geo-blocked`. Se usan únicamente URLs HTTP/HTTPS directas del catálogo; no se extraen enlaces de páginas embed ni se eluden bloqueos. La programación EPG no está integrada.
+- **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta canales y streams directos desde `https://iptv-org.github.io/api/channels.json` y `streams.json`, sin limitar por país ni por etiquetas del catálogo. Se muestran entradas con nombre y URL HTTP/HTTPS directa; no se extraen enlaces de páginas embed ni se eluden bloqueos. Algunas señales pueden estar caídas o restringidas por su proveedor. La programación EPG no está integrada.
 - **Reproducción de vídeo:** admite enlaces directos compatibles con ExoPlayer (incluidos HLS/DASH) y páginas/URLs de embed iframe mediante WebView. Las fuentes de películas y series se guardan en el almacenamiento privado del dispositivo; no hay catálogo de enlaces de vídeo incluido.
 - **Descargas e historial:** todavía no están implementados y muestran estados vacíos, no datos ficticios.
 - **Favoritos:** se mantienen en memoria durante la sesión actual.

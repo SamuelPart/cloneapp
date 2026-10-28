@@ -85,8 +85,8 @@ fun PlayerScreen(
                 Icon(if (isChannelReference) Icons.Filled.LiveTv else Icons.Filled.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(38.dp))
                 Text("Fuente de reproducción no disponible", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Text(
-                    if (isChannelReference) "No se encontró una señal activa de TDTChannels o IPTV-org para este canal."
-                    else "TMDb solo aporta metadatos. Añade un enlace directo autorizado o un embed iframe en la ficha del título.",
+                    if (isChannelReference) "No se encontró una señal activa para este canal."
+                    else "Añade un enlace directo o un embed iframe en la ficha del título para reproducirlo.",
                     color = Color.White.copy(alpha = 0.74f), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center
                 )
                 PlayerBackButton(onBack)
@@ -174,7 +174,7 @@ fun PlayerScreen(
                 PlayerBackButton(onBack)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(if (channel != null) channel.sourceName else if (sourceType == MediaPlaybackType.IFRAME) "Embed" else "Enlace directo", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+                    Text(if (channel != null) "Canal en directo" else if (sourceType == MediaPlaybackType.IFRAME) "Embed" else "Enlace directo", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

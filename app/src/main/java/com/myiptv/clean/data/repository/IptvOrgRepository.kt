@@ -6,16 +6,18 @@ import com.myiptv.clean.data.model.IptvOrgChannel
 import com.myiptv.clean.data.model.IptvOrgStream
 import com.myiptv.clean.ui.compose.LiveChannel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
+import java.util.UUID
 
 object IptvOrgRepository {
     private const val BASE_URL = "https://iptv-org.github.io/"
-    private const val COUNTRY_CODE = "PE"
     private const val CACHE_DURATION_MS = 30 * 60 * 1000L
     private val colors = listOf(0xFF4E86B9L, 0xFF8B62C2L, 0xFF3B9B83L, 0xFFCC7651L, 0xFFBD5272L)
     private val refreshMutex = Mutex()
@@ -48,18 +50,22 @@ object IptvOrgRepository {
                 val parsed = coroutineScope {
                     val channelsRequest = async { api.channels() }
                     val streamsRequest = async { api.streams() }
-                    val channelsById = channelsRequest.await()
-                        .asSequence()
-                        .filter { channel ->
-                            channel.country?.equals(COUNTRY_CODE, ignoreCase = true) == true &&
-                                channel.isNsfw == false && channel.closed.isNullOrBlank() && !channel.name.isNullOrBlank()
-                        }
-                        .mapNotNull { channel -> channel.id?.let { it to channel } }
-                        .toMap()
-                    streamsRequest.await().mapNotNull { stream -> stream.toLiveChannel(channelsById) }
-                }.distinctBy(LiveChannel::id)
+                    val channels = channelsRequest.await()
+                    val streams = streamsRequest.await()
+                    withContext(Dispatchers.Default) {
+                        val channelsById = channels.asSequence()
+                            .mapNotNull { channel ->
+                                channel.id?.takeIf(String::isNotBlank)?.let { it to channel }
+                            }
+                            .toMap()
+                        streams.asSequence()
+                            .mapNotNull { stream -> stream.toLiveChannel(channelsById) }
+                            .distinctBy(LiveChannel::id)
+                            .toList()
+                    }
+                }
 
-                if (parsed.isEmpty()) throw IOException("IPTV-org no devolvió emisiones públicas elegibles para Perú.")
+                if (parsed.isEmpty()) throw IOException("No se encontraron streams HTTP/HTTPS reproducibles en el catálogo.")
                 channelCache = parsed
                 lastRefreshAt = now
                 lastErrorMessage = ""
@@ -67,7 +73,7 @@ object IptvOrgRepository {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                lastErrorMessage = "No se pudo actualizar IPTV-org: ${error.message.orEmpty()}".trim()
+                lastErrorMessage = "No se pudo actualizar el catálogo de canales: ${error.message.orEmpty()}".trim()
                 if (channelCache.isNotEmpty()) channelCache else throw error
             }
         } finally {
@@ -78,22 +84,21 @@ object IptvOrgRepository {
     fun cachedChannels(): List<LiveChannel> = channelCache
 
     private fun IptvOrgStream.toLiveChannel(channelsById: Map<String, IptvOrgChannel>): LiveChannel? {
-        val channelId = channel?.takeIf(String::isNotBlank) ?: return null
-        val metadata = channelsById[channelId] ?: return null
-        if (labels.orEmpty().any { it.equals("Geo-blocked", ignoreCase = true) }) return null
-
+        val channelId = channel?.takeIf(String::isNotBlank)
+        val metadata = channelId?.let { channelsById[it] }
         val cleanUrl = url?.trim()?.takeIf(String::isNotBlank) ?: return null
         val uri = runCatching { Uri.parse(cleanUrl) }.getOrNull() ?: return null
         if (uri.scheme?.lowercase() !in setOf("http", "https") || uri.host.isNullOrBlank()) return null
 
-        val displayName = title?.takeIf(String::isNotBlank) ?: metadata.name?.takeIf(String::isNotBlank) ?: return null
-        val identity = "$channelId|${feed.orEmpty()}|$cleanUrl"
-        val id = "iptv_${Integer.toHexString(identity.hashCode())}"
+        val displayName = title?.takeIf(String::isNotBlank) ?: metadata?.name?.takeIf(String::isNotBlank) ?: return null
+        val identity = "${channelId.orEmpty()}|${feed.orEmpty()}|$cleanUrl"
+        val stableId = UUID.nameUUIDFromBytes(identity.toByteArray(Charsets.UTF_8)).toString().replace("-", "")
+        val id = "iptv_$stableId"
         val letters = displayName.split(Regex("\\s+")).take(2)
             .mapNotNull { it.firstOrNull()?.uppercaseChar()?.toString() }
             .joinToString("").ifBlank { "TV" }
-        val category = metadata.categories.orEmpty().firstOrNull()?.takeIf(String::isNotBlank)
-            ?.replaceFirstChar(Char::uppercase) ?: "IPTV-org"
+        val category = metadata?.categories.orEmpty().firstOrNull()?.takeIf(String::isNotBlank)
+            ?.replaceFirstChar(Char::uppercase) ?: "General"
         val accent = colors[displayName.hashCode().ushr(1) % colors.size]
 
         return LiveChannel(
@@ -104,7 +109,6 @@ object IptvOrgRepository {
             streamUrl = cleanUrl,
             accent = accent,
             epgId = channelId,
-            sourceName = "IPTV-org",
             userAgent = userAgent.safeHeaderValue(),
             referrer = referrer.safeHttpUrl()
         )

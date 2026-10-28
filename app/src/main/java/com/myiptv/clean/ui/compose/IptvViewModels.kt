@@ -28,7 +28,7 @@ class HomeViewModel : ViewModel() {
         private set
 
     private var mediaStatus = if (TmdbRepository.isConfigured) "Consultando catálogo TMDb…" else "TMDb requiere una clave API local."
-    private var channelStatus = "Consultando TDTChannels e IPTV-org…"
+    private var channelStatus = "Consultando canales de televisión…"
 
     init {
         loadChannels()
@@ -116,7 +116,7 @@ class ChannelsViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 channels = ChannelCatalogRepository.refresh(force = force)
-                errorMessage = ChannelCatalogRepository.statusMessage.takeIf { it.startsWith("Carga parcial") }.orEmpty()
+                errorMessage = ChannelCatalogRepository.statusMessage.takeIf { it.startsWith("No se pudieron actualizar") }.orEmpty()
             } catch (_: Exception) {
                 channels = ChannelCatalogRepository.cachedChannels()
                 errorMessage = ChannelCatalogRepository.statusMessage

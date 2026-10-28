@@ -88,14 +88,8 @@ fun SettingsScreen(isTv: Boolean) {
             androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
             SettingsSourceRow(
                 icon = Icons.Filled.LiveTv,
-                title = "Canales TDTChannels",
-                subtitle = "Lista pública: tdtchannels.com/lists/tv.m3u8"
-            )
-            androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
-            SettingsSourceRow(
-                icon = Icons.Filled.LiveTv,
-                title = "Canales IPTV-org",
-                subtitle = "API pública; la app limita el catálogo a Perú y omite emisiones marcadas Geo-blocked o NSFW."
+                title = "Canales de televisión",
+                subtitle = "Catálogo de emisiones en directo de distintos países."
             )
             androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
             SettingsSourceRow(
@@ -112,7 +106,7 @@ fun SettingsScreen(isTv: Boolean) {
             Text("Privacidad y atribución", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Text("La clave TMDb se lee desde local.properties o la variable de entorno TMDB_API_KEY; no está incluida en Git.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             Text("Este producto utiliza la API de TMDb, pero no está avalado ni certificado por TMDb.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-            Text("Los enlaces de canales provienen de TDTChannels e IPTV-org y pueden variar. Se omiten las filas marcadas Geo-blocked; no se eluden DRM, geobloqueos ni autenticación.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            Text("La disponibilidad de las emisiones de televisión puede variar según el país y las condiciones de cada señal.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {

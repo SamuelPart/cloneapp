@@ -116,7 +116,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                "Canales de TDTChannels e IPTV-org, metadatos de TMDb y enlaces que configuras en tu dispositivo.",
+                "Canales de TV en directo de distintos países, metadatos de películas y series y enlaces que configuras en tu dispositivo.",
                 modifier = Modifier.fillMaxWidth(if (isTv) 0.58f else 0.94f),
                 color = Color.White.copy(alpha = 0.73f),
                 style = MaterialTheme.typography.bodyLarge,
@@ -124,7 +124,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
             )
             Spacer(Modifier.height(22.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
-                WelcomeFeature("TDT + IPTV-org")
+                WelcomeFeature("TV en directo")
                 WelcomeFeature("TMDb")
                 WelcomeFeature("Directo / iframe")
             }

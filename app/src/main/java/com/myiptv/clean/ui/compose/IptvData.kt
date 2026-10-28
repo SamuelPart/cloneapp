@@ -48,7 +48,6 @@ data class LiveChannel(
     val accent: Long,
     val logoUrl: String? = null,
     val epgId: String? = null,
-    val sourceName: String = "TDTChannels",
     val userAgent: String? = null,
     val referrer: String? = null
 )
