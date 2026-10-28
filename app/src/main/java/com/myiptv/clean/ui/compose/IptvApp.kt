@@ -358,6 +358,7 @@ private fun AppTopBar(
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(if (isTv) 72.dp else 64.dp)) {
         val compactTv = isTv && maxWidth < 550.dp
+        val showClock = isTv && maxWidth >= 330.dp
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 24.dp else 18.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -371,7 +372,7 @@ private fun AppTopBar(
                     FocusableHeaderAction(Icons.Filled.Settings, "Ajustes", onSettings)
                 }
                 FocusableDemoAction(onDesignPreview)
-                if (isTv && maxWidth >= 330.dp) {
+                if (showClock) {
                     Spacer(Modifier.width(6.dp))
                     Box(Modifier.width(1.dp).height(22.dp).background(Color.White.copy(alpha = 0.3f)))
                     Text(
