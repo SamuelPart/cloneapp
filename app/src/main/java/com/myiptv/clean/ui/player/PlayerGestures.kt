@@ -2,6 +2,14 @@ package com.myiptv.clean.ui.player
 
 import java.util.Locale
 
+/** On mobile the first tap on hidden controls only reveals them; TV keeps its center action. */
+internal fun shouldToggleOnSurfaceTap(isTv: Boolean, controlsVisible: Boolean, isCenter: Boolean): Boolean =
+    isCenter && (isTv || controlsVisible)
+
+/** Mobile controls hide even while paused or when a web provider cannot report playback state. */
+internal fun shouldAutoHideControls(isTv: Boolean, controlsVisible: Boolean, tvPlaybackAllowsHiding: Boolean, blocked: Boolean): Boolean =
+    controlsVisible && !blocked && (!isTv || tvPlaybackAllowsHiding)
+
 /** Touching the middle changes playback; taps at the edges only reveal controls. */
 internal fun isPlaybackCenter(x: Float, y: Float, width: Int, height: Int): Boolean =
     width > 0 && height > 0 && x >= width * 0.2f && x <= width * 0.8f &&

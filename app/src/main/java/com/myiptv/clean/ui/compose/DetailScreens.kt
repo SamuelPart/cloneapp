@@ -65,6 +65,7 @@ import com.myiptv.clean.data.repository.TmdbRepository
 import com.myiptv.clean.data.repository.episodeSourceId
 import com.myiptv.clean.data.repository.mergeMediaCatalog
 import com.myiptv.clean.data.repository.mergeMediaMetadata
+import com.myiptv.clean.data.repository.mergePlaylistTmdbMetadata
 import com.myiptv.clean.data.repository.mergeSeasonEpisodes
 import com.myiptv.clean.data.repository.resolvePlaybackSource
 import kotlinx.coroutines.CancellationException
@@ -105,32 +106,49 @@ fun MediaDetailScreen(
     isFavorite: (String) -> Boolean,
     onToggleFavorite: (String) -> Unit
 ) {
-    val cachedItem = remember(mediaId) { TmdbRepository.cachedMedia(mediaId) }
     val playlistItem = playlist.item(mediaId)
-    val initialItem = if (cachedItem != null && playlistItem != null) mergeMediaMetadata(playlistItem, cachedItem) else cachedItem ?: playlistItem
-    val isTmdbItem = mediaId.startsWith("tmdb_") && TmdbRepository.isConfigured
-    var detailLoading by remember(mediaId) { mutableStateOf(initialItem == null && isTmdbItem) }
+    val linkedTmdbId = playlistItem?.tmdbId?.let { "tmdb_${playlistItem.tmdbMediaType}_$it" }
+    val cachedItem = TmdbRepository.cachedMedia(mediaId) ?: linkedTmdbId?.let(TmdbRepository::cachedMedia)
+    val initialItem = if (cachedItem != null && playlistItem != null) {
+        if (cachedItem.id == playlistItem.id) mergeMediaMetadata(playlistItem, cachedItem)
+        else mergePlaylistTmdbMetadata(playlistItem, cachedItem)
+    } else cachedItem ?: playlistItem
+    val canConsultTmdb = TmdbRepository.isConfigured && (playlistItem != null || mediaId.startsWith("tmdb_"))
+    var detailLoading by remember(mediaId) { mutableStateOf(initialItem == null && canConsultTmdb) }
     var hasTmdbMetadata by remember(mediaId) { mutableStateOf(cachedItem != null) }
+    var metadataNotice by remember(mediaId) { mutableStateOf<String?>(null) }
     var remoteSeasonCount by remember(mediaId) { mutableStateOf(cachedItem?.seasonCount?.coerceAtLeast(0) ?: 0) }
-    val loadedItem by key(mediaId, playlist) {
+    val loadedItem by key(mediaId, playlistItem) {
         produceState<MediaItem?>(initialValue = initialItem) {
-            // The playlist can appear after the screen is created while the asset is being loaded.
-            val cached = TmdbRepository.cachedMedia(mediaId)
-            val local = playlist.item(mediaId)
-            value = if (cached != null && local != null) mergeMediaMetadata(local, cached) else cached ?: local
-            if (isTmdbItem) {
+            // The playlist can arrive or be enriched after this screen has opened.
+            val cached = TmdbRepository.cachedMedia(mediaId) ?: linkedTmdbId?.let(TmdbRepository::cachedMedia)
+            val local = playlistItem
+            value = if (cached != null && local != null) {
+                if (cached.id == local.id) mergeMediaMetadata(local, cached) else mergePlaylistTmdbMetadata(local, cached)
+            } else cached ?: local
+            if (cached != null) {
+                hasTmdbMetadata = true
+                remoteSeasonCount = value?.seasonCount?.coerceAtLeast(0) ?: 0
+            }
+            metadataNotice = null
+            if (canConsultTmdb) {
+                detailLoading = true
                 try {
-                    val detail = TmdbRepository.details(mediaId)
+                    val detail = if (local != null) TmdbRepository.playlistMetadata(local) else TmdbRepository.details(mediaId)
                     if (detail != null) {
-                        value = local?.let { mergeMediaMetadata(it, detail) } ?: detail
+                        value = detail
                         hasTmdbMetadata = true
                         remoteSeasonCount = detail.seasonCount?.coerceAtLeast(0) ?: 0
+                    } else if (local != null && !hasTmdbMetadata) {
+                        metadataNotice = "No se encontró una coincidencia única en TMDb. Revisa el título o añade su tmdb-id."
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    // Keep playlist or previously cached metadata when TMDb is unavailable.
+                    if (!hasTmdbMetadata) metadataNotice = "No se pudieron consultar los datos de TMDb. Comprueba la conexión y la clave."
                 }
+            } else if (local != null && !TmdbRepository.isConfigured) {
+                metadataNotice = "Configura una clave de TMDb para cargar la ficha y las imágenes."
             }
             detailLoading = false
         }
@@ -148,7 +166,7 @@ fun MediaDetailScreen(
     }
 
     val context = LocalContext.current
-    val savedSource = remember(item.id) { LocalMediaSources.get(context, item.id) }
+    val savedSource = remember(item.id, playlist) { LocalMediaSources.get(context, item.id, playlist) }
     val hasPlayback = resolvePlaybackSource(
         catalog = playlist.source(item.id),
         legacy = savedSource?.let { PlaylistSource(it.url, it.type) },
@@ -165,10 +183,10 @@ fun MediaDetailScreen(
     val canLoadRemoteEpisodes = item.kind == MediaKind.SERIES && item.tmdbId != null &&
         item.tmdbMediaType == "tv" && TmdbRepository.isConfigured &&
         (selectedSeason in remoteSeasons || (selectedSeason == 0 && selectedSeason in localSeasons))
-    var episodeNotice by remember(item.id, selectedSeason, playlist, remoteSeasonCount) {
+    var episodeNotice by remember(item.id, item.tmdbId, selectedSeason, localEpisodes, remoteSeasonCount) {
         mutableStateOf(if (canLoadRemoteEpisodes) "Cargando episodios desde TMDb…" else "Episodios del catálogo M3U.")
     }
-    val episodes by key(item.id, selectedSeason, playlist, remoteSeasonCount) {
+    val episodes by key(item.id, item.tmdbId, selectedSeason, localEpisodes, remoteSeasonCount) {
         produceState(initialValue = localEpisodes) {
             value = localEpisodes
             if (canLoadRemoteEpisodes) {
@@ -226,6 +244,8 @@ fun MediaDetailScreen(
         }
 
         Column(modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            val tmdbStatus = if (detailLoading && !hasTmdbMetadata) "Consultando TMDb…" else metadataNotice
+            if (tmdbStatus != null) Text(tmdbStatus, color = TvMuted, style = MaterialTheme.typography.bodySmall)
             if (!hasPlayback) {
                 Text(
                     if (item.kind == MediaKind.SERIES) "La serie no tiene una fuente general; puedes reproducir los episodios que dispongan de una."
@@ -248,7 +268,7 @@ fun MediaDetailScreen(
                         )
                         episodes.forEach { episode ->
                             val sourceId = episodeSourceId(item.id, selectedSeason, episode.number)
-                            val legacySource = remember(sourceId) { LocalMediaSources.get(context, sourceId) }
+                            val legacySource = remember(sourceId, playlist) { LocalMediaSources.get(context, sourceId, playlist) }
                             TvEpisodeRow(
                                 episode = episode,
                                 hasSource = resolvePlaybackSource(playlist.source(sourceId), legacySource?.let { PlaylistSource(it.url, it.type) }) != null,

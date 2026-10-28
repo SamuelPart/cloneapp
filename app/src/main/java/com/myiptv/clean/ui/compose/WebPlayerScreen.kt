@@ -4,6 +4,8 @@ import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
@@ -44,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -60,12 +65,14 @@ import com.myiptv.clean.ui.player.EmbeddedWebPlayer
 import com.myiptv.clean.ui.player.PlaybackState
 import com.myiptv.clean.ui.player.isPlaybackCenter
 import com.myiptv.clean.ui.player.playerControlSizes
+import com.myiptv.clean.ui.player.shouldAutoHideControls
+import com.myiptv.clean.ui.player.shouldToggleOnSurfaceTap
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 /** Uses SamPlay controls only when the bot can actually reach an HTML video. */
 @Composable
-internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, onBack: () -> Unit) {
+internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, fullscreen: PlayerFullscreenState, onBack: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val rootView = LocalView.current
@@ -74,7 +81,8 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
     var error by remember(sourceUrl) { mutableStateOf<String?>(null) }
     var notice by remember(sourceUrl) { mutableStateOf<String?>(null) }
     var blockedHost by remember(sourceUrl) { mutableStateOf<String?>(null) }
-    var fullscreen by remember(sourceUrl) { mutableStateOf(false) }
+    var providerFullscreen by remember(sourceUrl) { mutableStateOf(false) }
+    var providerOwnsFullscreen by remember(sourceUrl) { mutableStateOf(false) }
     var inForeground by remember(sourceUrl) { mutableStateOf(false) }
     var manualMode by remember(sourceUrl) { mutableStateOf(true) }
     var manualRequested by remember(sourceUrl) { mutableStateOf(false) }
@@ -98,7 +106,7 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
                 onError = { error = it },
                 onNotice = { notice = it },
                 onBlockedRedirect = { blockedHost = it },
-                onFullscreen = { fullscreen = it }
+                onFullscreen = { providerFullscreen = it }
             )
         } catch (_: Exception) {
             null
@@ -151,7 +159,22 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
         showControls()
     }
 
-    BackHandler(enabled = fullscreen) { player.hideFullscreen() }
+    val providerMode = manualMode || providerFullscreen
+    BackHandler(enabled = providerFullscreen) { player.hideFullscreen() }
+    // A web page's native fullscreen view borrows the same immersive landscape mode; it only
+    // restores orientation on exit if the user had not already enabled SamPlay fullscreen.
+    LaunchedEffect(providerFullscreen, fullscreen.active, isTv) {
+        if (!isTv) {
+            if (providerFullscreen && !fullscreen.active) {
+                providerOwnsFullscreen = true
+                fullscreen.set(true)
+                showControls()
+            } else if (!providerFullscreen && providerOwnsFullscreen) {
+                providerOwnsFullscreen = false
+                fullscreen.set(false)
+            }
+        }
+    }
     DisposableEffect(player, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -185,8 +208,8 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
     LaunchedEffect(state.controllable, state.needsGesture, manualRequested) {
         manualMode = !state.controllable || state.needsGesture || manualRequested
     }
-    LaunchedEffect(player, manualMode, state.controllable) {
-        player.bot.setMasked(!manualMode && state.controllable)
+    LaunchedEffect(player, providerMode, state.controllable) {
+        player.bot.setMasked(!providerMode && state.controllable)
     }
     LaunchedEffect(loading, state.controllable, error) {
         fallbackHint = false
@@ -197,8 +220,11 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
             fallbackHint = false
         }
     }
-    LaunchedEffect(controlsVisible, state.isPlaying, manualMode, interaction) {
-        if (controlsVisible && state.isPlaying && !manualMode) {
+    val canAutoHide = shouldAutoHideControls(isTv, controlsVisible,
+        tvPlaybackAllowsHiding = state.isPlaying && !providerMode,
+        blocked = !isTv && error != null)
+    LaunchedEffect(canAutoHide, interaction) {
+        if (canAutoHide) {
             delay(5_000)
             controlsVisible = false
         }
@@ -209,12 +235,13 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
             notice = null
         }
     }
-    LaunchedEffect(isTv, manualMode, controlsVisible, state.controllable, error, blockedHost) {
+    LaunchedEffect(error) { if (error != null) showControls() }
+    LaunchedEffect(isTv, providerMode, controlsVisible, state.controllable, error, blockedHost) {
         if (isTv) {
             withFrameNanos { }
             when {
                 error != null -> runCatching { errorFocus.requestFocus() }
-                manualMode -> player.webView.requestFocus()
+                providerMode -> player.webView.requestFocus()
                 else -> runCatching { if (controlsVisible && state.controllable) playFocus.requestFocus() else screenFocus.requestFocus() }
             }
         }
@@ -222,6 +249,14 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(Color.Black)
+            // Observe without consuming: an inaccessible provider still receives the real touch
+            // it may require for Play, seeking or its own fullscreen controls.
+            .pointerInput(isTv, providerMode) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    if (!isTv && providerMode) showControls()
+                }
+            }
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 val code = event.nativeKeyEvent.keyCode
@@ -240,16 +275,16 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
                         seekBy(if (code == AndroidKeyEvent.KEYCODE_MEDIA_FAST_FORWARD) 10_000L else -10_000L); true
                     } else false
                     AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                        if (!manualMode && state.controllable && !controlsVisible) {
+                        if (!providerMode && state.controllable && !controlsVisible) {
                             if (!repeated) togglePlayback(); true
                         } else {
-                            if (!manualMode) showControls()
+                            if (!providerMode) showControls()
                             false
                         }
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_UP, AndroidKeyEvent.KEYCODE_DPAD_DOWN,
                     AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        if (manualMode) false else {
+                        if (providerMode) false else {
                             val hidden = !controlsVisible
                             showControls()
                             hidden
@@ -259,7 +294,7 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
                 }
             }
             .focusRequester(screenFocus)
-            .focusable(enabled = isTv && !manualMode)
+            .focusable(enabled = isTv && !providerMode)
     ) {
         val compactHeight = maxHeight < 300.dp
         val sizes = playerControlSizes(maxWidth.value, isTv)
@@ -267,30 +302,40 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, on
             AndroidView(modifier = Modifier.fillMaxSize(), factory = { player.container })
         }
 
-        if (!manualMode && state.controllable) {
+        if (!providerMode && state.controllable) {
             Box(
-                modifier = Modifier.matchParentSize().pointerInput(player, state.controllable, state.isPlaying) {
+                modifier = Modifier.matchParentSize().pointerInput(player, state.controllable, isTv, controlsVisible) {
                     detectTapGestures { point ->
-                        if (isPlaybackCenter(point.x, point.y, size.width, size.height)) togglePlayback() else showControls()
+                        val center = isPlaybackCenter(point.x, point.y, size.width, size.height)
+                        if (shouldToggleOnSurfaceTap(isTv, controlsVisible, center)) togglePlayback() else showControls()
                     }
                 }
             )
         }
 
-        if (manualMode || controlsVisible) {
+        if ((providerMode && isTv) || controlsVisible) {
             WebPlayerHeader(
                 title = title,
                 isTv = isTv,
-                manualMode = manualMode,
-                controllable = state.controllable && !state.needsGesture,
+                manualMode = providerMode,
+                controllable = state.controllable && !state.needsGesture && !providerFullscreen,
+                fullscreen = fullscreen,
                 onBack = onBack,
                 onUseProvider = ::useProviderControls,
                 onUseSamPlay = ::useSamPlayControls,
+                onToggleFullscreen = {
+                    showControls()
+                    if (fullscreen.active) {
+                        providerOwnsFullscreen = false
+                        if (providerFullscreen) player.hideFullscreen()
+                        fullscreen.set(false)
+                    } else fullscreen.set(true)
+                },
                 modifier = Modifier.align(Alignment.TopCenter)
             )
         }
 
-        if (!manualMode && controlsVisible && state.controllable) {
+        if (!providerMode && controlsVisible && state.controllable) {
             Row(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalArrangement = Arrangement.spacedBy(sizes.spacing.dp),
@@ -357,9 +402,11 @@ private fun WebPlayerHeader(
     isTv: Boolean,
     manualMode: Boolean,
     controllable: Boolean,
+    fullscreen: PlayerFullscreenState,
     onBack: () -> Unit,
     onUseProvider: () -> Unit,
     onUseSamPlay: () -> Unit,
+    onToggleFullscreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -378,5 +425,12 @@ private fun WebPlayerHeader(
         }
         if (!manualMode) PlayerTextButton(null, "Controles web", onUseProvider)
         else if (controllable) PlayerTextButton(null, "SamPlay", onUseSamPlay)
+        if (!isTv && fullscreen.available) {
+            PlayerIconButton(
+                if (fullscreen.active) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                if (fullscreen.active) "Salir de pantalla completa" else "Pantalla completa horizontal",
+                44f, onClick = onToggleFullscreen
+            )
+        }
     }
 }

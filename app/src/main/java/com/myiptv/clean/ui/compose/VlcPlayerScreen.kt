@@ -28,6 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
@@ -83,6 +85,8 @@ import com.myiptv.clean.ui.player.VlcPlaybackEngine
 import com.myiptv.clean.ui.player.formatPlaybackTime
 import com.myiptv.clean.ui.player.isPlaybackCenter
 import com.myiptv.clean.ui.player.playerControlSizes
+import com.myiptv.clean.ui.player.shouldAutoHideControls
+import com.myiptv.clean.ui.player.shouldToggleOnSurfaceTap
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import org.videolan.libvlc.util.VLCVideoLayout
@@ -97,6 +101,7 @@ internal fun VlcPlayerScreen(
     userAgent: String?,
     referrer: String?,
     isTv: Boolean,
+    fullscreen: PlayerFullscreenState,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -173,8 +178,12 @@ internal fun VlcPlayerScreen(
             controller.refreshProgress()
         }
     }
-    LaunchedEffect(controlsVisible, state.isPlaying, state.isBuffering, state.error, audioDialogOpen, interaction) {
-        if (controlsVisible && state.isPlaying && !state.isBuffering && state.error == null && !audioDialogOpen) {
+    val canAutoHide = shouldAutoHideControls(isTv, controlsVisible,
+        tvPlaybackAllowsHiding = state.isPlaying && !state.isBuffering,
+        blocked = state.error != null || audioDialogOpen)
+    // State/progress updates on mobile must not restart the inactivity timer.
+    LaunchedEffect(canAutoHide, interaction) {
+        if (canAutoHide) {
             delay(5_000)
             controlsVisible = false
         }
@@ -266,16 +275,19 @@ internal fun VlcPlayerScreen(
 
         // This layer is behind the actual buttons, so touch targets and the timeline win hit testing.
         Box(
-            modifier = Modifier.matchParentSize().pointerInput(binding, initializationError) {
+            modifier = Modifier.matchParentSize().pointerInput(binding, initializationError, isTv, controlsVisible) {
                 detectTapGestures { point ->
-                    if (isPlaybackCenter(point.x, point.y, size.width, size.height)) togglePlayback()
-                    else showControls()
+                    val center = isPlaybackCenter(point.x, point.y, size.width, size.height)
+                    if (shouldToggleOnSurfaceTap(isTv, controlsVisible, center)) togglePlayback() else showControls()
                 }
             }
         )
 
         if (controlsVisible) {
-            VlcPlayerHeader(title, isLiveChannel, isTv, onBack, Modifier.align(Alignment.TopCenter))
+            VlcPlayerHeader(title, isLiveChannel, isTv, fullscreen, onBack, {
+                showControls()
+                fullscreen.set(!fullscreen.active)
+            }, Modifier.align(Alignment.TopCenter))
             Row(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalArrangement = Arrangement.spacedBy(sizes.spacing.dp),
@@ -339,7 +351,15 @@ internal fun VlcPlayerScreen(
 }
 
 @Composable
-private fun VlcPlayerHeader(title: String, isLiveChannel: Boolean, isTv: Boolean, onBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun VlcPlayerHeader(
+    title: String,
+    isLiveChannel: Boolean,
+    isTv: Boolean,
+    fullscreen: PlayerFullscreenState,
+    onBack: () -> Unit,
+    onToggleFullscreen: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier.fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.9f), Color.Transparent)))
@@ -351,6 +371,13 @@ private fun VlcPlayerHeader(title: String, isLiveChannel: Boolean, isTv: Boolean
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = Color.White, style = if (isTv) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(if (isLiveChannel) "Canal en directo · VLC" else "Reproducción con VLC", color = TvMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+        }
+        if (!isTv && fullscreen.available) {
+            PlayerIconButton(
+                if (fullscreen.active) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                if (fullscreen.active) "Salir de pantalla completa" else "Pantalla completa horizontal",
+                44f, onClick = onToggleFullscreen
+            )
         }
     }
 }

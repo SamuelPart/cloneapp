@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -71,6 +73,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.MediaPlaylistRepository
+import com.myiptv.clean.data.repository.TmdbRepository
+import com.myiptv.clean.data.repository.loadPlaylistMetadata
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -126,45 +130,30 @@ fun IptvApp() {
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     val favoritesViewModel: FavoritesViewModel = viewModel()
     val playlist by produceState(initialValue = MediaPlaylist.Loading, key1 = context.applicationContext) {
-        value = MediaPlaylistRepository.load(context)
+        val local = MediaPlaylistRepository.load(context)
+        value = local // Videos remain available while TMDb requests run in the background.
+        if (TmdbRepository.isConfigured) {
+            loadPlaylistMetadata(local, TmdbRepository::playlistMetadata) { value = it }
+        }
     }
+    LaunchedEffect(playlist.items) { favoritesViewModel.canonicalize(playlist) }
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
-        val isTvLayout = isTelevision || maxWidth >= 840.dp
+        val isTvLayout = isTelevision || (!isPlayer && maxWidth >= 840.dp)
         val compactSidebar = maxWidth < 600.dp
-        if (isTvLayout) {
-            Row(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                if (showChrome) {
-                    TvSidebar(
-                        currentRoute = currentRoute,
-                        compact = compactSidebar,
-                        onNavigate = { navigateTopLevel(navController, it) }
-                    )
-                }
-                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                    if (showChrome) {
-                        AppTopBar(
-                            onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
-                            onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
-                            onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
-                            onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
-                            onNavigate = { navigateTopLevel(navController, it) },
-                            isTv = true
-                        )
-                    }
-                    IptvNavigationGraph(
-                        navController = navController,
-                        isTv = isTvLayout,
-                        favoritesViewModel = favoritesViewModel,
-                        playlist = playlist,
-                        modifier = Modifier.weight(1f).fillMaxWidth()
-                    )
-                }
+        // Keep one NavHost at the same composition location as the window rotates. Replacing the
+        // graph here would dispose VLC/WebView and restart playback on a landscape phone.
+        Row(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            if (showChrome && isTvLayout) {
+                TvSidebar(
+                    currentRoute = currentRoute,
+                    compact = compactSidebar,
+                    onNavigate = { navigateTopLevel(navController, it) }
+                )
             }
-        } else {
-            Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 if (showChrome) {
                     AppTopBar(
                         onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
@@ -172,17 +161,17 @@ fun IptvApp() {
                         onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                         onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
                         onNavigate = { navigateTopLevel(navController, it) },
-                        isTv = false
+                        isTv = isTvLayout
                     )
                 }
                 IptvNavigationGraph(
                     navController = navController,
-                    isTv = false,
+                    isTv = if (isPlayer) isTelevision else isTvLayout,
                     favoritesViewModel = favoritesViewModel,
                     playlist = playlist,
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
-                if (showChrome) {
+                if (showChrome && !isTvLayout) {
                     PhoneBottomBar(
                         currentRoute = currentRoute,
                         onNavigate = { navigateTopLevel(navController, it) }
@@ -209,130 +198,136 @@ private fun IptvNavigationGraph(
     playlist: MediaPlaylist,
     modifier: Modifier = Modifier
 ) {
-    NavHost(navController = navController, startDestination = IptvRoute.HOME, modifier = modifier) {
-        composable(IptvRoute.HOME) {
-            HomeScreen(
-                isTv = isTv,
-                playlist = playlist,
-                onOpenChannels = { navigateTopLevel(navController, IptvRoute.CHANNELS) },
-                onOpenMovies = { navigateTopLevel(navController, IptvRoute.MOVIES) },
-                onOpenSeries = { navigateTopLevel(navController, IptvRoute.SERIES) },
-                onOpenSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
-                onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                favorites = favoritesViewModel.savedIds,
-                onToggleFavorite = favoritesViewModel::toggle
-            )
-        }
-        composable(IptvRoute.CHANNELS) {
-            ChannelsScreen(isTv, onOpenChannel = { navController.navigate(IptvRoute.channel(it)) })
-        }
-        composable(IptvRoute.MOVIES) {
-            BrowseMediaScreen(
-                isTv = isTv,
-                kind = MediaKind.MOVIE,
-                playlist = playlist,
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                favorites = favoritesViewModel.savedIds,
-                onToggleFavorite = favoritesViewModel::toggle
-            )
-        }
-        composable(IptvRoute.SERIES) {
-            BrowseMediaScreen(
-                isTv = isTv,
-                kind = MediaKind.SERIES,
-                playlist = playlist,
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                favorites = favoritesViewModel.savedIds,
-                onToggleFavorite = favoritesViewModel::toggle
-            )
-        }
-        composable(IptvRoute.KIDS) {
-            MediaCollectionScreen(
-                collection = MediaCollection.KIDS,
-                isTv = isTv,
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                favorites = favoritesViewModel.savedIds,
-                onToggleFavorite = favoritesViewModel::toggle
-            )
-        }
-        composable(IptvRoute.ANIME) {
-            MediaCollectionScreen(
-                collection = MediaCollection.ANIME,
-                isTv = isTv,
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                favorites = favoritesViewModel.savedIds,
-                onToggleFavorite = favoritesViewModel::toggle
-            )
-        }
-        composable(IptvRoute.FAVORITES) {
-            FavoritesScreen(
-                isTv = isTv,
-                playlist = playlist,
-                savedIds = favoritesViewModel.savedIds,
-                onToggle = favoritesViewModel::toggle,
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
-                onExplore = { navigateTopLevel(navController, IptvRoute.HOME) }
-            )
-        }
-        composable(IptvRoute.SEARCH) {
-            SearchScreen(
-                isTv = isTv,
-                playlist = playlist,
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                onOpenChannel = { navController.navigate(IptvRoute.channel(it)) }
-            )
-        }
-        composable(IptvRoute.DOWNLOADS) {
-            DownloadsScreen(isTv)
-        }
-        composable(IptvRoute.HISTORY) {
-            HistoryScreen(isTv)
-        }
-        composable(IptvRoute.SETTINGS) {
-            SettingsScreen(isTv, playlist)
-        }
-        composable(
-            route = IptvRoute.CHANNEL_DETAIL,
-            arguments = listOf(navArgument("id") { type = NavType.StringType })
-        ) { entry ->
-            ChannelDetailScreen(
-                channelId = entry.arguments?.getString("id").orEmpty(),
-                isTv = isTv,
-                onBack = { navController.popBackStack() },
-                onPlay = { navController.navigate(IptvRoute.player(it)) },
-                isFavorite = { it in favoritesViewModel.savedIds },
-                onToggleFavorite = favoritesViewModel::toggle
-            )
-        }
-        composable(
-            route = IptvRoute.MEDIA_DETAIL,
-            arguments = listOf(navArgument("id") { type = NavType.StringType })
-        ) { entry ->
-            MediaDetailScreen(
-                mediaId = entry.arguments?.getString("id").orEmpty(),
-                isTv = isTv,
-                playlist = playlist,
-                onBack = { navController.popBackStack() },
-                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                onPlay = { navController.navigate(IptvRoute.player(it)) },
-                isFavorite = { it in favoritesViewModel.savedIds },
-                onToggleFavorite = favoritesViewModel::toggle
-            )
-        }
-        composable(
-            route = IptvRoute.PLAYER,
-            arguments = listOf(navArgument("id") { type = NavType.StringType })
-        ) { entry ->
-            PlayerScreen(
-                contentId = entry.arguments?.getString("id").orEmpty(),
-                isTv = isTv,
-                playlist = playlist,
-                onBack = { navController.popBackStack() }
-            )
+    val currentIsTv = rememberUpdatedState(isTv)
+    val currentPlaylist = rememberUpdatedState(playlist)
+    // The graph itself must not be rebuilt when metadata or screen dimensions change.
+    val graphBuilder: NavGraphBuilder.() -> Unit = remember(navController, favoritesViewModel) {
+        {
+            composable(IptvRoute.HOME) {
+                HomeScreen(
+                    isTv = currentIsTv.value,
+                    playlist = currentPlaylist.value,
+                    onOpenChannels = { navigateTopLevel(navController, IptvRoute.CHANNELS) },
+                    onOpenMovies = { navigateTopLevel(navController, IptvRoute.MOVIES) },
+                    onOpenSeries = { navigateTopLevel(navController, IptvRoute.SERIES) },
+                    onOpenSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                    onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(IptvRoute.CHANNELS) {
+                ChannelsScreen(currentIsTv.value, onOpenChannel = { navController.navigate(IptvRoute.channel(it)) })
+            }
+            composable(IptvRoute.MOVIES) {
+                BrowseMediaScreen(
+                    isTv = currentIsTv.value,
+                    kind = MediaKind.MOVIE,
+                    playlist = currentPlaylist.value,
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(IptvRoute.SERIES) {
+                BrowseMediaScreen(
+                    isTv = currentIsTv.value,
+                    kind = MediaKind.SERIES,
+                    playlist = currentPlaylist.value,
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(IptvRoute.KIDS) {
+                MediaCollectionScreen(
+                    collection = MediaCollection.KIDS,
+                    isTv = currentIsTv.value,
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(IptvRoute.ANIME) {
+                MediaCollectionScreen(
+                    collection = MediaCollection.ANIME,
+                    isTv = currentIsTv.value,
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(IptvRoute.FAVORITES) {
+                FavoritesScreen(
+                    isTv = currentIsTv.value,
+                    playlist = currentPlaylist.value,
+                    savedIds = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggle = { favoritesViewModel.toggle(it, currentPlaylist.value) },
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
+                    onExplore = { navigateTopLevel(navController, IptvRoute.HOME) }
+                )
+            }
+            composable(IptvRoute.SEARCH) {
+                SearchScreen(
+                    isTv = currentIsTv.value,
+                    playlist = currentPlaylist.value,
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    onOpenChannel = { navController.navigate(IptvRoute.channel(it)) }
+                )
+            }
+            composable(IptvRoute.DOWNLOADS) {
+                DownloadsScreen(currentIsTv.value)
+            }
+            composable(IptvRoute.HISTORY) {
+                HistoryScreen(currentIsTv.value)
+            }
+            composable(IptvRoute.SETTINGS) {
+                SettingsScreen(currentIsTv.value, currentPlaylist.value)
+            }
+            composable(
+                route = IptvRoute.CHANNEL_DETAIL,
+                arguments = listOf(navArgument("id") { type = NavType.StringType })
+            ) { entry ->
+                ChannelDetailScreen(
+                    channelId = entry.arguments?.getString("id").orEmpty(),
+                    isTv = currentIsTv.value,
+                    onBack = { navController.popBackStack() },
+                    onPlay = { navController.navigate(IptvRoute.player(it)) },
+                    isFavorite = { it in currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds) },
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(
+                route = IptvRoute.MEDIA_DETAIL,
+                arguments = listOf(navArgument("id") { type = NavType.StringType })
+            ) { entry ->
+                MediaDetailScreen(
+                    mediaId = entry.arguments?.getString("id").orEmpty(),
+                    isTv = currentIsTv.value,
+                    playlist = currentPlaylist.value,
+                    onBack = { navController.popBackStack() },
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                    onPlay = { navController.navigate(IptvRoute.player(it)) },
+                    isFavorite = { it in currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds) },
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(
+                route = IptvRoute.PLAYER,
+                arguments = listOf(navArgument("id") { type = NavType.StringType })
+            ) { entry ->
+                PlayerScreen(
+                    contentId = entry.arguments?.getString("id").orEmpty(),
+                    isTv = currentIsTv.value,
+                    playlist = currentPlaylist.value,
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
+    NavHost(navController = navController, startDestination = IptvRoute.HOME, modifier = modifier, builder = graphBuilder)
 }
 
 @Composable

@@ -27,11 +27,41 @@ data class MediaPlaylist(
     val errorMessage: String? = null
 ) {
     private val itemsById = items.associateBy(MediaItem::id)
+    // Only verified/explicit TMDb identities become aliases. Keep the first M3U source if the
+    // playlist intentionally contains the same work more than once.
+    private val itemsByTmdbId = items.mapNotNull { item ->
+        tmdbIdentity(item)?.let { (type, id) -> "tmdb_${type}_$id" to item }
+    }.asReversed().toMap()
 
-    fun item(id: String): MediaItem? = itemsById[id]
-    fun source(id: String): PlaylistSource? = sources[id]
-    fun seasons(id: String): List<Int> = episodes[id].orEmpty().keys.sorted()
-    fun episodes(id: String, season: Int): List<MediaEpisode> = episodes[id]?.get(season).orEmpty()
+    fun item(id: String): MediaItem? = itemsById[id] ?: itemsByTmdbId[id]
+    fun canonicalMediaId(id: String): String = item(id)?.id ?: id
+    fun mediaAliases(id: String): Set<String> {
+        val media = item(id) ?: return setOf(id)
+        val tmdbId = tmdbIdentity(media)?.let { (type, number) -> "tmdb_${type}_$number" }
+        return setOfNotNull(media.id, tmdbId)
+    }
+    fun expandedMediaIds(ids: Set<String>): Set<String> = ids.flatMapTo(mutableSetOf(), ::mediaAliases)
+
+    /** Includes a previously saved TMDb source when this playlist uses an m3u_* identity. */
+    fun sourceAliases(id: String): Set<String> {
+        val episode = parseEpisodeSourceId(id)
+        val aliases = if (episode == null) mediaAliases(id)
+        else mediaAliases(episode.mediaId).mapTo(mutableSetOf()) {
+            episodeSourceId(it, episode.seasonNumber, episode.episodeNumber)
+        }
+        return linkedSetOf(id).apply { addAll(aliases) }
+    }
+
+    fun source(id: String): PlaylistSource? {
+        sources[id]?.let { return it }
+        val episode = parseEpisodeSourceId(id)
+        val canonical = if (episode != null) {
+            episodeSourceId(canonicalMediaId(episode.mediaId), episode.seasonNumber, episode.episodeNumber)
+        } else canonicalMediaId(id)
+        return sources[canonical]
+    }
+    fun seasons(id: String): List<Int> = episodes[canonicalMediaId(id)].orEmpty().keys.sorted()
+    fun episodes(id: String, season: Int): List<MediaEpisode> = episodes[canonicalMediaId(id)]?.get(season).orEmpty()
 
     val statusMessage: String
         get() = when {
@@ -69,17 +99,48 @@ fun mergeMediaMetadata(local: MediaItem, remote: MediaItem): MediaItem {
         genres = remote.genres.ifEmpty { local.genres },
         synopsis = remote.synopsis.takeUnless { it.isBlank() || it == "Sinopsis no disponible." } ?: local.synopsis,
         duration = remote.duration.takeUnless { it.isBlank() || it == "—" } ?: local.duration,
+        rating = remote.rating.takeIf { it > 0.0 } ?: local.rating,
+        streamUrl = local.streamUrl ?: remote.streamUrl,
+        playbackType = if (local.streamUrl != null) local.playbackType else remote.playbackType,
         posterUrl = remote.posterUrl?.takeIf(String::isNotBlank) ?: local.posterUrl,
         backdropUrl = remote.backdropUrl?.takeIf(String::isNotBlank) ?: local.backdropUrl,
+        tmdbId = remote.tmdbId ?: local.tmdbId,
+        tmdbMediaType = remote.tmdbMediaType ?: local.tmdbMediaType,
+        castNames = remote.castNames.ifEmpty { local.castNames },
         seasonCount = remote.seasonCount ?: local.seasonCount,
         episodeCount = remote.episodeCount ?: local.episodeCount
     )
 }
 
-/** Prioritize supplied playlist titles, enriching matching entries with real TMDb metadata. */
+/** A verified TMDb match adds metadata without changing the M3U identity or playback links. */
+internal fun mergePlaylistTmdbMetadata(local: MediaItem, remote: MediaItem): MediaItem {
+    require(local.kind == remote.kind && remote.tmdbId != null && remote.tmdbId > 0)
+    require(remote.tmdbMediaType == if (local.kind == MediaKind.MOVIE) "movie" else "tv")
+    require(local.tmdbId == null || local.tmdbId == remote.tmdbId)
+    return mergeMediaMetadata(local, remote.copy(id = local.id))
+}
+
+private fun tmdbIdentity(item: MediaItem): Pair<String, Long>? {
+    val type = if (item.kind == MediaKind.MOVIE) "movie" else "tv"
+    val id = item.tmdbId?.takeIf { it > 0 } ?: return null
+    return if (item.tmdbMediaType == type) type to id else null
+}
+
+/** Keep playlist IDs and sources; suppress a duplicate remote card only after an ID is verified. */
 fun mergeMediaCatalog(playlistItems: List<MediaItem>, tmdbItems: List<MediaItem>): List<MediaItem> {
-    val richer = tmdbItems.associateBy(MediaItem::id)
-    return (playlistItems.map { local -> richer[local.id]?.let { mergeMediaMetadata(local, it) } ?: local } + tmdbItems).distinctBy(MediaItem::id)
+    val byId = tmdbItems.associateBy(MediaItem::id)
+    val byTmdb = tmdbItems.mapNotNull { item -> tmdbIdentity(item)?.let { it to item } }.toMap()
+    val playlistTmdbIds = playlistItems.mapNotNull(::tmdbIdentity).toSet()
+    val enriched = playlistItems.map { local ->
+        val remote = byId[local.id] ?: tmdbIdentity(local)?.let(byTmdb::get)
+        when {
+            remote == null -> local
+            local.id == remote.id -> mergeMediaMetadata(local, remote)
+            else -> mergePlaylistTmdbMetadata(local, remote)
+        }
+    }
+    val remaining = tmdbItems.filter { tmdbIdentity(it) !in playlistTmdbIds }
+    return (enriched + remaining).distinctBy(MediaItem::id)
 }
 
 fun mergeSeasonEpisodes(local: List<MediaEpisode>, remote: List<MediaEpisode>): List<MediaEpisode> {
@@ -96,8 +157,8 @@ fun mergeSeasonEpisodes(local: List<MediaEpisode>, remote: List<MediaEpisode>): 
 }
 
 /**
- * Reads EXTINF entries supplied by the app owner. Ambiguous titles are not matched to TMDb by
- * name: use a tmdb_movie_/tmdb_tv_ ID or a numeric tmdb-id when linking metadata and video.
+ * Reads EXTINF entries supplied by the app owner. TMDb IDs are optional: metadata lookup is
+ * separate from parsing and never changes the playlist's source IDs or URLs.
  */
 object MediaPlaylistParser {
     private val attributes = Regex("""([A-Za-z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))""")
@@ -134,11 +195,22 @@ object MediaPlaylistParser {
                         ignored++
                         continue
                     }
+                    val previous = titles[metadata.mediaId]
+                    if (previous?.tmdbId != null && metadata.tmdbId != null && previous.tmdbId != metadata.tmdbId) {
+                        ignored++ // Never attach conflicting explicit identities to the same series.
+                        continue
+                    }
                     val entryId = if (metadata.season != null && metadata.episode != null) {
                         episodeSourceId(metadata.mediaId, metadata.season, metadata.episode)
                     } else metadata.mediaId
                     if (entryId !in sources) sources[entryId] = source
-                    if (metadata.mediaId !in titles) titles[metadata.mediaId] = metadata.toMediaItem()
+                    if (previous == null) titles[metadata.mediaId] = metadata.toMediaItem()
+                    else if (previous.tmdbId == null && metadata.tmdbId != null) {
+                        titles[metadata.mediaId] = previous.copy(
+                            tmdbId = metadata.tmdbId,
+                            tmdbMediaType = if (previous.kind == MediaKind.MOVIE) "movie" else "tv"
+                        )
+                    }
 
                     if (metadata.season != null && metadata.episode != null) {
                         val season = episodeLists.getOrPut(metadata.mediaId) { linkedMapOf() }
@@ -254,6 +326,10 @@ object MediaPlaylistParser {
         if (idFromTag != null && suppliedTmdb != null && idFromTag != suppliedTmdb) return null
         val numericTmdb = idFromTag ?: suppliedTmdb
         if (numericTmdb != null && numericTmdb <= 0) return null
+        // Optional metadata-only ID keeps an existing m3u_* identity and all saved links intact.
+        val suppliedMatchId = values["tmdb-match-id"]?.toLongOrNull()
+        if (values["tmdb-match-id"] != null && (suppliedMatchId == null || suppliedMatchId <= 0)) return null
+        if (numericTmdb != null && suppliedMatchId != null && numericTmdb != suppliedMatchId) return null
         val seriesTitle = values["series-title"].orEmpty().ifBlank { groupSeriesTitle ?: displayName }
         val title = if (season != null) seriesTitle else displayName
         val mediaId = if (numericTmdb != null) {
@@ -281,7 +357,7 @@ object MediaPlaylistParser {
             episodeTitle = values["episode-title"].orEmpty().ifBlank { displayName },
             season = season,
             episode = episode,
-            tmdbId = numericTmdb,
+            tmdbId = numericTmdb ?: suppliedMatchId,
             year = values["year"]?.toIntOrNull()?.takeIf { it > 0 }
                 ?: if (kind == MediaKind.MOVIE) movieYear.find(displayName)?.groupValues?.get(1)?.toIntOrNull() ?: 0 else 0,
             genres = values["genre"].orEmpty().split('|').map(String::trim).filter(String::isNotEmpty),

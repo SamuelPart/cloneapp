@@ -72,7 +72,28 @@ object TmdbRepository {
         return response.toMixedMediaItems()
     }
 
+    /** Resolve an M3U title without ever changing its local ID or its video source. */
+    suspend fun playlistMetadata(local: MediaItem): MediaItem? {
+        if (!isConfigured) return null
+        return resolvePlaylistTmdbMetadata(
+            local = local,
+            search = { search ->
+                val match = findPlaylistTmdbMatch(search) { request, page ->
+                    if (request.kind == MediaKind.MOVIE) {
+                        api.searchMovies(BuildConfig.TMDB_API_KEY, LANGUAGE, request.title, request.year, page = page)
+                    } else {
+                        api.searchSeries(BuildConfig.TMDB_API_KEY, LANGUAGE, request.title, request.year, page = page)
+                    }
+                }
+                val type = if (search.kind == MediaKind.MOVIE) "movie" else "tv"
+                match?.toMediaItem(type, genreMapFor(type))?.also(::cacheSummary)
+            },
+            detail = { id, type -> details("tmdb_${type}_$id") }
+        )
+    }
+
     suspend fun details(itemId: String): MediaItem? {
+        mediaCache[itemId]?.takeIf(CachedMedia::hasDetails)?.let { return it.item }
         val parsed = parseTmdbId(itemId) ?: return mediaCache[itemId]?.item
         val (tmdbId, mediaType) = parsed
         val detail = if (mediaType == "movie") {
@@ -80,6 +101,7 @@ object TmdbRepository {
         } else {
             api.seriesDetails(tmdbId, BuildConfig.TMDB_API_KEY, LANGUAGE)
         }
+        if (detail.id != tmdbId) return null
         return detail.toMediaItem(mediaType, genreMapFor(mediaType)).also { item ->
             synchronized(mediaCache) { mediaCache[item.id] = CachedMedia(item, hasDetails = true) }
         }
@@ -168,7 +190,7 @@ object TmdbRepository {
     private fun parseTmdbId(itemId: String): Pair<Long, String>? {
         val parts = itemId.split('_')
         if (parts.size != 3 || parts[0] != "tmdb" || parts[1] !in setOf("movie", "tv")) return null
-        val id = parts[2].toLongOrNull() ?: return null
+        val id = parts[2].toLongOrNull()?.takeIf { it > 0 } ?: return null
         return id to parts[1]
     }
 

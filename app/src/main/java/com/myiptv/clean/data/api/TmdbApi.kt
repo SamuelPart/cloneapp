@@ -70,6 +70,26 @@ interface TmdbApi {
         @Query("page") page: Int = 1
     ): TmdbPageResponse
 
+    @GET("search/movie")
+    suspend fun searchMovies(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("query") query: String,
+        @Query("primary_release_year") year: Int? = null,
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
+    @GET("search/tv")
+    suspend fun searchSeries(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("query") query: String,
+        @Query("first_air_date_year") year: Int? = null,
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
     @GET("movie/{movie_id}")
     suspend fun movieDetails(
         @Path("movie_id") movieId: Long,

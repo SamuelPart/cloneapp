@@ -35,6 +35,23 @@ class PlayerGesturesTest {
     }
 
     @Test
+    fun mobileFirstTapRevealsControlsWithoutPausingWhileTvKeepsCenterAction() {
+        assertFalse(shouldToggleOnSurfaceTap(isTv = false, controlsVisible = false, isCenter = true))
+        assertTrue(shouldToggleOnSurfaceTap(isTv = false, controlsVisible = true, isCenter = true))
+        assertTrue(shouldToggleOnSurfaceTap(isTv = true, controlsVisible = false, isCenter = true))
+        assertFalse(shouldToggleOnSurfaceTap(isTv = false, controlsVisible = true, isCenter = false))
+    }
+
+    @Test
+    fun mobileControlsCanHideWhilePausedOrUsingProviderButErrorsAndDialogsStayVisible() {
+        assertTrue(shouldAutoHideControls(isTv = false, controlsVisible = true, tvPlaybackAllowsHiding = false, blocked = false))
+        assertFalse(shouldAutoHideControls(isTv = true, controlsVisible = true, tvPlaybackAllowsHiding = false, blocked = false))
+        assertTrue(shouldAutoHideControls(isTv = true, controlsVisible = true, tvPlaybackAllowsHiding = true, blocked = false))
+        assertFalse(shouldAutoHideControls(isTv = false, controlsVisible = true, tvPlaybackAllowsHiding = true, blocked = true))
+        assertFalse(shouldAutoHideControls(isTv = false, controlsVisible = false, tvPlaybackAllowsHiding = true, blocked = false))
+    }
+
+    @Test
     fun playbackTimesHandleUnknownDurationsAndHours() {
         assertEquals("00:00", formatPlaybackTime(-1))
         assertEquals("01:05", formatPlaybackTime(65_000))

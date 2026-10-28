@@ -1,9 +1,9 @@
 #EXTM3U
 
-#EXTINF:-1 tvg-logo="" group-title="Peliculas",Marsupilami (2026)
+#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1145899",Marsupilami (2026)
 https://nupload.my/watch/60SsUrowOEw2cDkHmN3M0iIojHFkXJ8oFYM3jz37kz7IctGTs
 
-#EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 1",Capítulo 1
+#EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 1" tmdb-match-id="128839",Capítulo 1
 https://nupload.my/watch/o3xAJQ7kz7MBPKokvwmPuBO9MmRijQgxxIUPl0zF0WoUmE
 
 #EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 1",Capítulo 2

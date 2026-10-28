@@ -150,7 +150,7 @@ internal fun TvFavoritesScreen(
 ) {
     val media = mergeMediaCatalog(playlist.items, TmdbRepository.cachedCatalog()).filter { it.id in savedIds }
     val channels = ChannelCatalogRepository.cachedChannels().filter { it.id in savedIds }
-    val loadedIds = media.map(MediaItem::id).toSet() + channels.map(LiveChannel::id)
+    val loadedIds = media.flatMap { playlist.mediaAliases(it.id) }.toSet() + channels.map(LiveChannel::id)
     val unavailableCount = (savedIds - loadedIds).size
     Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader("Mi lista", "Películas, series y canales guardados.")

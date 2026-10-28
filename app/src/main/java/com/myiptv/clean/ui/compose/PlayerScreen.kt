@@ -44,11 +44,12 @@ fun PlayerScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val fullscreen = rememberPlayerFullscreen(isTv, contentId)
     val episodeReference = remember(contentId) { parseEpisodeSourceId(contentId) }
     val mediaId = episodeReference?.mediaId ?: contentId
     val channel = remember(contentId) { ChannelCatalogRepository.cachedChannel(contentId) }
     val media = remember(mediaId, playlist) { TmdbRepository.cachedMedia(mediaId) ?: playlist.item(mediaId) }
-    val savedSource = remember(contentId) { LocalMediaSources.get(context, contentId) }
+    val savedSource = remember(contentId, playlist) { LocalMediaSources.get(context, contentId, playlist) }
     val mediaSource = resolvePlaybackSource(
         catalog = playlist.source(contentId),
         legacy = savedSource?.let { PlaylistSource(it.url, it.type) },
@@ -65,6 +66,7 @@ fun PlayerScreen(
     val isChannelReference = contentId.startsWith("tdt_") || contentId.startsWith("iptv_")
 
     BackHandler(onBack = onBack)
+    BackHandler(enabled = fullscreen.active) { fullscreen.set(false) }
     if (sourceUrl.isNullOrBlank()) {
         Box(modifier = Modifier.fillMaxSize().background(if (isTv) Color.Black else Color(0xFF080B12)), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(28.dp)) {
@@ -89,16 +91,17 @@ fun PlayerScreen(
             userAgent = channel?.userAgent,
             referrer = channel?.referrer,
             isTv = isTv,
+            fullscreen = fullscreen,
             onBack = onBack
         )
     } else {
-        EmbedPlayerScreen(sourceUrl, title, isTv, onBack)
+        EmbedPlayerScreen(sourceUrl, title, isTv, fullscreen, onBack)
     }
 }
 
 /** Web pages use a local bot when their player exposes a controllable HTML video. */
 @Composable
-private fun EmbedPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, onBack: () -> Unit) {
+private fun EmbedPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, fullscreen: PlayerFullscreenState, onBack: () -> Unit) {
     val embedUrl = remember(sourceUrl) { iframeSourceUrl(sourceUrl) }
     if (embedUrl == null) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
@@ -108,7 +111,7 @@ private fun EmbedPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, o
             }
         }
     } else {
-        WebPlayerScreen(embedUrl, title, isTv, onBack)
+        WebPlayerScreen(embedUrl, title, isTv, fullscreen, onBack)
     }
 }
 

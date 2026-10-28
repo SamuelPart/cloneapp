@@ -3,7 +3,8 @@ package com.myiptv.clean.data.model
 import com.google.gson.annotations.SerializedName
 
 data class TmdbPageResponse(
-    val results: List<TmdbMediaResponse>? = null
+    val results: List<TmdbMediaResponse>? = null,
+    @SerializedName("total_pages") val totalPages: Int? = null
 )
 
 data class TmdbGenreListResponse(
@@ -20,6 +21,8 @@ data class TmdbMediaResponse(
     @SerializedName("media_type") val mediaType: String? = null,
     val title: String? = null,
     val name: String? = null,
+    @SerializedName("original_title") val originalTitle: String? = null,
+    @SerializedName("original_name") val originalName: String? = null,
     val overview: String? = null,
     @SerializedName("poster_path") val posterPath: String? = null,
     @SerializedName("backdrop_path") val backdropPath: String? = null,

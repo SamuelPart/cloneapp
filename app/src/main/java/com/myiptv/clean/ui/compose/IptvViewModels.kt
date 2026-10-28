@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
+import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.TmdbRepository
 import com.myiptv.clean.data.repository.mergeMediaCatalog
 import kotlinx.coroutines.Job
@@ -257,8 +258,14 @@ class FavoritesViewModel : ViewModel() {
     var savedIds by mutableStateOf(emptySet<String>())
         private set
 
-    fun toggle(id: String) {
-        savedIds = if (id in savedIds) savedIds - id else savedIds + id
+    fun toggle(id: String, playlist: MediaPlaylist) {
+        val aliases = playlist.mediaAliases(id)
+        savedIds = if (savedIds.any { it in aliases }) savedIds - aliases
+        else savedIds + playlist.canonicalMediaId(id)
+    }
+
+    fun canonicalize(playlist: MediaPlaylist) {
+        savedIds = savedIds.mapTo(mutableSetOf(), playlist::canonicalMediaId)
     }
 }
 
