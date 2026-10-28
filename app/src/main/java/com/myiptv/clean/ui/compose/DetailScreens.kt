@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -81,14 +82,22 @@ fun ChannelDetailScreen(
 ) {
     val channel = ChannelCatalogRepository.cachedChannel(channelId)
     if (channel == null) {
-        Column(Modifier.fillMaxSize().padding(24.dp)) {
-            DetailBackButton(onBack)
-            EmptyState(Icons.Filled.LiveTv, "Canal no disponible", "Actualiza las fuentes de canales y vuelve a intentarlo.")
+        if (isTv) {
+            TvUnavailableDetail(Icons.Filled.LiveTv, "Canal no disponible", "Actualiza las fuentes de canales y vuelve a intentarlo.", onBack)
+        } else {
+            Column(Modifier.fillMaxSize().padding(24.dp)) {
+                DetailBackButton(onBack)
+                EmptyState(Icons.Filled.LiveTv, "Canal no disponible", "Actualiza las fuentes de canales y vuelve a intentarlo.")
+            }
         }
         return
     }
 
     val favorite = isFavorite(channel.id)
+    if (isTv) {
+        TvChannelDetail(channel, favorite, onBack, onPlay = { onPlay(channel.id) }, onToggleFavorite = { onToggleFavorite(channel.id) })
+        return
+    }
     var favoriteFocused by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
@@ -186,13 +195,15 @@ fun MediaDetailScreen(
         }
     }
     if (loadedItem == null) {
-        Column(Modifier.fillMaxSize().padding(24.dp)) {
-            DetailBackButton(onBack)
-            EmptyState(
-                Icons.Filled.Movie,
-                if (detailLoading) "Cargando ficha" else "Título no disponible",
-                if (detailLoading) "Consultando los datos reales de TMDb…" else "No hay una ficha TMDb disponible para este título."
-            )
+        val title = if (detailLoading) "Cargando ficha" else "Título no disponible"
+        val message = if (detailLoading) "Consultando los datos reales de TMDb…" else "No hay una ficha TMDb disponible para este título."
+        if (isTv) {
+            TvUnavailableDetail(Icons.Filled.Movie, title, message, onBack)
+        } else {
+            Column(Modifier.fillMaxSize().padding(24.dp)) {
+                DetailBackButton(onBack)
+                EmptyState(Icons.Filled.Movie, title, message)
+            }
         }
         return
     }
@@ -233,7 +244,7 @@ fun MediaDetailScreen(
     val playbackUrl = savedSource?.url ?: item.streamUrl
     val related = TmdbRepository.cachedCatalog().filter { it.id != item.id }.sortedByDescending(MediaItem::rating).take(8)
 
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
+    Column(modifier = Modifier.fillMaxSize().background(if (isTv) Color.Black else Color.Transparent).verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         if (isTv) {
             TvMediaDetailHero(
                 item = item,
@@ -345,13 +356,22 @@ fun MediaDetailScreen(
                     if (seasons.isEmpty()) {
                         Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     } else {
-                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            seasons.forEach { season ->
-                                FilterChip(
-                                    selected = selectedSeason == season,
-                                    onClick = { selectedSeason = season },
-                                    label = { Text("Temporada $season") }
-                                )
+                        if (isTv) {
+                            TvFilterRow(
+                                options = seasons.map { "Temporada $it" },
+                                selected = "Temporada $selectedSeason",
+                                onSelect = { label -> label.substringAfter("Temporada ").toIntOrNull()?.let { selectedSeason = it } },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                seasons.forEach { season ->
+                                    FilterChip(
+                                        selected = selectedSeason == season,
+                                        onClick = { selectedSeason = season },
+                                        label = { Text("Temporada $season") }
+                                    )
+                                }
                             }
                         }
                         if (episodes.isEmpty()) {
@@ -359,7 +379,7 @@ fun MediaDetailScreen(
                         } else {
                             episodes.forEach { episode ->
                                 val episodeSourceId = "${item.id}_s${selectedSeason}_e${episode.number}"
-                                EpisodeRow(episode, episodeSourceId, onPlay)
+                                EpisodeRow(episode, episodeSourceId, onPlay, isTv)
                             }
                             Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
                         }
@@ -392,6 +412,7 @@ fun MediaDetailScreen(
     if (showSourceDialog) {
         MediaSourceDialog(
             initialSource = savedSource,
+            isTv = isTv,
             onDismiss = { showSourceDialog = false },
             onSave = { url, type ->
                 if (LocalMediaSources.save(context, item.id, url, type)) {
@@ -423,7 +444,7 @@ private fun TvMediaDetailHero(
     val heroHeight = (LocalConfiguration.current.screenHeightDp.dp * 0.72f).coerceIn(330.dp, 500.dp)
     LaunchedEffect(item.id) {
         delay(180)
-        initialFocus.requestFocus()
+        runCatching { initialFocus.requestFocus() }
     }
 
     Box(
@@ -441,10 +462,7 @@ private fun TvMediaDetailHero(
         Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.28f), Color.Transparent, Color.Black))))
 
         Column(modifier = Modifier.fillMaxWidth().padding(start = 36.dp, end = 28.dp, top = 16.dp, bottom = 18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                DetailBackButton(onBack)
-                Text("Atrás para volver", modifier = Modifier.padding(start = 10.dp), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
-            }
+            TvActionButton("Volver", onBack, icon = Icons.Filled.ArrowBack)
             Spacer(Modifier.height(12.dp))
             Column(modifier = Modifier.fillMaxWidth(0.72f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text(
@@ -503,12 +521,13 @@ private fun TvDetailAction(
 ) {
     var focused by remember { mutableStateOf(false) }
     val light = focused || primary
+    val shape = RoundedCornerShape(3.dp)
     Row(
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
-            .clip(CircleShape)
+            .clip(shape)
             .background(if (light) Color.White else Color.White.copy(alpha = 0.16f))
-            .border(if (focused) 2.dp else 0.dp, if (focused) MaterialTheme.colorScheme.primary else Color.Transparent, CircleShape)
+            .border(if (focused) 2.dp else 0.dp, if (focused) MaterialTheme.colorScheme.primary else Color.Transparent, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 17.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -522,6 +541,7 @@ private fun TvDetailAction(
 @Composable
 private fun MediaSourceDialog(
     initialSource: ConfiguredMediaSource?,
+    isTv: Boolean,
     onDismiss: () -> Unit,
     onSave: (String, MediaPlaybackType) -> Boolean,
     onRemove: (() -> Unit)?
@@ -529,9 +549,18 @@ private fun MediaSourceDialog(
     var url by remember(initialSource?.url) { mutableStateOf(initialSource?.url.orEmpty()) }
     var type by remember(initialSource?.type) { mutableStateOf(initialSource?.type ?: MediaPlaybackType.DIRECT) }
     var error by remember { mutableStateOf("") }
+    val urlFocus = remember { FocusRequester() }
+    LaunchedEffect(isTv) {
+        if (isTv) {
+            delay(180)
+            runCatching { urlFocus.requestFocus() }
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = if (isTv) TvSurface else AlertDialogDefaults.containerColor,
+        shape = if (isTv) RoundedCornerShape(4.dp) else AlertDialogDefaults.shape,
         title = { Text("Enlace de reproducción") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -539,27 +568,41 @@ private fun MediaSourceDialog(
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(if (isTv) Modifier.focusRequester(urlFocus) else Modifier),
                     label = { Text(if (type == MediaPlaybackType.IFRAME) "URL o código iframe" else "URL directa de vídeo") },
                     minLines = 2,
                     maxLines = 4
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = type == MediaPlaybackType.DIRECT, onClick = { type = MediaPlaybackType.DIRECT }, label = { Text("Directo") })
-                    FilterChip(selected = type == MediaPlaybackType.IFRAME, onClick = { type = MediaPlaybackType.IFRAME }, label = { Text("Embed iframe") })
+                if (isTv) {
+                    TvFilterRow(
+                        options = listOf("Directo", "Embed iframe"),
+                        selected = if (type == MediaPlaybackType.DIRECT) "Directo" else "Embed iframe",
+                        onSelect = { type = if (it == "Directo") MediaPlaybackType.DIRECT else MediaPlaybackType.IFRAME },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = type == MediaPlaybackType.DIRECT, onClick = { type = MediaPlaybackType.DIRECT }, label = { Text("Directo") })
+                        FilterChip(selected = type == MediaPlaybackType.IFRAME, onClick = { type = MediaPlaybackType.IFRAME }, label = { Text("Embed iframe") })
+                    }
                 }
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (onSave(url, type)) onDismiss() else error = "Usa un enlace HTTP/HTTPS válido para esta fuente." }) {
-                Text("Guardar")
-            }
+            val save = { if (onSave(url, type)) onDismiss() else { error = "Usa un enlace HTTP/HTTPS válido para esta fuente." } }
+            if (isTv) TvActionButton("Guardar", save, primary = true)
+            else TextButton(onClick = save) { Text("Guardar") }
         },
         dismissButton = {
-            Row {
-                if (onRemove != null) TextButton(onClick = { onRemove(); onDismiss() }) { Text("Quitar enlace") }
-                TextButton(onClick = onDismiss) { Text("Cancelar") }
+            Row(horizontalArrangement = if (isTv) Arrangement.spacedBy(6.dp) else Arrangement.Start) {
+                if (onRemove != null) {
+                    val remove = { onRemove(); onDismiss() }
+                    if (isTv) TvActionButton("Quitar enlace", remove)
+                    else TextButton(onClick = remove) { Text("Quitar enlace") }
+                }
+                if (isTv) TvActionButton("Cancelar", onDismiss)
+                else TextButton(onClick = onDismiss) { Text("Cancelar") }
             }
         }
     )
@@ -569,51 +612,57 @@ private fun MediaSourceDialog(
 private fun EpisodeRow(
     episode: MediaEpisode,
     sourceId: String,
-    onPlay: (String) -> Unit
+    onPlay: (String) -> Unit,
+    isTv: Boolean
 ) {
     val context = LocalContext.current
     var configuredSource by remember(sourceId) { mutableStateOf(LocalMediaSources.get(context, sourceId)) }
     var showSourceDialog by remember(sourceId) { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(16.dp)
-    Row(
-        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
-            .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape)
-            .clip(shape).background(MaterialTheme.colorScheme.surface).padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp)
-    ) {
-        Box(
-            modifier = Modifier.width(104.dp).aspectRatio(1.45f).clip(RoundedCornerShape(12.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF25334B), Color(0xFF161D31)))),
-            contentAlignment = Alignment.Center
+    if (isTv) {
+        TvEpisodeRow(episode, configuredSource != null, onPlay = { onPlay(sourceId) }, onConfigure = { showSourceDialog = true })
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
+                .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape)
+                .clip(shape).background(MaterialTheme.colorScheme.surface).padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(13.dp)
         ) {
-            if (!episode.stillUrl.isNullOrBlank()) {
-                coil.compose.AsyncImage(
-                    model = episode.stillUrl,
-                    contentDescription = "Imagen del episodio ${episode.number}",
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(27.dp))
+            Box(
+                modifier = Modifier.width(104.dp).aspectRatio(1.45f).clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFF25334B), Color(0xFF161D31)))),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!episode.stillUrl.isNullOrBlank()) {
+                    coil.compose.AsyncImage(
+                        model = episode.stillUrl,
+                        contentDescription = "Imagen del episodio ${episode.number}",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(27.dp))
+                }
             }
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("EPISODIO ${episode.number.toString().padStart(2, '0')} · ${episode.duration}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-            Text(episode.title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(episode.synopsis, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-        if (configuredSource == null) {
-            TertiaryButton("Añadir enlace", onClick = { showSourceDialog = true })
-        } else {
-            PrimaryButton("Reproducir", Icons.Filled.PlayArrow, onClick = { onPlay(sourceId) })
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("EPISODIO ${episode.number.toString().padStart(2, '0')} · ${episode.duration}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                Text(episode.title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(episode.synopsis, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            if (configuredSource == null) {
+                TertiaryButton("Añadir enlace", onClick = { showSourceDialog = true })
+            } else {
+                PrimaryButton("Reproducir", Icons.Filled.PlayArrow, onClick = { onPlay(sourceId) })
+            }
         }
     }
 
     if (showSourceDialog) {
         MediaSourceDialog(
             initialSource = configuredSource,
+            isTv = isTv,
             onDismiss = { showSourceDialog = false },
             onSave = { url, type ->
                 if (LocalMediaSources.save(context, sourceId, url, type)) {

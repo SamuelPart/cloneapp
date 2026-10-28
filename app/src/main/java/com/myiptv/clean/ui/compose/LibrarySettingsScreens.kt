@@ -39,6 +39,10 @@ import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
 fun DownloadsScreen(isTv: Boolean) {
+    if (isTv) {
+        TvLibraryScreen(downloads = true)
+        return
+    }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Sin conexión", "Descargas", "Contenido guardado en este dispositivo.")
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -53,6 +57,10 @@ fun DownloadsScreen(isTv: Boolean) {
 
 @Composable
 fun HistoryScreen(isTv: Boolean) {
+    if (isTv) {
+        TvLibraryScreen(downloads = false)
+        return
+    }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Actividad local", "Historial", "Reproducciones recientes en este dispositivo.")
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -67,6 +75,10 @@ fun HistoryScreen(isTv: Boolean) {
 
 @Composable
 fun SettingsScreen(isTv: Boolean) {
+    if (isTv) {
+        TvSettingsScreen()
+        return
+    }
     val horizontalPadding = if (isTv) 36.dp else 18.dp
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())

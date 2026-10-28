@@ -89,9 +89,11 @@ fun TvHomeScreen(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
         val compact = maxWidth < 600.dp
-        val columns = if (compact) 2 else 4
-        val heroHeight = if (compact) (maxWidth * 0.54f).coerceIn(145.dp, 230.dp) else (maxWidth * 0.30f).coerceIn(150.dp, 310.dp)
-        val tileHeight = if (compact) (maxWidth * 0.28f).coerceIn(100.dp, 155.dp) else (maxWidth * 0.145f).coerceIn(82.dp, 150.dp)
+        val sideBySideHeroes = maxWidth >= 360.dp
+        val columns = tvCatalogColumnCount(maxWidth.value)
+        val naturalHeroHeight = if (sideBySideHeroes) (maxWidth * 0.30f).coerceIn(110.dp, 310.dp) else (maxWidth * 0.54f).coerceIn(120.dp, 230.dp)
+        val heroHeight = naturalHeroHeight.coerceAtMost((maxHeight * 0.55f).coerceAtLeast(100.dp))
+        val tileHeight = ((maxWidth - 5.dp * (columns - 1)) / columns / 1.8f).coerceIn(82.dp, 150.dp)
         val mediaRows = remember(gridTitles, columns) { gridTitles.chunked(columns) }
 
         LazyColumn(
@@ -100,7 +102,7 @@ fun TvHomeScreen(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item(key = "featured") {
-                if (compact) {
+                if (!sideBySideHeroes) {
                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         TvPrimaryFeatured(
                             item = first,
@@ -445,7 +447,7 @@ private fun TvLiveSpotlight(channelCount: Int, modifier: Modifier, onClick: () -
 }
 
 @Composable
-private fun TvChannelArtwork(channel: LiveChannel, modifier: Modifier, onClick: () -> Unit) {
+internal fun TvChannelArtwork(channel: LiveChannel, modifier: Modifier, onClick: () -> Unit) {
     TvCard(modifier = modifier, onClick = onClick) {
         Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(channel.accent).copy(alpha = 0.55f), Color(0xFF101013), Color.Black))))
         ChannelLogo(channel, Modifier.align(Alignment.Center).size(48.dp))

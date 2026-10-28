@@ -60,6 +60,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.myiptv.clean.R
 import com.myiptv.clean.ui.compose.CleanIPTVTheme
 import com.myiptv.clean.ui.compose.IptvActivity
+import com.myiptv.clean.ui.compose.TvActionButton
+import com.myiptv.clean.ui.compose.TvBrandLogo
 import com.myiptv.clean.ui.compose.isTelevisionDevice
 import kotlinx.coroutines.delay
 
@@ -99,6 +101,10 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
     val background = MaterialTheme.colorScheme.background
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(background)) {
         val isTv = isTelevision || maxWidth >= 840.dp
+        if (isTv) {
+            TvWelcomeContent(onContinue, focusRequester)
+            return@BoxWithConstraints
+        }
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawRect(Brush.linearGradient(listOf(Color(0xFF081722), background, Color(0xFF09181C))))
             drawCircle(Color(0xFF38BDF8).copy(alpha = 0.12f), radius = size.maxDimension * 0.35f, center = Offset(size.width * 0.88f, size.height * 0.16f))
@@ -180,6 +186,27 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
     LaunchedEffect(Unit) {
         delay(180)
         runCatching { focusRequester.requestFocus() }
+    }
+}
+
+@Composable
+private fun TvWelcomeContent(onContinue: () -> Unit, focusRequester: FocusRequester) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 30.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            TvBrandLogo(Modifier.width(170.dp).height(86.dp))
+            Text("TU CONTENIDO, A TUS FUENTES", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
+            Text(
+                "Canales de TV en directo, metadatos de películas y series, y enlaces que configuras en tu dispositivo.",
+                modifier = Modifier.fillMaxWidth(0.72f), color = Color.White.copy(alpha = 0.68f),
+                style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center
+            )
+            TvActionButton("Explorar contenido", onContinue, modifier = Modifier.focusRequester(focusRequester), primary = true)
+            Text("La reproducción requiere enlaces públicos y autorizados.", color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+        }
     }
 }
 

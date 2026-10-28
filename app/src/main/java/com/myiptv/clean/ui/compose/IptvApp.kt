@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
@@ -126,7 +127,7 @@ fun IptvApp() {
         val isTvLayout = isTelevision || maxWidth >= 840.dp
         val compactSidebar = maxWidth < 600.dp
         if (isTvLayout) {
-            Row(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                 if (showChrome) {
                     TvSidebar(
                         currentRoute = currentRoute,
@@ -138,6 +139,7 @@ fun IptvApp() {
                     if (showChrome) {
                         AppTopBar(
                             onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
+                            onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
                             onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                             onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
                             isTv = true
@@ -156,6 +158,7 @@ fun IptvApp() {
                 if (showChrome) {
                     AppTopBar(
                         onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
+                        onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
                         onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                         onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
                         isTv = false
@@ -306,6 +309,7 @@ private fun IptvNavigationGraph(
         ) { entry ->
             PlayerScreen(
                 contentId = entry.arguments?.getString("id").orEmpty(),
+                isTv = isTv,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -315,6 +319,7 @@ private fun IptvNavigationGraph(
 @Composable
 private fun AppTopBar(
     onSearch: () -> Unit,
+    onHome: () -> Unit,
     onFavorites: () -> Unit,
     onSettings: () -> Unit,
     isTv: Boolean
@@ -340,6 +345,7 @@ private fun AppTopBar(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FocusableHeaderAction(Icons.Filled.Search, "Buscar", onSearch)
                 if (isTv && !compactTv) {
+                    FocusableHeaderAction(Icons.Filled.GridView, "Destacado", onHome)
                     FocusableHeaderAction(Icons.Filled.Favorite, "Mi lista", onFavorites)
                     FocusableHeaderAction(Icons.Filled.Settings, "Ajustes", onSettings)
                 }
@@ -405,10 +411,10 @@ private fun TvSidebar(currentRoute: String, compact: Boolean, onNavigate: (Strin
         modifier = Modifier
             .width(if (compact) 136.dp else 180.dp)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(start = if (compact) 12.dp else 24.dp, end = 8.dp, top = 20.dp, bottom = 12.dp)
+            .background(Color.Black)
+            .padding(start = if (compact) 12.dp else 24.dp, end = 8.dp, top = 14.dp, bottom = 12.dp)
     ) {
-        Box(Modifier.padding(start = 6.dp, bottom = 28.dp)) { BrandLogo() }
+        Box(Modifier.padding(start = 6.dp, bottom = 25.dp)) { TvBrandLogo(Modifier.width(if (compact) 102.dp else 112.dp)) }
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -425,7 +431,7 @@ private fun TvSidebar(currentRoute: String, compact: Boolean, onNavigate: (Strin
     }
     LaunchedEffect(Unit) {
         delay(180)
-        initialFocus.requestFocus()
+        runCatching { initialFocus.requestFocus() }
     }
 }
 
@@ -439,7 +445,7 @@ private fun SidebarItem(destination: AppDestination, selected: Boolean, onClick:
             .height(41.dp)
             .onFocusChanged { focused = it.isFocused }
             .clip(shape)
-            .background(if (focused) Color.White.copy(alpha = 0.14f) else Color.Transparent)
+            .background(if (focused) Color.White.copy(alpha = 0.14f) else if (selected) Color.White.copy(alpha = 0.07f) else Color.Transparent)
             .border(if (focused) 2.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp),

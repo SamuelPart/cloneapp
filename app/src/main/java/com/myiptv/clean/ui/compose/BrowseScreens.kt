@@ -275,6 +275,10 @@ fun ChannelsScreen(
     onOpenChannel: (String) -> Unit,
     viewModel: ChannelsViewModel = viewModel()
 ) {
+    if (isTv) {
+        TvChannelsScreen(viewModel, onOpenChannel)
+        return
+    }
     val filteredChannels = viewModel.filteredChannels
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading(
@@ -331,6 +335,10 @@ fun BrowseMediaScreen(
     onToggleFavorite: (String) -> Unit,
     viewModel: MoviesViewModel = viewModel()
 ) {
+    if (isTv) {
+        TvBrowseMediaScreen(kind, viewModel, onOpenMedia, favorites, onToggleFavorite)
+        return
+    }
     val screenTitle = if (kind == MediaKind.MOVIE) "Películas" else "Series"
     val items = viewModel.itemsFor(kind)
     val genres = viewModel.genresFor(kind)
@@ -393,6 +401,10 @@ fun FavoritesScreen(
     onOpenChannel: (String) -> Unit,
     onExplore: () -> Unit
 ) {
+    if (isTv) {
+        TvFavoritesScreen(savedIds, onToggle, onOpenMedia, onOpenChannel, onExplore)
+        return
+    }
     val media = TmdbRepository.cachedCatalog().filter { it.id in savedIds }
     val channels = ChannelCatalogRepository.cachedChannels().filter { it.id in savedIds }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
@@ -447,6 +459,10 @@ fun SearchScreen(
     onOpenChannel: (String) -> Unit,
     viewModel: SearchViewModel = viewModel()
 ) {
+    if (isTv) {
+        TvSearchScreen(viewModel, onOpenMedia, onOpenChannel)
+        return
+    }
     val trendingMedia = viewModel.featuredMedia.sortedByDescending(MediaItem::rating).take(5)
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Encuentra tu próximo favorito", "Buscar", "Películas, series y canales en un solo lugar.")

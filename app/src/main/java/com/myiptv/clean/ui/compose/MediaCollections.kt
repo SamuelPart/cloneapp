@@ -32,6 +32,10 @@ fun MediaCollectionScreen(
     viewModel: MediaCollectionViewModel = viewModel()
 ) {
     LaunchedEffect(collection) { viewModel.load(collection) }
+    if (isTv) {
+        TvCollectionScreen(collection, viewModel, onOpenMedia, favorites, onToggleFavorite)
+        return
+    }
     val isKids = collection == MediaCollection.KIDS
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading(

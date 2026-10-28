@@ -1,6 +1,8 @@
 package com.myiptv.clean.ui.compose
 
 import android.net.Uri
+import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -26,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -46,16 +51,20 @@ import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.source.DefaultMediaSourceFactory
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
 import com.google.android.exoplayer2.ui.PlayerView
+import com.google.android.exoplayer2.ui.PlayerControlView
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import com.google.android.exoplayer2.util.Util
+import com.myiptv.clean.R
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.LocalMediaSources
 import com.myiptv.clean.data.repository.TmdbRepository
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(
     contentId: String,
+    isTv: Boolean,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -77,10 +86,22 @@ fun PlayerScreen(
         else -> "${media.title} · T${episodeReference.seasonNumber} · E${episodeReference.episodeNumber}"
     }
     val isChannelReference = contentId.startsWith("tdt_") || contentId.startsWith("iptv_")
+    var controllerVisible by remember { mutableStateOf(true) }
+    var iframeHeaderVisible by remember(contentId) { mutableStateOf(true) }
+    val controllerListener = remember {
+        PlayerControlView.VisibilityListener { visibility -> controllerVisible = visibility == View.VISIBLE }
+    }
+    LaunchedEffect(contentId, sourceType, isTv) {
+        if (isTv && sourceType == MediaPlaybackType.IFRAME) {
+            iframeHeaderVisible = true
+            delay(5_000)
+            iframeHeaderVisible = false
+        }
+    }
 
     BackHandler(onBack = onBack)
     if (sourceUrl.isNullOrBlank()) {
-        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF080B12)), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.fillMaxSize().background(if (isTv) Color.Black else Color(0xFF080B12)), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(28.dp)) {
                 Icon(if (isChannelReference) Icons.Filled.LiveTv else Icons.Filled.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(38.dp))
                 Text("Fuente de reproducción no disponible", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
@@ -89,7 +110,7 @@ fun PlayerScreen(
                     else "Añade un enlace directo o un embed iframe en la ficha del título para reproducirlo.",
                     color = Color.White.copy(alpha = 0.74f), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center
                 )
-                PlayerBackButton(onBack)
+                PlayerBackButton(onBack, isTv)
             }
         }
         return
@@ -101,7 +122,7 @@ fun PlayerScreen(
             if (embedUrl == null) {
                 Column(modifier = Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("El embed iframe no contiene una URL HTTP/HTTPS válida.", color = Color.White, textAlign = TextAlign.Center)
-                    PlayerBackButton(onBack)
+                    PlayerBackButton(onBack, isTv)
                 }
             } else {
                 val webView = remember(embedUrl) {
@@ -112,6 +133,11 @@ fun PlayerScreen(
                         settings.mediaPlaybackRequiresUserGesture = true
                         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         webChromeClient = WebChromeClient()
+                        if (isTv) {
+                            isFocusable = true
+                            isFocusableInTouchMode = true
+                            post { requestFocus() }
+                        }
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                                 val scheme = request.url.scheme?.lowercase()
@@ -154,13 +180,29 @@ fun PlayerScreen(
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { viewContext ->
-                    PlayerView(viewContext).apply {
+                    val playerView = if (isTv) {
+                        LayoutInflater.from(viewContext).inflate(R.layout.tv_player_view, null, false) as PlayerView
+                    } else {
+                        PlayerView(viewContext)
+                    }
+                    playerView.apply {
+                        if (isTv) {
+                            setControllerVisibilityListener(controllerListener)
+                            isFocusable = true
+                        }
                         player = exoPlayer
                         useController = true
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        if (isTv) {
+                            controllerVisible = isControllerVisible
+                            post { requestFocus(); showController() }
+                        }
                     }
                 },
-                update = { playerView -> if (playerView.player !== exoPlayer) playerView.player = exoPlayer }
+                update = { playerView ->
+                    if (isTv) playerView.setControllerVisibilityListener(controllerListener)
+                    if (playerView.player !== exoPlayer) playerView.player = exoPlayer
+                }
             )
             if (playbackError.isNotBlank()) {
                 Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(18.dp), color = Color(0xDD141722), shape = MaterialTheme.shapes.medium) {
@@ -169,12 +211,20 @@ fun PlayerScreen(
             }
         }
 
-        Surface(modifier = Modifier.align(Alignment.TopStart).padding(14.dp), color = Color(0xAA090C13), shape = MaterialTheme.shapes.large) {
-            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(end = 16.dp)) {
-                PlayerBackButton(onBack)
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(if (channel != null) "Canal en directo" else if (sourceType == MediaPlaybackType.IFRAME) "Embed" else "Enlace directo", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+        val subtitle = if (channel != null) "Canal en directo" else if (sourceType == MediaPlaybackType.IFRAME) "Embed" else "Enlace directo"
+        if (isTv) {
+            val showHeader = if (sourceType == MediaPlaybackType.IFRAME) iframeHeaderVisible else controllerVisible
+            if (showHeader) {
+                TvPlayerHeader(title, subtitle, onBack, Modifier.align(Alignment.TopStart))
+            }
+        } else {
+            Surface(modifier = Modifier.align(Alignment.TopStart).padding(14.dp), color = Color(0xAA090C13), shape = MaterialTheme.shapes.large) {
+                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(end = 16.dp)) {
+                    PlayerBackButton(onBack, false)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(subtitle, color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+                    }
                 }
             }
         }
@@ -182,7 +232,27 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlayerBackButton(onBack: () -> Unit) {
+private fun TvPlayerHeader(title: String, subtitle: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(
+        modifier = modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.9f), Color.Transparent)))
+            .padding(horizontal = 28.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TvActionButton("Volver", onBack, icon = Icons.Filled.ArrowBack)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(subtitle, color = TvMuted, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+private fun PlayerBackButton(onBack: () -> Unit, isTv: Boolean) {
+    if (isTv) {
+        TvActionButton("Volver", onBack, icon = Icons.Filled.ArrowBack)
+        return
+    }
     Surface(
         modifier = Modifier.clip(MaterialTheme.shapes.large).clickable(onClick = onBack),
         color = Color(0xAA171B26), contentColor = Color.White, shape = MaterialTheme.shapes.large
