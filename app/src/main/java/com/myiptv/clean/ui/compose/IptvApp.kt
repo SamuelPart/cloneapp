@@ -31,10 +31,13 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,7 +57,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,6 +69,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.myiptv.clean.data.repository.MediaPlaylist
+import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -120,6 +125,9 @@ fun IptvApp() {
     val uiMode = LocalConfiguration.current.uiMode
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     val favoritesViewModel: FavoritesViewModel = viewModel()
+    val playlist by produceState(initialValue = MediaPlaylist.Loading, key1 = context.applicationContext) {
+        value = MediaPlaylistRepository.load(context)
+    }
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
@@ -142,6 +150,7 @@ fun IptvApp() {
                             onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
                             onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                             onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                            onNavigate = { navigateTopLevel(navController, it) },
                             isTv = true
                         )
                     }
@@ -149,18 +158,20 @@ fun IptvApp() {
                         navController = navController,
                         isTv = isTvLayout,
                         favoritesViewModel = favoritesViewModel,
+                        playlist = playlist,
                         modifier = Modifier.weight(1f).fillMaxWidth()
                     )
                 }
             }
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                 if (showChrome) {
                     AppTopBar(
                         onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
                         onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
                         onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                         onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                        onNavigate = { navigateTopLevel(navController, it) },
                         isTv = false
                     )
                 }
@@ -168,6 +179,7 @@ fun IptvApp() {
                     navController = navController,
                     isTv = false,
                     favoritesViewModel = favoritesViewModel,
+                    playlist = playlist,
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
                 if (showChrome) {
@@ -194,19 +206,20 @@ private fun IptvNavigationGraph(
     navController: NavHostController,
     isTv: Boolean,
     favoritesViewModel: FavoritesViewModel,
+    playlist: MediaPlaylist,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = IptvRoute.HOME, modifier = modifier) {
         composable(IptvRoute.HOME) {
             HomeScreen(
                 isTv = isTv,
+                playlist = playlist,
                 onOpenChannels = { navigateTopLevel(navController, IptvRoute.CHANNELS) },
                 onOpenMovies = { navigateTopLevel(navController, IptvRoute.MOVIES) },
                 onOpenSeries = { navigateTopLevel(navController, IptvRoute.SERIES) },
                 onOpenSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
                 onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                onOpenPlayer = { navController.navigate(IptvRoute.player(it)) },
                 favorites = favoritesViewModel.savedIds,
                 onToggleFavorite = favoritesViewModel::toggle
             )
@@ -218,6 +231,7 @@ private fun IptvNavigationGraph(
             BrowseMediaScreen(
                 isTv = isTv,
                 kind = MediaKind.MOVIE,
+                playlist = playlist,
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 favorites = favoritesViewModel.savedIds,
                 onToggleFavorite = favoritesViewModel::toggle
@@ -227,6 +241,7 @@ private fun IptvNavigationGraph(
             BrowseMediaScreen(
                 isTv = isTv,
                 kind = MediaKind.SERIES,
+                playlist = playlist,
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 favorites = favoritesViewModel.savedIds,
                 onToggleFavorite = favoritesViewModel::toggle
@@ -253,6 +268,7 @@ private fun IptvNavigationGraph(
         composable(IptvRoute.FAVORITES) {
             FavoritesScreen(
                 isTv = isTv,
+                playlist = playlist,
                 savedIds = favoritesViewModel.savedIds,
                 onToggle = favoritesViewModel::toggle,
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
@@ -263,6 +279,7 @@ private fun IptvNavigationGraph(
         composable(IptvRoute.SEARCH) {
             SearchScreen(
                 isTv = isTv,
+                playlist = playlist,
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 onOpenChannel = { navController.navigate(IptvRoute.channel(it)) }
             )
@@ -274,7 +291,7 @@ private fun IptvNavigationGraph(
             HistoryScreen(isTv)
         }
         composable(IptvRoute.SETTINGS) {
-            SettingsScreen(isTv)
+            SettingsScreen(isTv, playlist)
         }
         composable(
             route = IptvRoute.CHANNEL_DETAIL,
@@ -296,6 +313,7 @@ private fun IptvNavigationGraph(
             MediaDetailScreen(
                 mediaId = entry.arguments?.getString("id").orEmpty(),
                 isTv = isTv,
+                playlist = playlist,
                 onBack = { navController.popBackStack() },
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 onPlay = { navController.navigate(IptvRoute.player(it)) },
@@ -310,6 +328,7 @@ private fun IptvNavigationGraph(
             PlayerScreen(
                 contentId = entry.arguments?.getString("id").orEmpty(),
                 isTv = isTv,
+                playlist = playlist,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -322,6 +341,7 @@ private fun AppTopBar(
     onHome: () -> Unit,
     onFavorites: () -> Unit,
     onSettings: () -> Unit,
+    onNavigate: (String) -> Unit,
     isTv: Boolean
 ) {
     var now by remember { androidx.compose.runtime.mutableStateOf(Date()) }
@@ -340,10 +360,29 @@ private fun AppTopBar(
             modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 24.dp else 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!isTv) BrandLogo()
+            if (!isTv) TvBrandLogo(Modifier.width(110.dp))
             Spacer(Modifier.weight(1f))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FocusableHeaderAction(Icons.Filled.Search, "Buscar", onSearch)
+                if (!isTv) {
+                    var menuExpanded by remember { androidx.compose.runtime.mutableStateOf(false) }
+                    Box {
+                        FocusableHeaderAction(Icons.Filled.Menu, "Abrir menú", { menuExpanded = true })
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            modifier = Modifier.background(TvSurface)
+                        ) {
+                            sidebarDestinations.forEach { destination ->
+                                DropdownMenuItem(
+                                    text = { Text(destination.label, color = Color.White) },
+                                    leadingIcon = { Icon(destination.icon, contentDescription = null, tint = TvAccent) },
+                                    onClick = { menuExpanded = false; onNavigate(destination.route) }
+                                )
+                            }
+                        }
+                    }
+                }
                 if (isTv && !compactTv) {
                     FocusableHeaderAction(Icons.Filled.GridView, "Destacado", onHome)
                     FocusableHeaderAction(Icons.Filled.Favorite, "Mi lista", onFavorites)
@@ -363,28 +402,6 @@ private fun AppTopBar(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun BrandLogo() {
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(
-            "XUPER",
-            color = Color.White,
-            fontSize = 27.sp,
-            fontWeight = FontWeight.Black,
-            fontStyle = FontStyle.Italic,
-            letterSpacing = (-1).sp,
-            lineHeight = 29.sp
-        )
-        Text(
-            "TV",
-            modifier = Modifier.padding(start = 3.dp, bottom = 3.dp),
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold
-        )
     }
 }
 

@@ -1,535 +1,77 @@
 package com.myiptv.clean.ui.compose
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.myiptv.clean.data.repository.ChannelCatalogRepository
-import com.myiptv.clean.data.repository.TmdbRepository
+import com.myiptv.clean.data.repository.MediaPlaylist
 
+/** TV and phone use the same visual language, with each layout adapting to its available width. */
 @Composable
 fun HomeScreen(
     isTv: Boolean,
+    playlist: MediaPlaylist,
     onOpenChannels: () -> Unit,
     onOpenMovies: () -> Unit,
     onOpenSeries: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenChannel: (String) -> Unit,
     onOpenMedia: (String) -> Unit,
-    onOpenPlayer: (String) -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (String) -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
-    if (isTv) {
-        TvHomeScreen(
-            viewModel = viewModel,
-            onOpenChannels = onOpenChannels,
-            onOpenMovies = onOpenMovies,
-            onOpenSeries = onOpenSeries,
-            onOpenSettings = onOpenSettings,
-            onOpenChannel = onOpenChannel,
-            onOpenMedia = onOpenMedia
-        )
-        return
-    }
-    val horizontalPadding = 18.dp
-    val featured = viewModel.featured
-
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(if (isTv) 28.dp else 23.dp)
-    ) {
-        if (featured != null) {
-            FeaturedHero(
-                item = featured,
-                isTv = isTv,
-                onPlay = if (featured.streamUrl != null) ({ onOpenPlayer(featured.id) }) else null,
-                onMore = { onOpenMedia(featured.id) },
-                modifier = Modifier.padding(horizontal = horizontalPadding, vertical = if (isTv) 8.dp else 4.dp)
-            )
-        } else {
-            EmptyState(Icons.Filled.Movie, "No hay títulos disponibles", viewModel.statusMessage)
-        }
-
-        Column(modifier = Modifier.padding(horizontal = horizontalPadding)) {
-            SectionTitle("Explora por categoría")
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                ContentCategories.items.forEach { category ->
-                    CategoryTile(
-                        category = category,
-                        onClick = {
-                            when (category.title) {
-                                "Películas" -> onOpenMovies()
-                                "Series" -> onOpenSeries()
-                                else -> onOpenChannels()
-                            }
-                        }
-                    )
-                }
-            }
-        }
-
-        Column(modifier = Modifier.padding(start = horizontalPadding)) {
-            SectionTitle("Ahora en vivo", "Ver todos", onOpenChannels, modifier = Modifier.padding(end = horizontalPadding))
-            if (viewModel.liveChannels.isEmpty()) {
-                Text("Los canales de televisión todavía no están disponibles.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
-            } else {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
-                    items(viewModel.liveChannels, key = LiveChannel::id) { channel ->
-                        CompactChannelCard(channel = channel, modifier = Modifier.width(if (isTv) 330.dp else 286.dp)) {
-                            onOpenChannel(channel.id)
-                        }
-                    }
-                }
-            }
-        }
-
-        Column(modifier = Modifier.padding(start = horizontalPadding)) {
-            SectionTitle("Películas populares en TMDb", "Ver películas", onOpenMovies, modifier = Modifier.padding(end = horizontalPadding))
-            if (viewModel.trending.isEmpty()) {
-                Text("Los títulos aparecerán cuando TMDb esté configurado.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
-            } else {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
-                    items(viewModel.trending, key = MediaItem::id) { item ->
-                        MediaPosterCard(
-                            item = item,
-                            modifier = Modifier.width(if (isTv) 190.dp else 148.dp),
-                            isFavorite = item.id in favorites,
-                            onClick = { onOpenMedia(item.id) },
-                            onFavoriteClick = { onToggleFavorite(item.id) }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (viewModel.recommended.isNotEmpty()) {
-            Column(modifier = Modifier.padding(start = horizontalPadding)) {
-                SectionTitle("Series populares", "Ver series", onOpenSeries, modifier = Modifier.padding(end = horizontalPadding))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
-                    items(viewModel.recommended.filter { it.kind == MediaKind.SERIES }, key = MediaItem::id) { item ->
-                        MediaPosterCard(
-                            item = item,
-                            modifier = Modifier.width(if (isTv) 190.dp else 148.dp),
-                            isFavorite = item.id in favorites,
-                            onClick = { onOpenMedia(item.id) },
-                            onFavoriteClick = { onToggleFavorite(item.id) }
-                        )
-                    }
-                }
-            }
-        }
-
-        Text(
-            viewModel.statusMessage,
-            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 4.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium
-        )
-    }
+    TvHomeScreen(
+        viewModel = viewModel,
+        isTv = isTv,
+        playlist = playlist,
+        onOpenChannels = onOpenChannels,
+        onOpenMovies = onOpenMovies,
+        onOpenSeries = onOpenSeries,
+        onOpenSettings = onOpenSettings,
+        onOpenChannel = onOpenChannel,
+        onOpenMedia = onOpenMedia,
+        favorites = favorites,
+        onToggleFavorite = onToggleFavorite
+    )
 }
 
 @Composable
-private fun FeaturedHero(
-    item: MediaItem,
-    isTv: Boolean,
-    onPlay: (() -> Unit)?,
-    onMore: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val shape = RoundedCornerShape(26.dp)
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(if (isTv) 330.dp else 400.dp)
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(Color(item.colorA), Color(item.colorB), Color(0xFF141327))))
-    ) {
-        if (!item.backdropUrl.isNullOrBlank()) {
-            coil.compose.AsyncImage(
-                model = item.backdropUrl,
-                contentDescription = "Fondo de ${item.title}",
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(Color.White.copy(alpha = 0.1f), size.maxDimension * 0.47f, androidx.compose.ui.geometry.Offset(size.width * 0.82f, size.height * 0.2f))
-            drawCircle(Color(item.colorA).copy(alpha = 0.6f), size.maxDimension * 0.34f, androidx.compose.ui.geometry.Offset(size.width * 0.96f, size.height * 0.78f))
-            drawCircle(Color.White.copy(alpha = 0.18f), size.minDimension * 0.22f, androidx.compose.ui.geometry.Offset(size.width * 0.82f, size.height * 0.2f), style = Stroke(width = 2.dp.toPx()))
-            for (index in 0..9) {
-                drawLine(
-                    color = Color.White.copy(alpha = 0.055f),
-                    start = androidx.compose.ui.geometry.Offset(size.width * (0.44f + index * 0.07f), 0f),
-                    end = androidx.compose.ui.geometry.Offset(size.width * (0.12f + index * 0.07f), size.height),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
-        }
-        Box(
-            modifier = Modifier.fillMaxSize().background(
-                Brush.horizontalGradient(
-                    0f to Color.Black.copy(alpha = 0.58f),
-                    0.62f to Color.Black.copy(alpha = 0.1f),
-                    1f to Color.Transparent
-                )
-            )
-        )
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 23.dp, vertical = if (isTv) 30.dp else 26.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color(0xFFFFD38B), modifier = Modifier.size(17.dp))
-                    Text(if (item.tmdbId != null) "POPULAR EN TMDb" else "TÍTULO DESTACADO", color = Color(0xFFFFD38B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-                }
-                Text(
-                    item.title,
-                    color = Color.White,
-                    style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${item.year.takeIf { it > 0 } ?: "—"}   ·   ${item.genres.take(2).joinToString(" / ")}   ·   ★ ${item.rating.takeIf { it > 0.0 }?.let { "%.1f".format(it) } ?: "—"}",
-                    color = Color.White.copy(alpha = 0.82f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    item.synopsis,
-                    color = Color.White.copy(alpha = 0.82f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = if (isTv) 3 else 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(if (isTv) 0.72f else 1f)
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    if (onPlay != null) PrimaryButton("Reproducir", Icons.Filled.PlayArrow, onPlay)
-                    TertiaryButton("Detalles", onClick = onMore)
-                }
-            }
-            if (isTv) {
-                Spacer(Modifier.width(28.dp))
-                Box(modifier = Modifier.width(190.dp).aspectRatio(0.72f)) {
-                    PosterArtwork(item, Modifier.fillMaxSize())
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ChannelsScreen(
-    isTv: Boolean,
-    onOpenChannel: (String) -> Unit,
-    viewModel: ChannelsViewModel = viewModel()
-) {
-    if (isTv) {
-        TvChannelsScreen(viewModel, onOpenChannel)
-        return
-    }
-    val filteredChannels = viewModel.filteredChannels
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
-        PageHeading(
-            eyebrow = "Señal en directo",
-            title = "Canales",
-            description = "Emisiones en directo de distintos países."
-        )
-        SearchBox(
-            value = viewModel.query,
-            onValueChange = { viewModel.query = it },
-            placeholder = "Buscar canales",
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-        FilterChips(
-            options = viewModel.categories,
-            selected = viewModel.selectedCategory,
-            onSelect = { viewModel.selectedCategory = it },
-            modifier = Modifier.padding(bottom = 10.dp)
-        )
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("${filteredChannels.size} canales", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
-            Text(viewModel.errorMessage.ifBlank { ChannelCatalogRepository.statusMessage }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-        }
-        if (filteredChannels.isEmpty()) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                when {
-                    viewModel.isLoading -> EmptyState(Icons.Filled.LiveTv, "Cargando canales", "Consultando emisiones en directo.")
-                    viewModel.errorMessage.isNotBlank() -> EmptyState(Icons.Filled.LiveTv, "No se pudo cargar la lista", viewModel.errorMessage, "Reintentar", viewModel::refresh)
-                    else -> EmptyState(Icons.Filled.Search, "No hay canales", "No se encontraron canales para este filtro.")
-                }
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = if (isTv) 340.dp else 300.dp),
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filteredChannels, key = LiveChannel::id) { channel ->
-                    ChannelCard(channel = channel, modifier = Modifier.fillMaxWidth()) { onOpenChannel(channel.id) }
-                }
-            }
-        }
-    }
+fun ChannelsScreen(isTv: Boolean, onOpenChannel: (String) -> Unit, viewModel: ChannelsViewModel = viewModel()) {
+    TvChannelsScreen(viewModel, onOpenChannel, isTv)
 }
 
 @Composable
 fun BrowseMediaScreen(
     isTv: Boolean,
     kind: MediaKind,
+    playlist: MediaPlaylist,
     onOpenMedia: (String) -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (String) -> Unit,
     viewModel: MoviesViewModel = viewModel()
 ) {
-    if (isTv) {
-        TvBrowseMediaScreen(kind, viewModel, onOpenMedia, favorites, onToggleFavorite)
-        return
-    }
-    val screenTitle = if (kind == MediaKind.MOVIE) "Películas" else "Series"
-    val items = viewModel.itemsFor(kind)
-    val genres = viewModel.genresFor(kind)
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
-        PageHeading(
-            eyebrow = if (kind == MediaKind.MOVIE) "Historias para cada momento" else "Nuevos episodios",
-            title = screenTitle,
-            description = if (kind == MediaKind.MOVIE) "Descubre tu próxima película favorita." else "Sigue tus historias y encuentra nuevas series."
-        )
-        SearchBox(
-            value = viewModel.query,
-            onValueChange = { viewModel.query = it },
-            placeholder = "Buscar $screenTitle",
-            modifier = Modifier.padding(bottom = 11.dp)
-        )
-        FilterChips(options = genres, selected = viewModel.selectedGenre, onSelect = { viewModel.selectedGenre = it }, modifier = Modifier.padding(bottom = 10.dp))
-        FilterChips(
-            options = listOf("Populares", "Mejor valoradas", "Recientes"),
-            selected = viewModel.selectedTab,
-            onSelect = { viewModel.selectedTab = it },
-            modifier = Modifier.padding(bottom = 7.dp)
-        )
-        Text("${items.size} títulos · ${viewModel.statusMessage}", modifier = Modifier.padding(vertical = 5.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        if (items.isEmpty()) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                EmptyState(
-                    Icons.Filled.Movie,
-                    if (viewModel.isLoading) "Cargando catálogo" else "No hay títulos",
-                    viewModel.statusMessage
-                )
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = if (isTv) 178.dp else 145.dp),
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(if (isTv) 15.dp else 10.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                items(items, key = MediaItem::id) { item ->
-                    MediaPosterCard(
-                        item = item,
-                        modifier = Modifier.fillMaxWidth(),
-                        isFavorite = item.id in favorites,
-                        onClick = { onOpenMedia(item.id) },
-                        onFavoriteClick = { onToggleFavorite(item.id) }
-                    )
-                }
-            }
-        }
-    }
+    TvBrowseMediaScreen(kind, viewModel, onOpenMedia, favorites, onToggleFavorite, playlist, isTv)
 }
 
 @Composable
 fun FavoritesScreen(
     isTv: Boolean,
+    playlist: MediaPlaylist,
     savedIds: Set<String>,
     onToggle: (String) -> Unit,
     onOpenMedia: (String) -> Unit,
     onOpenChannel: (String) -> Unit,
     onExplore: () -> Unit
 ) {
-    if (isTv) {
-        TvFavoritesScreen(savedIds, onToggle, onOpenMedia, onOpenChannel, onExplore)
-        return
-    }
-    val media = TmdbRepository.cachedCatalog().filter { it.id in savedIds }
-    val channels = ChannelCatalogRepository.cachedChannels().filter { it.id in savedIds }
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
-        PageHeading("Tu colección", "Mi lista", "Todo lo que guardaste, en un solo lugar.")
-        if (media.isEmpty() && channels.isEmpty()) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                EmptyState(Icons.Filled.Favorite, "Tu lista está vacía", "Guarda películas, series y canales para encontrarlos rápido.", "Explorar catálogo", onExplore)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(21.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)
-            ) {
-                if (media.isNotEmpty()) {
-                    item {
-                        Column {
-                            SectionTitle("Películas y series")
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(media, key = MediaItem::id) { item ->
-                                    MediaPosterCard(
-                                        item = item,
-                                        modifier = Modifier.width(if (isTv) 190.dp else 150.dp),
-                                        isFavorite = true,
-                                        onClick = { onOpenMedia(item.id) },
-                                        onFavoriteClick = { onToggle(item.id) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                if (channels.isNotEmpty()) {
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            SectionTitle("Canales")
-                            channels.forEach { channel ->
-                                ChannelCard(channel, modifier = Modifier.fillMaxWidth()) { onOpenChannel(channel.id) }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    TvFavoritesScreen(savedIds, onToggle, onOpenMedia, onOpenChannel, onExplore, playlist, isTv)
 }
 
 @Composable
 fun SearchScreen(
     isTv: Boolean,
+    playlist: MediaPlaylist,
     onOpenMedia: (String) -> Unit,
     onOpenChannel: (String) -> Unit,
     viewModel: SearchViewModel = viewModel()
 ) {
-    if (isTv) {
-        TvSearchScreen(viewModel, onOpenMedia, onOpenChannel)
-        return
-    }
-    val trendingMedia = viewModel.featuredMedia.sortedByDescending(MediaItem::rating).take(5)
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
-        PageHeading("Encuentra tu próximo favorito", "Buscar", "Películas, series y canales en un solo lugar.")
-        SearchBox(
-            value = viewModel.query,
-            onValueChange = { viewModel.query = it },
-            placeholder = "¿Qué te gustaría ver?"
-        )
-        if (viewModel.query.isBlank()) {
-            Column(modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 22.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
-                if (trendingMedia.isNotEmpty()) {
-                    Column {
-                        SectionTitle("Películas y series")
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(trendingMedia, key = MediaItem::id) { item ->
-                                MediaPosterCard(item, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(item.id) })
-                            }
-                        }
-                    }
-                }
-                if (viewModel.channels.isNotEmpty()) {
-                    Column {
-                        SectionTitle("Canales de TV")
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(viewModel.channels, key = LiveChannel::id) { channel ->
-                                CompactChannelCard(channel, modifier = Modifier.width(if (isTv) 320.dp else 280.dp)) { onOpenChannel(channel.id) }
-                            }
-                        }
-                    }
-                }
-                if (trendingMedia.isEmpty() && viewModel.channels.isEmpty()) {
-                    EmptyState(Icons.Filled.Search, "No hay contenido disponible", viewModel.statusMessage)
-                }
-            }
-        } else {
-            val mediaResults = viewModel.mediaResults
-            val channelResults = viewModel.channelResults
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 18.dp, bottom = 22.dp)
-            ) {
-                item {
-                    Text(viewModel.statusMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
-                }
-                if (channelResults.isNotEmpty()) {
-                    item { SectionTitle("Canales") }
-                    items(channelResults, key = LiveChannel::id) { channel ->
-                        ChannelCard(channel, modifier = Modifier.fillMaxWidth()) { onOpenChannel(channel.id) }
-                    }
-                }
-                if (mediaResults.isNotEmpty()) {
-                    item {
-                        Column {
-                            SectionTitle("Películas y series")
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(mediaResults, key = MediaItem::id) { item ->
-                                    MediaPosterCard(item, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(item.id) })
-                                }
-                            }
-                        }
-                    }
-                }
-                if (mediaResults.isEmpty() && channelResults.isEmpty()) {
-                    item { EmptyState(Icons.Filled.Search, "No encontramos resultados", "Prueba otro título, género o canal.") }
-                }
-            }
-        }
-    }
+    TvSearchScreen(viewModel, onOpenMedia, onOpenChannel, playlist, isTv)
 }

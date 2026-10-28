@@ -1,6 +1,5 @@
 package com.myiptv.clean.ui.compose
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,28 +47,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.myiptv.clean.R
 
 internal val TvSurface = Color(0xFF171719)
 internal val TvMuted = Color.White.copy(alpha = 0.66f)
 internal val TvAccent = Color(0xFF54C3F2)
 
-/** The logo comes from the reference image supplied for the TV design. */
+/** A text wordmark keeps the same brand sharp on phones and TV displays. */
 @Composable
 internal fun TvBrandLogo(modifier: Modifier = Modifier) {
-    Image(
-        painter = painterResource(R.drawable.xuper_tv_logo),
-        contentDescription = "XUPER TV",
-        contentScale = ContentScale.Fit,
-        modifier = modifier.width(112.dp).height(56.dp)
-    )
+    Row(
+        modifier = modifier.heightIn(min = 56.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Sam", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp, maxLines = 1)
+        Text("Play", color = TvAccent, fontSize = 25.sp, fontWeight = FontWeight.Black, letterSpacing = (-1).sp, maxLines = 1)
+    }
 }
 
 @Composable

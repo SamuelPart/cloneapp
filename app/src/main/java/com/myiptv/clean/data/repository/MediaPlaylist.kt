@@ -1,0 +1,341 @@
+package com.myiptv.clean.data.repository
+
+import com.myiptv.clean.ui.compose.MediaEpisode
+import com.myiptv.clean.ui.compose.MediaItem
+import com.myiptv.clean.ui.compose.MediaKind
+import com.myiptv.clean.ui.compose.MediaPlaybackType
+import java.net.URI
+import java.security.MessageDigest
+import java.util.Locale
+
+/** Playback sources are supplied by the owner of the packaged playlist, not by TMDb. */
+data class PlaylistSource(val url: String, val type: MediaPlaybackType)
+
+/** The new catalog takes precedence while old on-device sources remain usable as a fallback. */
+fun resolvePlaybackSource(
+    catalog: PlaylistSource?,
+    legacy: PlaylistSource?,
+    fallback: PlaylistSource? = null
+): PlaylistSource? = listOfNotNull(catalog, legacy, fallback).firstOrNull { it.url.isNotBlank() }
+
+data class MediaPlaylist(
+    val items: List<MediaItem> = emptyList(),
+    val sources: Map<String, PlaylistSource> = emptyMap(),
+    val episodes: Map<String, Map<Int, List<MediaEpisode>>> = emptyMap(),
+    val ignoredEntries: Int = 0,
+    val loaded: Boolean = true,
+    val errorMessage: String? = null
+) {
+    private val itemsById = items.associateBy(MediaItem::id)
+
+    fun item(id: String): MediaItem? = itemsById[id]
+    fun source(id: String): PlaylistSource? = sources[id]
+    fun seasons(id: String): List<Int> = episodes[id].orEmpty().keys.sorted()
+    fun episodes(id: String, season: Int): List<MediaEpisode> = episodes[id]?.get(season).orEmpty()
+
+    val statusMessage: String
+        get() = when {
+            !loaded -> "Cargando catálogo M3U…"
+            errorMessage != null -> errorMessage
+            sources.isEmpty() && ignoredEntries > 0 -> "El catálogo M3U no contiene entradas válidas; revisa su formato."
+            sources.isEmpty() -> "El catálogo M3U está vacío."
+            ignoredEntries > 0 -> "${sources.size} ${if (sources.size == 1) "enlace M3U cargado" else "enlaces M3U cargados"}; $ignoredEntries ${if (ignoredEntries == 1) "entrada ignorada" else "entradas ignoradas"}."
+            else -> "${sources.size} ${if (sources.size == 1) "enlace cargado" else "enlaces cargados"} desde el catálogo M3U."
+        }
+
+    companion object {
+        val Loading = MediaPlaylist(loaded = false)
+    }
+}
+
+/** Keep the IDs used by details and the player identical for both TMDb and playlist-only series. */
+fun episodeSourceId(mediaId: String, season: Int, episode: Int): String = "${mediaId}_s${season}_e${episode}"
+
+data class EpisodeSourceReference(val mediaId: String, val seasonNumber: Int, val episodeNumber: Int)
+
+fun parseEpisodeSourceId(value: String): EpisodeSourceReference? {
+    val match = Regex("""^((?:tmdb_(?:movie|tv)_\d+|m3u_tv_[a-f0-9]+))_s(\d+)_e(\d+)$""").matchEntire(value) ?: return null
+    val season = match.groupValues[2].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+    val episode = match.groupValues[3].toIntOrNull()?.takeIf { it > 0 } ?: return null
+    return EpisodeSourceReference(match.groupValues[1], season, episode)
+}
+
+/** Enrich only an exact ID match; keep supplied artwork and fields when TMDb has none. */
+fun mergeMediaMetadata(local: MediaItem, remote: MediaItem): MediaItem {
+    require(local.id == remote.id)
+    return remote.copy(
+        title = remote.title.takeUnless { it.isBlank() || it == "Sin título" } ?: local.title,
+        year = remote.year.takeIf { it > 0 } ?: local.year,
+        genres = remote.genres.ifEmpty { local.genres },
+        synopsis = remote.synopsis.takeUnless { it.isBlank() || it == "Sinopsis no disponible." } ?: local.synopsis,
+        duration = remote.duration.takeUnless { it.isBlank() || it == "—" } ?: local.duration,
+        posterUrl = remote.posterUrl?.takeIf(String::isNotBlank) ?: local.posterUrl,
+        backdropUrl = remote.backdropUrl?.takeIf(String::isNotBlank) ?: local.backdropUrl,
+        seasonCount = remote.seasonCount ?: local.seasonCount,
+        episodeCount = remote.episodeCount ?: local.episodeCount
+    )
+}
+
+/** Prioritize supplied playlist titles, enriching matching entries with real TMDb metadata. */
+fun mergeMediaCatalog(playlistItems: List<MediaItem>, tmdbItems: List<MediaItem>): List<MediaItem> {
+    val richer = tmdbItems.associateBy(MediaItem::id)
+    return (playlistItems.map { local -> richer[local.id]?.let { mergeMediaMetadata(local, it) } ?: local } + tmdbItems).distinctBy(MediaItem::id)
+}
+
+fun mergeSeasonEpisodes(local: List<MediaEpisode>, remote: List<MediaEpisode>): List<MediaEpisode> {
+    val supplied = local.associateBy(MediaEpisode::number)
+    val enriched = remote.map { episode ->
+        val fallback = supplied[episode.number]
+        if (fallback == null) episode else episode.copy(
+            synopsis = episode.synopsis.takeUnless { it.isBlank() || it == "Sinopsis no disponible." } ?: fallback.synopsis,
+            duration = episode.duration.takeUnless { it.isBlank() || it == "—" } ?: fallback.duration,
+            stillUrl = episode.stillUrl?.takeIf(String::isNotBlank) ?: fallback.stillUrl
+        )
+    }
+    return (enriched + local).distinctBy(MediaEpisode::number).sortedBy(MediaEpisode::number)
+}
+
+/**
+ * Reads EXTINF entries supplied by the app owner. Ambiguous titles are not matched to TMDb by
+ * name: use a tmdb_movie_/tmdb_tv_ ID or a numeric tmdb-id when linking metadata and video.
+ */
+object MediaPlaylistParser {
+    private val attributes = Regex("""([A-Za-z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))""")
+    private val tmdbIdentity = Regex("""^tmdb_(movie|tv)_(\d+)(?:_s(\d+)_e(\d+))?$""", RegexOption.IGNORE_CASE)
+    private val iframeSource = Regex("""(?i)(?:^|[\s<])src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))""")
+
+    fun parse(text: String): MediaPlaylist {
+        val titles = linkedMapOf<String, MediaItem>()
+        val sources = linkedMapOf<String, PlaylistSource>()
+        val episodeLists = linkedMapOf<String, MutableMap<Int, MutableMap<Int, MediaEpisode>>>()
+        var pending: Metadata? = null
+        var ignored = 0
+
+        for (line in logicalLines(text.removePrefix("\uFEFF"))) {
+            when {
+                line.isEmpty() -> Unit
+                line.startsWith("#EXTINF:", ignoreCase = true) -> {
+                    if (pending != null) ignored++
+                    pending = parseMetadata(line)
+                    if (pending == null) ignored++
+                }
+                line.startsWith('#') -> Unit
+                else -> {
+                    val metadata = pending ?: continue
+                    pending = null
+                    val source = parseSource(line, metadata.playbackType)
+                    if (source == null) {
+                        ignored++
+                        continue
+                    }
+                    val entryId = if (metadata.season != null && metadata.episode != null) {
+                        episodeSourceId(metadata.mediaId, metadata.season, metadata.episode)
+                    } else metadata.mediaId
+                    if (entryId !in sources) sources[entryId] = source
+                    if (metadata.mediaId !in titles) titles[metadata.mediaId] = metadata.toMediaItem()
+
+                    if (metadata.season != null && metadata.episode != null) {
+                        val season = episodeLists.getOrPut(metadata.mediaId) { linkedMapOf() }
+                            .getOrPut(metadata.season) { linkedMapOf() }
+                        if (metadata.episode !in season) {
+                            season[metadata.episode] = MediaEpisode(
+                                number = metadata.episode,
+                                title = metadata.episodeTitle,
+                                duration = metadata.duration,
+                                synopsis = metadata.description,
+                                stillUrl = metadata.imageUrl
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (pending != null) ignored++
+
+        val episodes = episodeLists.mapValues { (_, seasons) ->
+            seasons.mapValues { (_, items) -> items.toSortedMap().values.toList() }
+        }
+        val items = titles.values.map { item ->
+            val seasons = episodes[item.id].orEmpty()
+            if (item.kind == MediaKind.SERIES && seasons.isNotEmpty()) {
+                item.copy(seasonCount = seasons.size, episodeCount = seasons.values.sumOf(List<MediaEpisode>::size))
+            } else item
+        }
+        return MediaPlaylist(items = items, sources = sources, episodes = episodes, ignoredEntries = ignored)
+    }
+
+    /** An iframe's opening tag may be pasted across several physical lines. */
+    private fun logicalLines(text: String): List<String> {
+        val result = mutableListOf<String>()
+        var iframe: StringBuilder? = null
+        for (raw in text.lineSequence()) {
+            val line = raw.trim()
+            val pendingIframe = iframe
+            if (pendingIframe != null) {
+                if (line.startsWith("#EXTINF:", ignoreCase = true)) {
+                    result.add(pendingIframe.toString())
+                    iframe = null
+                    result.add(line)
+                } else {
+                    pendingIframe.append(' ').append(line)
+                    if (line.contains('>')) {
+                        result.add(pendingIframe.toString())
+                        iframe = null
+                    }
+                }
+            } else if (line.startsWith("<iframe", ignoreCase = true) && !line.contains('>')) {
+                iframe = StringBuilder(line)
+            } else {
+                result.add(line)
+            }
+        }
+        iframe?.let { result.add(it.toString()) }
+        return result
+    }
+
+    private fun parseMetadata(line: String): Metadata? {
+        val separator = unquotedComma(line)
+        if (separator < 0) return null
+        val values = attributes.findAll(line.substring(0, separator)).associate { match ->
+            match.groupValues[1].lowercase(Locale.ROOT) to match.groupValues.drop(2).firstOrNull(String::isNotEmpty).orEmpty().trim()
+        }
+        val displayName = line.substring(separator + 1).trim().ifBlank { values["tvg-name"].orEmpty() }
+        if (displayName.isBlank()) return null
+        val rawId = values["tvg-id"].orEmpty().ifBlank { values["media-id"].orEmpty() }
+        val tmdbMatch = tmdbIdentity.matchEntire(rawId)
+        if (rawId.startsWith("tmdb_", ignoreCase = true) && tmdbMatch == null) return null
+        val idKind = when (tmdbMatch?.groupValues?.get(1)?.lowercase(Locale.ROOT)) {
+            "movie" -> MediaKind.MOVIE
+            "tv" -> MediaKind.SERIES
+            else -> null
+        }
+        val declaredKind = kindFrom(values["media-type"] ?: values["content-type"] ?: values["kind"])
+        if (idKind != null && declaredKind != null && idKind != declaredKind) return null
+        val kind = idKind ?: declaredKind ?: kindFrom(values["group-title"]) ?: return null
+
+        val idSeasonText = tmdbMatch?.groupValues?.get(3)?.takeIf(String::isNotBlank)
+        val idEpisodeText = tmdbMatch?.groupValues?.get(4)?.takeIf(String::isNotBlank)
+        val idSeason = idSeasonText?.toIntOrNull()
+        val idEpisode = idEpisodeText?.toIntOrNull()
+        if ((idSeasonText != null && idSeason == null) || (idEpisodeText != null && idEpisode == null)) return null
+        val seasonValue = values["season"] ?: values["season-number"]
+        val episodeValue = values["episode"] ?: values["episode-number"]
+        val suppliedSeason = seasonValue?.toIntOrNull()
+        val suppliedEpisode = episodeValue?.toIntOrNull()
+        if ((seasonValue != null && suppliedSeason == null) || (episodeValue != null && suppliedEpisode == null)) return null
+        if ((idSeason != null && suppliedSeason != null && idSeason != suppliedSeason) ||
+            (idEpisode != null && suppliedEpisode != null && idEpisode != suppliedEpisode)) return null
+        val season = idSeason ?: suppliedSeason
+        val episode = idEpisode ?: suppliedEpisode
+        if ((season == null) != (episode == null) || (season != null && (kind != MediaKind.SERIES || season < 0 || episode!! < 1))) return null
+
+        val idFromTag = tmdbMatch?.groupValues?.get(2)?.toLongOrNull()
+        val suppliedTmdb = values["tmdb-id"]?.toLongOrNull()
+        if ((tmdbMatch != null && idFromTag == null) || (values["tmdb-id"] != null && suppliedTmdb == null)) return null
+        if (idFromTag != null && suppliedTmdb != null && idFromTag != suppliedTmdb) return null
+        val numericTmdb = idFromTag ?: suppliedTmdb
+        if (numericTmdb != null && numericTmdb <= 0) return null
+        val seriesTitle = values["series-title"].orEmpty().ifBlank { displayName }
+        val title = if (season != null) seriesTitle else displayName
+        val mediaId = if (numericTmdb != null) {
+            "tmdb_${if (kind == MediaKind.MOVIE) "movie" else "tv"}_$numericTmdb"
+        } else {
+            val identity = if (season != null) values["series-id"].orEmpty().ifBlank { seriesTitle }
+            else rawId.ifBlank { displayName }
+            val stableKey = listOf(kind.name, identity, values["year"].orEmpty(), values["group-title"].orEmpty()).joinToString("\u0000")
+            "m3u_${if (kind == MediaKind.MOVIE) "movie" else "tv"}_${stableHash(stableKey)}"
+        }
+        val imageUrl = httpUrl(values["tvg-logo"].orEmpty())
+        val backdropUrl = httpUrl(values["tvg-backdrop"].orEmpty())
+        val type = when ((values["playback-type"] ?: values["type"]).orEmpty().lowercase(Locale.ROOT)) {
+            "iframe", "embed" -> MediaPlaybackType.IFRAME
+            "", "direct", "directo" -> MediaPlaybackType.DIRECT
+            else -> return null
+        }
+        return Metadata(
+            mediaId = mediaId,
+            kind = kind,
+            title = title,
+            episodeTitle = values["episode-title"].orEmpty().ifBlank { displayName },
+            season = season,
+            episode = episode,
+            tmdbId = numericTmdb,
+            year = values["year"]?.toIntOrNull()?.takeIf { it > 0 } ?: 0,
+            genres = values["genre"].orEmpty().split('|').map(String::trim).filter(String::isNotEmpty),
+            description = values["description"].orEmpty().ifBlank { "Sinopsis no disponible." },
+            duration = values["duration"].orEmpty().ifBlank { "—" },
+            imageUrl = imageUrl,
+            backdropUrl = backdropUrl,
+            playbackType = type
+        )
+    }
+
+    private fun parseSource(value: String, declaredType: MediaPlaybackType): PlaylistSource? {
+        val iframeMarkup = value.trim().startsWith("<iframe", ignoreCase = true)
+        val candidate = if (iframeMarkup) {
+            iframeSource.find(value)?.groupValues?.drop(1)?.firstOrNull(String::isNotBlank)
+                ?.replace("&amp;", "&", ignoreCase = true)
+        } else value.trim()
+        val url = httpUrl(candidate.orEmpty()) ?: return null
+        return PlaylistSource(url, if (iframeMarkup) MediaPlaybackType.IFRAME else declaredType)
+    }
+
+    private fun kindFrom(value: String?): MediaKind? = when (value?.trim()?.lowercase(Locale.ROOT)) {
+        "movie", "movies", "pelicula", "película", "peliculas", "películas" -> MediaKind.MOVIE
+        "series", "serie", "tv", "episode", "episodio" -> MediaKind.SERIES
+        else -> null
+    }
+
+    private fun httpUrl(value: String): String? = runCatching {
+        val clean = value.trim()
+        val parsed = URI(clean)
+        clean.takeIf { parsed.scheme?.lowercase(Locale.ROOT) in setOf("http", "https") && !parsed.host.isNullOrBlank() }
+    }.getOrNull()
+
+    private fun stableHash(value: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8)).take(10).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+    private fun unquotedComma(value: String): Int {
+        var quote: Char? = null
+        for (index in value.indices) {
+            val char = value[index]
+            if ((char == '"' || char == '\'') && (quote == null || quote == char)) quote = if (quote == null) char else null
+            if (char == ',' && quote == null) return index
+        }
+        return -1
+    }
+
+    private data class Metadata(
+        val mediaId: String,
+        val kind: MediaKind,
+        val title: String,
+        val episodeTitle: String,
+        val season: Int?,
+        val episode: Int?,
+        val tmdbId: Long?,
+        val year: Int,
+        val genres: List<String>,
+        val description: String,
+        val duration: String,
+        val imageUrl: String?,
+        val backdropUrl: String?,
+        val playbackType: MediaPlaybackType
+    ) {
+        fun toMediaItem() = MediaItem(
+            id = mediaId,
+            title = title,
+            kind = kind,
+            year = year,
+            rating = 0.0,
+            genres = genres,
+            synopsis = description,
+            duration = duration,
+            colorA = 0xFF173141L,
+            colorB = 0xFF101014L,
+            posterUrl = imageUrl,
+            backdropUrl = backdropUrl,
+            tmdbId = tmdbId,
+            tmdbMediaType = tmdbId?.let { if (kind == MediaKind.MOVIE) "movie" else "tv" }
+        )
+    }
+}

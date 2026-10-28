@@ -1,93 +1,105 @@
-# Clean IPTV
+# SamPlay
 
-Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. El catálogo de películas y series usa metadatos de TMDb; los canales combinan la lista pública de TDTChannels con emisiones directas de IPTV-org de distintos países. TMDb no proporciona vídeo: cada película o serie necesita que el usuario configure una fuente de reproducción directa o un embed iframe autorizado.
+Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. Los metadatos de películas y series pueden obtenerse de TMDb; los canales proceden de TDTChannels e IPTV-org. TMDb no proporciona vídeos: las fuentes de películas y series se añaden al catálogo M3U del proyecto.
 
 ## Fuentes y comportamiento
 
-- **Películas y series:** TMDb aporta títulos, géneros, búsqueda, fichas, reparto, temporadas, episodios, pósteres e imágenes. Sin una API Key válida, la app muestra estados vacíos/configuración; no sustituye resultados por contenido de muestra.
-- **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta canales y streams directos desde `https://iptv-org.github.io/api/channels.json` y `streams.json`, sin limitar por país ni por etiquetas del catálogo. Se muestran entradas con nombre y URL HTTP/HTTPS directa; no se extraen enlaces de páginas embed ni se eluden bloqueos. Algunas señales pueden estar caídas o restringidas por su proveedor. La programación EPG no está integrada.
-- **Reproducción de vídeo:** admite enlaces directos compatibles con ExoPlayer (incluidos HLS/DASH) y páginas/URLs de embed iframe mediante WebView. Las fuentes de películas y series se guardan en el almacenamiento privado del dispositivo; no hay catálogo de enlaces de vídeo incluido.
-- **Descargas e historial:** todavía no están implementados y muestran estados vacíos, no datos ficticios.
+- **Películas y series:** TMDb aporta títulos, géneros, fichas, reparto, temporadas, episodios e imágenes cuando hay una API Key configurada. El M3U también puede incluir títulos propios sin ID de TMDb. Sin datos disponibles, la app muestra estados vacíos en vez de contenido ficticio.
+- **Vídeos:** el archivo `app/src/main/assets/samplay_catalog.m3u` se entrega vacío. Admite enlaces HTTP/HTTPS directos compatibles con ExoPlayer (incluidos HLS y DASH) y URLs o código de iframe/embed. Los vídeos que se hayan guardado localmente en versiones anteriores siguen sirviendo como respaldo, pero ya no hay botones para añadir o cambiar enlaces en las fichas. Si existen ambas fuentes para el mismo título o episodio, prevalece la del M3U.
+- **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta canales y streams directos de distintos países. Solo se muestran entradas con nombre y URL HTTP/HTTPS directa; no se extraen enlaces de páginas embed ni se eluden bloqueos. Las señales dependen de sus proveedores y no hay programación EPG integrada.
+- **Descargas e historial:** todavía no están implementados y muestran estados vacíos.
 - **Favoritos:** se mantienen en memoria durante la sesión actual.
-- **Android TV:** navegación lateral, foco visible y controles aptos para mando; móvil usa navegación inferior.
 
-Usa únicamente emisiones abiertas y enlaces para los que tengas autorización. Respeta las condiciones de TDTChannels y los proveedores de cada contenido. La app no intenta eludir DRM, geobloqueos, autenticación ni otras restricciones. Para admitir algunas fuentes públicas, Android permite tráfico HTTP sin cifrar; prefiere HTTPS cuando esté disponible y ten en cuenta que HTTP puede ser interceptado.
+Usa únicamente emisiones y enlaces para los que tengas autorización. La app no intenta eludir DRM, geobloqueos, autenticación ni otras restricciones. Para admitir algunas fuentes públicas, Android permite tráfico HTTP sin cifrar; prefiere HTTPS cuando esté disponible.
 
-## Interfaz para Android TV
+## Interfaz y reproductor
 
-En Android TV, el diseño de XUPER TV es la interfaz principal: menú lateral izquierdo, tarjetas panorámicas, cuadrícula, carrusel, filas horizontales y foco visible para el mando. Los destacados y las filas utilizan títulos reales de TMDb; «Tendencias esta semana» consulta las tendencias semanales y «Documentales» usa el género documental de TMDb. Los canales proceden de los catálogos configurados. El carrusel se detiene mientras una de sus tarjetas está enfocada. La disposición se adapta a televisores con menos espacio y conserva el menú lateral incluso en dispositivos sin pantalla táctil o que anuncian el modo televisión sin Leanback.
+SamPlay usa el mismo estilo negro con tarjetas panorámicas, carrusel y filas horizontales en móvil y TV. En móvil, los destacados se apilan en vertical; la barra inferior y el menú superior dan acceso a las secciones. En TV se conserva el menú lateral izquierdo y el foco para el mando. «Tendencias esta semana» y «Documentales» usan datos reales de TMDb. Kids y Anime requieren TMDb; Kids no sustituye la supervisión parental.
 
-El mismo estilo se aplica a canales, películas, series, Kids, Anime, búsqueda, favoritos, ajustes, descargas, historial y fichas, sin reemplazar sus funciones ni catálogos. Los filtros, la búsqueda, los favoritos y los enlaces se manejan con el mando y cuentan con foco visible. En las fichas de episodios de TV también se puede cambiar o quitar un enlace ya guardado. El fondo de TV es negro y el logotipo procede de la captura de referencia; la interfaz móvil conserva su navegación inferior.
+En vídeos directos, toca el centro del vídeo para pausar o reanudar y mostrar los controles. En TV, el botón central del mando hace lo mismo cuando el vídeo tiene el foco; los botones, la barra de progreso y las teclas de dirección conservan sus funciones. Los controles se ocultan después de unos segundos durante la reproducción y vuelven a aparecer al interactuar.
 
-No se incluyen títulos, porcentajes ni progresos de muestra. «Continuar viendo» informa de que el progreso aún no se guarda; las descargas y el historial siguen sin implementarse. El reproductor directo mantiene el vídeo a pantalla completa y oculta la cabecera junto con sus controles tras unos segundos de reproducción; se pueden volver a mostrar con el mando. En los embeds se oculta la cabecera y se puede salir con Atrás. Las imágenes de las fichas aparecen suavemente al cargar y mantienen un fondo de reserva si fallan. La interfaz utiliza Inter, con cabeceras serif.
+Un embed se abre en WebView y depende de los controles y la compatibilidad de su proveedor. Como cada iframe puede pertenecer a otro dominio y tener su propio reproductor, SamPlay no puede garantizar que un toque o el mando pausen todos los embeds desde fuera. El botón Atrás permite salir.
 
-La tipografía [Inter](https://github.com/rsms/inter/tree/66647c0bbbe41a850d79d9c76fb13add3378940f) se distribuye con la aplicación bajo la licencia SIL Open Font License 1.1, incluida en `app/src/main/assets/licenses/Inter-OFL.txt`. Los pesos estáticos oficiales se convirtieron de WOFF2 a TTF para funcionar también en las versiones antiguas de Android.
+Las imágenes de las fichas aparecen suavemente al cargar y mantienen un fondo de reserva si fallan. La tipografía [Inter](https://github.com/rsms/inter/tree/66647c0bbbe41a850d79d9c76fb13add3378940f) se distribuye bajo SIL Open Font License 1.1; la licencia está en `app/src/main/assets/licenses/Inter-OFL.txt`.
 
-Las secciones **Kids** y **Anime** utilizan los filtros de descubrimiento de TMDb y requieren una clave configurada. Kids reúne películas familiares y series infantiles clasificadas por TMDb, pero no es un control parental; Anime muestra series de animación de origen japonés según TMDb. La disponibilidad y clasificación dependen del proveedor.
+## Añadir vídeos al catálogo M3U
+
+1. Abre `app/src/main/assets/samplay_catalog.m3u` y conserva la primera línea `#EXTM3U`.
+2. Añade una entrada `#EXTINF` seguida, en la línea siguiente, por el enlace directo o el iframe. Sustituye todos los valores de ejemplo de abajo por datos reales y autorizados.
+3. Vuelve a compilar e instalar la aplicación. El archivo se empaqueta dentro del APK; editarlo en el proyecto no actualiza una instalación ya compilada.
+
+Una película sin identificación de TMDb se muestra como un título propio del M3U:
+
+```m3u
+#EXTINF:-1 media-type="movie",TÍTULO DE LA PELÍCULA
+https://TU_DOMINIO/RUTA/VIDEO.mp4
+```
+
+Para relacionar una película con una ficha de TMDb, indica su ID **numérico** y el tipo. Puedes encontrarlo en la URL de la ficha de TMDb, después de `/movie/` para películas o `/tv/` para series. `tvg-logo`, `year`, `genre` y `description` son opcionales; sustituye sus valores por los tuyos o elimínalos:
+
+```m3u
+#EXTINF:-1 media-type="movie" tmdb-id="ID_NUMÉRICO_TMDB" year="AÑO" tvg-logo="https://TU_DOMINIO/POSTER.jpg" genre="GÉNERO",TÍTULO DE LA PELÍCULA
+https://TU_DOMINIO/RUTA/VIDEO.m3u8
+```
+
+Para una serie, proporciona el mismo ID y `series-title` en todos sus episodios, y un número real de `season` y `episode` en cada entrada. Sin `tmdb-id`, los episodios con el mismo `series-title` se agrupan como serie propia del M3U:
+
+```m3u
+#EXTINF:-1 media-type="series" tmdb-id="ID_NUMÉRICO_TMDB" series-title="TÍTULO DE LA SERIE" season="1" episode="1",TÍTULO DEL EPISODIO
+https://TU_DOMINIO/RUTA/EPISODIO.mp4
+```
+
+Para un embed, usa `playback-type="iframe"` con la URL de la página del reproductor:
+
+```m3u
+#EXTINF:-1 media-type="movie" playback-type="iframe",TÍTULO DE LA PELÍCULA
+https://TU_DOMINIO/RUTA/EMBED
+```
+
+También se puede poner una etiqueta `<iframe src="https://TU_DOMINIO/RUTA/EMBED"></iframe>` en la línea del enlace; la app extrae únicamente su `src`. Solo se aceptan URLs HTTP/HTTPS. Una URL de página embed sin etiqueta debe llevar `playback-type="iframe"`; de otro modo se trata como enlace directo.
+
+En vez de `tmdb-id` y `media-type`, puedes usar `tvg-id="tmdb_movie_ID"`, `tvg-id="tmdb_tv_ID"` o `tvg-id="tmdb_tv_ID_sTEMPORADA_eEPISODIO"`, sustituyendo cada marcador por sus números. La app **no empareja títulos por nombre** con TMDb para evitar reproducir una fuente equivocada. En duplicados para el mismo título o episodio se usa la primera fuente válida. Ajustes muestra el estado del catálogo y si se ignoraron entradas por formato incorrecto.
+
+El catálogo queda dentro del APK. No incluyas contraseñas, credenciales ni enlaces privados que no puedas distribuir; tampoco los subas a Git por accidente. No se suministran fuentes de películas ni series con la aplicación.
 
 ## Configurar TMDb
 
-La app lee una API Key v3 desde `local.properties` (recomendado para desarrollo local) o desde la variable de entorno `TMDB_API_KEY`:
+La app lee una API Key v3 desde `local.properties` o desde la variable de entorno `TMDB_API_KEY`:
 
 ```properties
 # Añadir al archivo local.properties de la raíz, sin borrar sdk.dir.
 tmdb.api.key=TU_CLAVE_V3_DE_TMDB
 ```
 
-`local.properties` está excluido por `.gitignore`; no incluyas claves ni tokens en Git. Tras sincronizar Gradle, la clave se usa para las solicitudes de metadatos. La clave cliente queda incorporada en el APK y no es un secreto seguro para distribuir una app pública; restringe la clave según las opciones de TMDb o usa un backend propio. La clave compartida anteriormente quedó expuesta en la conversación: revócala y genera otra antes de usarla.
+`local.properties` está excluido por `.gitignore`; no incluyas claves ni tokens en Git. La clave cliente queda incorporada en el APK y no es un secreto seguro para distribuir una app pública; restríngela según las opciones de TMDb o usa un backend propio. Si una clave se ha compartido públicamente, revócala y genera otra.
 
 Este producto utiliza la API de TMDb, pero no está avalado ni certificado por TMDb.
 
-## Añadir una fuente de vídeo
+## API local opcional para M3U directo autorizado
 
-1. Abre una película o serie del catálogo TMDb.
-2. Pulsa **Añadir enlace** en la ficha, o **Añadir enlace** junto a un episodio para guardar una fuente distinta por episodio.
-3. Selecciona **Directo** para una URL de vídeo compatible o **Embed iframe** para una URL/código iframe.
-4. Guarda el enlace. Se conserva solo en el dispositivo y se puede quitar desde la misma ficha.
-
-No hay enlaces de películas/series preconfigurados: TMDb entrega metadatos e imágenes, no derechos ni fuentes de reproducción.
-
-## API local para M3U directo autorizado
-
-`tools/authorized_m3u_api.py` carga un archivo EXTINF M3U/M3U8 local y expone un catálogo de IDs con una redirección 302 a la URL HTTP/HTTPS exacta de cada stream directo reconocido por extensión (HLS, DASH, audio o vídeo). Ignora enlaces a páginas web y otros formatos; no abre páginas, resuelve iframes, extrae tokens/cookies, evade anti-bot ni retransmite el flujo.
+`tools/authorized_m3u_api.py` es una herramienta separada del catálogo empaquetado de SamPlay. Carga un M3U/M3U8 local y expone IDs con una redirección 302 a cada stream directo HTTP/HTTPS reconocido; no resuelve embeds ni elude bloqueos.
 
 ```bash
 python3 tools/authorized_m3u_api.py /ruta/a/catalogo-autorizado.m3u8
 ```
 
-La API escucha solo en `127.0.0.1:8765`: `GET /catalog`, `GET /health` y `GET /play?id=<id>`. El cliente debe seguir la redirección. No acepta URLs arbitrarias en la petición ni almacena tokens. Un 302 no puede inyectar `Referer`/`User-Agent`; en la app Android se usan únicamente los valores explícitos publicados por IPTV-org para sus streams directos. Ningún método garantiza cero fallos: la disponibilidad, el formato, la región y las condiciones dependen del proveedor.
+La API escucha solo en `127.0.0.1:8765` y ofrece `/catalog`, `/health` y `/play?id=<id>`. Ningún método garantiza que una fuente esté disponible en una región o que el proveedor mantenga el enlace.
 
 ## Abrir en Android Studio
 
-1. Selecciona **Get from VCS** (o **File → New → Project from Version Control**).
-2. Selecciona **Git** y pega `https://github.com/SamuelPart/cloneapp.git`.
-3. Clona el repositorio y abre la carpeta raíz, donde están `settings.gradle` y `gradlew`.
-4. Usa JDK 17 o 21 para Gradle y permite que Android Studio sincronice el proyecto.
-5. Selecciona un emulador o dispositivo con Android 5.0 o posterior y pulsa **Run**.
+1. Selecciona **Get from VCS** o **File → New → Project from Version Control** y clona `https://github.com/SamuelPart/cloneapp.git`.
+2. Abre la carpeta raíz, donde están `settings.gradle` y `gradlew`.
+3. Usa JDK 17 o 21 y permite que Android Studio sincronice Gradle. Se requiere Android SDK 34.
+4. Selecciona un dispositivo o emulador con Android 5.0 o posterior y pulsa **Run**.
 
-También puedes compilar desde terminal:
-
-```bash
-git clone https://github.com/SamuelPart/cloneapp.git
-cd cloneapp
-./gradlew :app:assembleDebug
-```
-
-## Requisitos
-
-- Android Studio compatible con Android Gradle Plugin 8.5.2.
-- JDK 17 o 21 para ejecutar Gradle; el bytecode de la app usa Java 17.
-- Android SDK 34.
-- Conexión a Internet para Gradle, TMDb, TDTChannels e IPTV-org.
-- Python 3.10 o posterior, solo si se utiliza la API local opcional para M3U.
+También puedes ejecutar `./gradlew :app:assembleDebug` desde la raíz. Se necesita conexión a Internet para obtener dependencias y consultar las fuentes de datos.
 
 ## Estructura
 
-- `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación, reproducción, componentes y ViewModels.
-- `app/src/main/java/com/myiptv/clean/data/api`: clientes de TMDb, TDTChannels e IPTV-org.
-- `app/src/main/java/com/myiptv/clean/data/repository`: catálogos TMDb/TDTChannels/IPTV-org y fuentes de reproducción locales.
-- `app/src/main/java/com/myiptv/clean/data/model`: modelos de respuesta TMDb e IPTV-org.
-- `tools/authorized_m3u_api.py`: API local de redirección para entradas directas de un M3U autorizado.
+- `app/src/main/assets/samplay_catalog.m3u`: catálogo de fuentes de películas y series, inicialmente vacío.
+- `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación y ViewModels.
+- `app/src/main/java/com/myiptv/clean/ui/player`: interacción táctil y con mando del reproductor directo.
+- `app/src/main/java/com/myiptv/clean/data/repository`: catálogos TMDb, canales, M3U y respaldo de fuentes locales.
 - `app/src/main/java/com/myiptv/clean/ui/welcome`: bienvenida inicial.
-- `app/src/main/res`: recursos y pantallas heredadas.
-- `gradle/wrapper`: versión fija de Gradle.
+- `app/src/main/res`: recursos de la aplicación.
+- `tools/authorized_m3u_api.py`: API local opcional para entradas directas de un M3U autorizado.

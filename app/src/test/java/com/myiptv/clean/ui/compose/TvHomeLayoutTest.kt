@@ -5,6 +5,15 @@ import org.junit.Test
 
 class TvHomeLayoutTest {
     @Test
+    fun phoneFeaturedCardsStayVerticalWithoutChangingTheTvLayout() {
+        assertEquals(false, homeHeroesSideBySide(false, 320f))
+        assertEquals(false, homeHeroesSideBySide(false, 430f))
+        assertEquals(false, homeHeroesSideBySide(true, 359f))
+        assertEquals(true, homeHeroesSideBySide(true, 360f))
+        assertEquals(true, homeHeroesSideBySide(true, 1000f))
+    }
+
+    @Test
     fun interleavesCatalogsOfDifferentLengths() {
         assertEquals(
             listOf("m1", "s1", "m2", "s2", "m3"),

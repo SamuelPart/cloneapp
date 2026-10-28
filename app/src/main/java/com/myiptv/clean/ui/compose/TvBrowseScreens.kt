@@ -32,12 +32,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.myiptv.clean.BuildConfig
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
+import com.myiptv.clean.data.repository.MediaPlaylist
+import com.myiptv.clean.data.repository.mergeMediaCatalog
 import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
-internal fun TvChannelsScreen(viewModel: ChannelsViewModel, onOpenChannel: (String) -> Unit) {
+internal fun TvChannelsScreen(viewModel: ChannelsViewModel, onOpenChannel: (String) -> Unit, isTv: Boolean) {
     val channels = viewModel.filteredChannels
-    Column(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader(
             title = "TV en directo",
             subtitle = "Emisiones en directo de distintos países.",
@@ -70,17 +72,19 @@ internal fun TvBrowseMediaScreen(
     viewModel: MoviesViewModel,
     onOpenMedia: (String) -> Unit,
     favorites: Set<String>,
-    onToggleFavorite: (String) -> Unit
+    onToggleFavorite: (String) -> Unit,
+    playlist: MediaPlaylist,
+    isTv: Boolean
 ) {
     val title = if (kind == MediaKind.MOVIE) "Películas" else "Series"
-    val items = viewModel.itemsFor(kind)
-    Column(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
-        TvPageHeader(title, if (kind == MediaKind.MOVIE) "Películas del catálogo TMDb." else "Series del catálogo TMDb.")
+    val items = viewModel.itemsFor(kind, playlist.items)
+    Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
+        TvPageHeader(title, if (kind == MediaKind.MOVIE) "Películas del catálogo M3U y de TMDb." else "Series del catálogo M3U y de TMDb.")
         TvCatalogControls(
             query = viewModel.query,
             onQueryChange = { viewModel.query = it },
             placeholder = "Buscar $title",
-            filters = viewModel.genresFor(kind),
+            filters = viewModel.genresFor(kind, playlist.items),
             selectedFilter = viewModel.selectedGenre,
             onSelectFilter = { viewModel.selectedGenre = it }
         )
@@ -90,9 +94,12 @@ internal fun TvBrowseMediaScreen(
             onSelect = { viewModel.selectedTab = it },
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
         )
-        TvStatus("${items.size} títulos · ${viewModel.statusMessage}")
+        TvStatus("${items.size} títulos · ${playlist.statusMessage} · ${viewModel.statusMessage}")
         if (items.isEmpty()) {
-            TvEmptyState(Icons.Filled.Movie, if (viewModel.isLoading) "Cargando catálogo" else "No hay títulos", viewModel.statusMessage, Modifier.weight(1f))
+            val message = if (viewModel.query.isNotBlank() || viewModel.selectedGenre != "Todos") {
+                "No se encontraron títulos para este filtro."
+            } else "${playlist.statusMessage} ${viewModel.statusMessage}"
+            TvEmptyState(Icons.Filled.Movie, if (viewModel.isLoading || !playlist.loaded) "Cargando catálogo" else "No hay títulos", message, Modifier.weight(1f))
         } else {
             TvMediaGrid(items, onOpenMedia, Modifier.weight(1f), favorites, onToggleFavorite)
         }
@@ -105,10 +112,11 @@ internal fun TvCollectionScreen(
     viewModel: MediaCollectionViewModel,
     onOpenMedia: (String) -> Unit,
     favorites: Set<String>,
-    onToggleFavorite: (String) -> Unit
+    onToggleFavorite: (String) -> Unit,
+    isTv: Boolean
 ) {
     val isKids = collection == MediaCollection.KIDS
-    Column(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader(
             title = if (isKids) "Kids" else "Anime",
             subtitle = if (isKids) "Películas familiares y series infantiles según TMDb. Esta sección no sustituye la supervisión parental."
@@ -136,13 +144,15 @@ internal fun TvFavoritesScreen(
     onToggle: (String) -> Unit,
     onOpenMedia: (String) -> Unit,
     onOpenChannel: (String) -> Unit,
-    onExplore: () -> Unit
+    onExplore: () -> Unit,
+    playlist: MediaPlaylist,
+    isTv: Boolean
 ) {
-    val media = TmdbRepository.cachedCatalog().filter { it.id in savedIds }
+    val media = mergeMediaCatalog(playlist.items, TmdbRepository.cachedCatalog()).filter { it.id in savedIds }
     val channels = ChannelCatalogRepository.cachedChannels().filter { it.id in savedIds }
     val loadedIds = media.map(MediaItem::id).toSet() + channels.map(LiveChannel::id)
     val unavailableCount = (savedIds - loadedIds).size
-    Column(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader("Mi lista", "Películas, series y canales guardados.")
         if (media.isEmpty() && channels.isEmpty()) {
             val title = if (savedIds.isEmpty()) "Tu lista está vacía" else "No hay elementos disponibles"
@@ -180,11 +190,22 @@ internal fun TvFavoritesScreen(
 }
 
 @Composable
-internal fun TvSearchScreen(viewModel: SearchViewModel, onOpenMedia: (String) -> Unit, onOpenChannel: (String) -> Unit) {
+internal fun TvSearchScreen(
+    viewModel: SearchViewModel,
+    onOpenMedia: (String) -> Unit,
+    onOpenChannel: (String) -> Unit,
+    playlist: MediaPlaylist,
+    isTv: Boolean
+) {
     val isSearching = viewModel.query.isNotBlank()
-    val media = if (isSearching) viewModel.mediaResults else viewModel.featuredMedia.sortedByDescending(MediaItem::rating).take(5)
+    val localMedia = playlist.items.filter { item ->
+        !isSearching || item.title.contains(viewModel.query, ignoreCase = true) ||
+            item.genres.any { it.contains(viewModel.query, ignoreCase = true) }
+    }
+    val remoteMedia = if (isSearching) viewModel.mediaResults else viewModel.featuredMedia.sortedByDescending(MediaItem::rating).take(5)
+    val media = mergeMediaCatalog(localMedia, remoteMedia)
     val channels = if (isSearching) viewModel.channelResults else viewModel.channels
-    Column(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader("Buscar", "Películas, series y canales en un solo lugar.")
         TvSearchBox(viewModel.query, { viewModel.query = it }, "¿Qué te gustaría ver?")
         TvStatus(viewModel.statusMessage)
@@ -227,8 +248,8 @@ internal fun TvSearchScreen(viewModel: SearchViewModel, onOpenMedia: (String) ->
 }
 
 @Composable
-internal fun TvLibraryScreen(downloads: Boolean) {
-    Column(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
+internal fun TvLibraryScreen(downloads: Boolean, isTv: Boolean) {
+    Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader(if (downloads) "Descargas" else "Historial", if (downloads) "Contenido sin conexión." else "Actividad de reproducción local.")
         TvEmptyState(
             icon = if (downloads) Icons.Filled.Download else Icons.Filled.History,
@@ -241,8 +262,8 @@ internal fun TvLibraryScreen(downloads: Boolean) {
 }
 
 @Composable
-internal fun TvSettingsScreen() {
-    Column(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
+internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean) {
+    Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader("Ajustes", "Fuentes de información, reproducción y privacidad.")
         Column(
             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
@@ -252,7 +273,7 @@ internal fun TvSettingsScreen() {
                 TvSectionLabel("Fuentes")
                 TvSourceRow(Icons.Filled.Key, "Metadatos TMDb", if (TmdbRepository.isConfigured) "Hay una API Key local configurada." else "Falta la API Key local. Añádela en local.properties o en TMDB_API_KEY.")
                 TvSourceRow(Icons.Filled.LiveTv, "Canales de televisión", "Catálogo de emisiones en directo de distintos países.")
-                TvSourceRow(Icons.Filled.Movie, "Enlaces de películas y series", "Añade un enlace directo autorizado o un embed iframe desde la ficha. Se conserva solo en este dispositivo.")
+                TvSourceRow(Icons.Filled.Movie, "Catálogo M3U", "${playlist.statusMessage} Las fuentes se incluyen desde samplay_catalog.m3u en el proyecto.")
             }
             TvInfoPanel {
                 TvSectionLabel("Privacidad y atribución")
@@ -261,7 +282,7 @@ internal fun TvSettingsScreen() {
                 Text("Tipografía Inter © The Inter Project Authors, distribuida bajo SIL Open Font License 1.1.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
                 Text("La disponibilidad de las emisiones de televisión puede variar según el país y las condiciones de cada señal.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
             }
-            TvStatus("XUPER TV · versión ${BuildConfig.VERSION_NAME}")
+            TvStatus("SamPlay · versión ${BuildConfig.VERSION_NAME}")
         }
     }
 }

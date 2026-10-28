@@ -30,3 +30,6 @@ internal fun usesTvDeviceLayout(
     hasTelevisionFeature: Boolean,
     hasTouchscreen: Boolean
 ): Boolean = isTelevisionMode || hasLeanback || hasTelevisionFeature || !hasTouchscreen
+
+/** Phone screens keep the two featured cards stacked even when wider than 360dp. */
+internal fun homeHeroesSideBySide(isTv: Boolean, widthDp: Float): Boolean = isTv && widthDp >= 360f

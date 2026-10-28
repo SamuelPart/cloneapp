@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.TmdbRepository
+import com.myiptv.clean.data.repository.mergeMediaCatalog
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -200,11 +201,14 @@ class MoviesViewModel : ViewModel() {
         loadCatalog()
     }
 
-    fun genresFor(kind: MediaKind): List<String> =
-        if (kind == MediaKind.MOVIE) movieGenres else seriesGenres
+    fun genresFor(kind: MediaKind, playlistItems: List<MediaItem> = emptyList()): List<String> {
+        val remote = if (kind == MediaKind.MOVIE) movieGenres else seriesGenres
+        return (remote + playlistItems.filter { it.kind == kind }.flatMap(MediaItem::genres)).distinct()
+    }
 
-    fun itemsFor(kind: MediaKind): List<MediaItem> {
-        val source = remoteSearchResults ?: if (kind == MediaKind.MOVIE) movieCatalog else seriesCatalog
+    fun itemsFor(kind: MediaKind, playlistItems: List<MediaItem> = emptyList()): List<MediaItem> {
+        val remote = remoteSearchResults ?: if (kind == MediaKind.MOVIE) movieCatalog else seriesCatalog
+        val source = mergeMediaCatalog(playlistItems, remote)
         val filtered = source.filter { item ->
             item.kind == kind &&
                 (selectedGenre == "Todos" || item.genres.any { it.equals(selectedGenre, ignoreCase = true) }) &&

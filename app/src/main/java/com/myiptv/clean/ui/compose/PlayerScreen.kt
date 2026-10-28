@@ -52,33 +52,41 @@ import com.google.android.exoplayer2.source.DefaultMediaSourceFactory
 import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
 import com.google.android.exoplayer2.ui.PlayerView
 import com.google.android.exoplayer2.ui.PlayerControlView
+import com.google.android.exoplayer2.ui.R as ExoUiR
 import com.google.android.exoplayer2.upstream.DefaultDataSource
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource
 import com.google.android.exoplayer2.util.Util
 import com.myiptv.clean.R
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.LocalMediaSources
+import com.myiptv.clean.data.repository.MediaPlaylist
+import com.myiptv.clean.data.repository.PlaylistSource
 import com.myiptv.clean.data.repository.TmdbRepository
+import com.myiptv.clean.data.repository.parseEpisodeSourceId
+import com.myiptv.clean.data.repository.resolvePlaybackSource
+import com.myiptv.clean.ui.player.phonePlayerButtonWidth
 import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(
     contentId: String,
     isTv: Boolean,
+    playlist: MediaPlaylist,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val episodeReference = remember(contentId) { parseEpisodeSourceId(contentId) }
     val mediaId = episodeReference?.mediaId ?: contentId
     val channel = remember(contentId) { ChannelCatalogRepository.cachedChannel(contentId) }
-    val media = remember(mediaId) { TmdbRepository.cachedMedia(mediaId) }
+    val media = remember(mediaId, playlist) { TmdbRepository.cachedMedia(mediaId) ?: playlist.item(mediaId) }
     val savedSource = remember(contentId) { LocalMediaSources.get(context, contentId) }
-    val sourceUrl = channel?.streamUrl ?: savedSource?.url ?: if (episodeReference == null) media?.streamUrl else null
-    val sourceType = when {
-        channel != null -> MediaPlaybackType.DIRECT
-        savedSource != null -> savedSource.type
-        else -> media?.playbackType ?: MediaPlaybackType.DIRECT
-    }
+    val mediaSource = resolvePlaybackSource(
+        catalog = playlist.source(contentId),
+        legacy = savedSource?.let { PlaylistSource(it.url, it.type) },
+        fallback = if (episodeReference == null) media?.streamUrl?.let { PlaylistSource(it, media.playbackType) } else null
+    )
+    val sourceUrl = channel?.streamUrl ?: mediaSource?.url
+    val sourceType = if (channel != null) MediaPlaybackType.DIRECT else mediaSource?.type ?: MediaPlaybackType.DIRECT
     val title = when {
         channel != null -> channel.name
         media == null -> "Reproductor"
@@ -86,9 +94,9 @@ fun PlayerScreen(
         else -> "${media.title} · T${episodeReference.seasonNumber} · E${episodeReference.episodeNumber}"
     }
     val isChannelReference = contentId.startsWith("tdt_") || contentId.startsWith("iptv_")
-    var controllerVisible by remember { mutableStateOf(true) }
+    var controllerVisible by remember(contentId) { mutableStateOf(true) }
     var iframeHeaderVisible by remember(contentId) { mutableStateOf(true) }
-    val controllerListener = remember {
+    val controllerListener = remember(contentId) {
         PlayerControlView.VisibilityListener { visibility -> controllerVisible = visibility == View.VISIBLE }
     }
     LaunchedEffect(contentId, sourceType, isTv) {
@@ -107,7 +115,7 @@ fun PlayerScreen(
                 Text("Fuente de reproducción no disponible", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                 Text(
                     if (isChannelReference) "No se encontró una señal activa para este canal."
-                    else "Añade un enlace directo o un embed iframe en la ficha del título para reproducirlo.",
+                    else "Este título o episodio no tiene una fuente disponible en el catálogo M3U.",
                     color = Color.White.copy(alpha = 0.74f), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center
                 )
                 PlayerBackButton(onBack, isTv)
@@ -131,6 +139,8 @@ fun PlayerScreen(
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = true
+                        settings.allowFileAccess = false
+                        settings.allowContentAccess = false
                         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                         webChromeClient = WebChromeClient()
                         if (isTv) {
@@ -141,6 +151,12 @@ fun PlayerScreen(
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                                 val scheme = request.url.scheme?.lowercase()
+                                return scheme !in setOf("http", "https")
+                            }
+
+                            @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+                            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                                val scheme = Uri.parse(url).scheme?.lowercase()
                                 return scheme !in setOf("http", "https")
                             }
                         }
@@ -157,7 +173,7 @@ fun PlayerScreen(
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { webView },
-                    update = { if (it.url != embedUrl) it.loadUrl(embedUrl) }
+                    update = { /* Redirects and provider navigation belong to the embed. */ }
                 )
             }
         } else {
@@ -180,27 +196,23 @@ fun PlayerScreen(
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { viewContext ->
-                    val playerView = if (isTv) {
-                        LayoutInflater.from(viewContext).inflate(R.layout.tv_player_view, null, false) as PlayerView
-                    } else {
-                        PlayerView(viewContext)
-                    }
+                    val playerView = LayoutInflater.from(viewContext).inflate(R.layout.tv_player_view, null, false) as PlayerView
                     playerView.apply {
-                        if (isTv) {
-                            setControllerVisibilityListener(controllerListener)
-                            isFocusable = true
-                        }
+                        setControllerVisibilityListener(controllerListener)
+                        isFocusable = isTv
+                        if (!isTv) adaptPhonePlayerControls(this)
                         player = exoPlayer
                         useController = true
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        if (isTv) {
-                            controllerVisible = isControllerVisible
-                            post { requestFocus(); showController() }
+                        controllerVisible = isControllerVisible
+                        post {
+                            if (isTv) requestFocus()
+                            showController()
                         }
                     }
                 },
                 update = { playerView ->
-                    if (isTv) playerView.setControllerVisibilityListener(controllerListener)
+                    playerView.setControllerVisibilityListener(controllerListener)
                     if (playerView.player !== exoPlayer) playerView.player = exoPlayer
                 }
             )
@@ -217,7 +229,7 @@ fun PlayerScreen(
             if (showHeader) {
                 TvPlayerHeader(title, subtitle, onBack, Modifier.align(Alignment.TopStart))
             }
-        } else {
+        } else if (sourceType == MediaPlaybackType.IFRAME || controllerVisible) {
             Surface(modifier = Modifier.align(Alignment.TopStart).padding(14.dp), color = Color(0xAA090C13), shape = MaterialTheme.shapes.large) {
                 androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(end = 16.dp)) {
                     PlayerBackButton(onBack, false)
@@ -263,6 +275,26 @@ private fun PlayerBackButton(onBack: () -> Unit, isTv: Boolean) {
     }
 }
 
+/** Keep the TV controller design while fitting all its buttons on narrow phones. */
+private fun adaptPhonePlayerControls(playerView: PlayerView) {
+    val density = playerView.resources.displayMetrics.density
+    fun pixels(dp: Float): Int = (dp * density + 0.5f).toInt()
+    val panel = playerView.findViewById<View>(R.id.samplay_player_controls)
+    panel?.setPadding(pixels(12f), panel.paddingTop, pixels(12f), panel.paddingBottom)
+    val side = phonePlayerButtonWidth(playerView.resources.configuration.screenWidthDp.toFloat())
+    val regularButtons = intArrayOf(ExoUiR.id.exo_prev, ExoUiR.id.exo_rew, ExoUiR.id.exo_ffwd, ExoUiR.id.exo_next)
+    val centralButtons = intArrayOf(ExoUiR.id.exo_play, ExoUiR.id.exo_pause)
+    fun resize(id: Int, dp: Float) {
+        val button = playerView.findViewById<View>(id) ?: return
+        val params = button.layoutParams ?: return
+        params.width = pixels(dp)
+        params.height = pixels(dp)
+        button.layoutParams = params
+    }
+    regularButtons.forEach { resize(it, side) }
+    centralButtons.forEach { resize(it, (side + 8f).coerceAtMost(56f)) }
+}
+
 private fun createExoPlayer(
     context: android.content.Context,
     streamUrl: String,
@@ -270,7 +302,7 @@ private fun createExoPlayer(
     referrer: String?
 ): ExoPlayer {
     val httpFactory = DefaultHttpDataSource.Factory()
-        .setUserAgent(userAgent?.takeIf(String::isNotBlank) ?: Util.getUserAgent(context, "CLEAN IPTV"))
+        .setUserAgent(userAgent?.takeIf(String::isNotBlank) ?: Util.getUserAgent(context, "SamPlay"))
     referrer?.takeIf(String::isNotBlank)?.let { value ->
         httpFactory.setDefaultRequestProperties(mapOf("Referer" to value))
     }
@@ -283,21 +315,6 @@ private fun createExoPlayer(
             prepare()
             playWhenReady = true
         }
-}
-
-private data class EpisodeSourceReference(
-    val mediaId: String,
-    val seasonNumber: Int,
-    val episodeNumber: Int
-)
-
-private fun parseEpisodeSourceId(value: String): EpisodeSourceReference? {
-    val match = Regex("""^(tmdb_(?:movie|tv)_\d+)_s(\d+)_e(\d+)$""").matchEntire(value) ?: return null
-    return EpisodeSourceReference(
-        mediaId = match.groupValues[1],
-        seasonNumber = match.groupValues[2].toIntOrNull() ?: return null,
-        episodeNumber = match.groupValues[3].toIntOrNull() ?: return null
-    )
 }
 
 private fun iframeSourceUrl(value: String): String? {

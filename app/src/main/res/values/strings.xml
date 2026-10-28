@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Clean IPTV</string>
+    <string name="app_name">SamPlay</string>
     <string name="app_version">Versión 1.0.0</string>
     <string name="loading">Preparando la aplicación…</string>
     <string name="home">Inicio</string>

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,31 +58,35 @@ internal fun TvUnavailableDetail(icon: ImageVector, title: String, message: Stri
 @Composable
 internal fun TvChannelDetail(
     channel: LiveChannel,
+    isTv: Boolean,
     favorite: Boolean,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
     val initialFocus = remember(channel.id) { FocusRequester() }
-    val heroHeight = (LocalConfiguration.current.screenHeightDp.dp * 0.72f).coerceIn(300.dp, 480.dp)
-    LaunchedEffect(channel.id) {
-        delay(180)
-        runCatching { initialFocus.requestFocus() }
+    val heroHeight = if (isTv) (LocalConfiguration.current.screenHeightDp.dp * 0.72f).coerceIn(300.dp, 480.dp)
+        else (LocalConfiguration.current.screenHeightDp.dp * 0.48f).coerceIn(340.dp, 440.dp)
+    LaunchedEffect(channel.id, isTv) {
+        if (isTv) {
+            delay(180)
+            runCatching { initialFocus.requestFocus() }
+        }
     }
     Column(modifier = Modifier.fillMaxSize().background(Color.Black).verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(heroHeight)
+            modifier = (if (isTv) Modifier.fillMaxWidth().height(heroHeight) else Modifier.fillMaxWidth().heightIn(min = heroHeight))
                 .background(Brush.horizontalGradient(listOf(Color.Black, Color(channel.accent).copy(alpha = 0.3f), Color.Black)))
         ) {
-            ChannelLogo(channel, Modifier.align(Alignment.CenterEnd).padding(end = 75.dp).size(150.dp))
-            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.85f), Color.Black.copy(alpha = 0.28f), Color.Transparent))))
+            ChannelLogo(channel, Modifier.align(Alignment.CenterEnd).padding(end = if (isTv) 75.dp else 18.dp).size(if (isTv) 150.dp else 110.dp))
+            Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.85f), Color.Black.copy(alpha = 0.28f), Color.Transparent))))
             Column(
-                modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(0.72f).padding(start = 36.dp, end = 12.dp),
+                modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(if (isTv) 0.72f else 1f).padding(start = if (isTv) 36.dp else 18.dp, end = 12.dp, top = if (isTv) 0.dp else 16.dp, bottom = if (isTv) 0.dp else 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 TvActionButton("Volver", onBack, icon = Icons.Filled.ArrowBack)
                 Text("TV EN DIRECTO · ${channel.category.uppercase()}", color = TvAccent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                Text(channel.name, color = Color.White, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(channel.name, color = Color.White, style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("Emisión de televisión en directo", color = TvMuted, style = MaterialTheme.typography.bodyMedium)
                 Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TvActionButton("Ver canal", onPlay, modifier = Modifier.focusRequester(initialFocus), icon = Icons.Filled.PlayArrow, primary = true)
@@ -89,7 +94,7 @@ internal fun TvChannelDetail(
                 }
             }
         }
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 36.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             TvInfoPanel {
                 Text("Información de la señal", color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text("Categoría: ${channel.category}", color = TvMuted, style = MaterialTheme.typography.bodySmall)
@@ -104,8 +109,7 @@ internal fun TvChannelDetail(
 internal fun TvEpisodeRow(
     episode: MediaEpisode,
     hasSource: Boolean,
-    onPlay: () -> Unit,
-    onConfigure: () -> Unit
+    onPlay: () -> Unit
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val compact = maxWidth < 450.dp
@@ -126,13 +130,10 @@ internal fun TvEpisodeRow(
                 Text("EPISODIO ${episode.number.toString().padStart(2, '0')}" + (duration?.let { " · $it" } ?: ""), color = TvAccent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 Text(episode.title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(episode.synopsis, color = TvMuted, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    if (hasSource) {
-                        TvActionButton("Reproducir", onPlay, icon = Icons.Filled.PlayArrow, primary = true)
-                        TvActionButton("Cambiar enlace", onConfigure, icon = Icons.Filled.Add)
-                    } else {
-                        TvActionButton("Añadir enlace", onConfigure, icon = Icons.Filled.Add)
-                    }
+                if (hasSource) {
+                    TvActionButton("Reproducir", onPlay, icon = Icons.Filled.PlayArrow, primary = true)
+                } else {
+                    Text("Sin fuente de reproducción", color = TvMuted, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

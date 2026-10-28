@@ -50,24 +50,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.myiptv.clean.data.repository.TmdbRepository
+import com.myiptv.clean.data.repository.MediaPlaylist
+import com.myiptv.clean.data.repository.mergeMediaCatalog
 import kotlinx.coroutines.delay
 
 @Composable
 fun TvHomeScreen(
     viewModel: HomeViewModel,
+    isTv: Boolean,
+    playlist: MediaPlaylist,
     onOpenChannels: () -> Unit,
     onOpenMovies: () -> Unit,
     onOpenSeries: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenChannel: (String) -> Unit,
-    onOpenMedia: (String) -> Unit
+    onOpenMedia: (String) -> Unit,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit
 ) {
-    val featured = remember(viewModel.featured, viewModel.trending, viewModel.recommended) {
-        featuredCatalog(viewModel.featured, viewModel.trending, viewModel.recommended, MediaItem::id)
+    val available = remember(playlist.items, viewModel.trending, viewModel.recommended) {
+        mergeMediaCatalog(playlist.items, viewModel.trending + viewModel.recommended)
     }
-    val gridTitles = remember(viewModel.trending, viewModel.recommended) {
-        homeGridCatalog(viewModel.trending, viewModel.recommended, MediaItem::id)
+    val movies = available.filter { it.kind == MediaKind.MOVIE }
+    val series = available.filter { it.kind == MediaKind.SERIES }
+    val preferred = if (playlist.items.isNotEmpty()) available.firstOrNull() else viewModel.featured
+    val featured = remember(preferred, movies, series) {
+        featuredCatalog(preferred, movies, series, MediaItem::id)
     }
+    val gridTitles = remember(movies, series) { homeGridCatalog(movies, series, MediaItem::id) }
     var slide by rememberSaveable { mutableStateOf(0) }
     var primaryHeroFocused by remember { mutableStateOf(false) }
     var secondaryHeroFocused by remember { mutableStateOf(false) }
@@ -87,9 +97,9 @@ fun TvHomeScreen(
         }
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         val compact = maxWidth < 600.dp
-        val sideBySideHeroes = maxWidth >= 360.dp
+        val sideBySideHeroes = homeHeroesSideBySide(isTv, maxWidth.value)
         val columns = tvCatalogColumnCount(maxWidth.value)
         val naturalHeroHeight = if (sideBySideHeroes) (maxWidth * 0.30f).coerceIn(110.dp, 310.dp) else (maxWidth * 0.54f).coerceIn(120.dp, 230.dp)
         val heroHeight = naturalHeroHeight.coerceAtMost((maxHeight * 0.55f).coerceAtLeast(100.dp))
@@ -153,12 +163,23 @@ fun TvHomeScreen(
                 Row(modifier = Modifier.fillMaxWidth().height(tileHeight), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     row.forEach { item ->
                         key(item.id) {
-                            TvMediaArtwork(
-                                item = item,
-                                modifier = Modifier.weight(1f).fillMaxSize(),
-                                featured = false,
-                                onClick = { onOpenMedia(item.id) }
-                            )
+                            if (isTv) {
+                                TvMediaArtwork(
+                                    item = item,
+                                    modifier = Modifier.weight(1f).fillMaxSize(),
+                                    featured = false,
+                                    onClick = { onOpenMedia(item.id) }
+                                )
+                            } else {
+                                TvCatalogMediaCard(
+                                    item = item,
+                                    modifier = Modifier.weight(1f).fillMaxSize(),
+                                    featured = false,
+                                    isFavorite = item.id in favorites,
+                                    onToggleFavorite = { onToggleFavorite(item.id) },
+                                    onClick = { onOpenMedia(item.id) }
+                                )
+                            }
                         }
                     }
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
@@ -181,14 +202,14 @@ fun TvHomeScreen(
                     TvMediaShelf("Tendencias esta semana", viewModel.weeklyTrends, compact, onOpenMedia)
                 }
             }
-            if (viewModel.trending.isNotEmpty()) {
+            if (movies.isNotEmpty()) {
                 item(key = "popular-movies") {
-                    TvMediaShelf("Películas populares", viewModel.trending, compact, onOpenMedia, "Ver películas", onOpenMovies)
+                    TvMediaShelf(if (playlist.items.isEmpty()) "Películas populares" else "Películas", movies, compact, onOpenMedia, "Ver películas", onOpenMovies)
                 }
             }
-            if (viewModel.recommended.isNotEmpty()) {
+            if (series.isNotEmpty()) {
                 item(key = "popular-series") {
-                    TvMediaShelf("Series populares", viewModel.recommended, compact, onOpenMedia, "Ver series", onOpenSeries)
+                    TvMediaShelf(if (playlist.items.isEmpty()) "Series populares" else "Series", series, compact, onOpenMedia, "Ver series", onOpenSeries)
                 }
             }
             if (viewModel.documentaries.isNotEmpty()) {
@@ -221,7 +242,7 @@ fun TvHomeScreen(
             }
             item(key = "status") {
                 Text(
-                    text = viewModel.statusMessage,
+                    text = "${playlist.statusMessage} · ${viewModel.statusMessage}",
                     modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall
