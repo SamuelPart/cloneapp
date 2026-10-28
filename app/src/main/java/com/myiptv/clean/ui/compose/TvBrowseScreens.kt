@@ -24,17 +24,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.myiptv.clean.BuildConfig
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.MediaPlaylist
+import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.data.repository.mergeMediaCatalog
 import com.myiptv.clean.data.repository.TmdbRepository
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun TvChannelsScreen(viewModel: ChannelsViewModel, onOpenChannel: (String) -> Unit, isTv: Boolean) {
@@ -263,6 +272,10 @@ internal fun TvLibraryScreen(downloads: Boolean, isTv: Boolean) {
 
 @Composable
 internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val syncStatus by MediaPlaylistRepository.syncStatus.collectAsState()
+    var refreshing by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize().padding(start = if (isTv) 0.dp else 16.dp, end = if (isTv) 24.dp else 16.dp)) {
         TvPageHeader("Ajustes", "Fuentes de información, reproducción y privacidad.")
         Column(
@@ -273,7 +286,19 @@ internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean) {
                 TvSectionLabel("Fuentes")
                 TvSourceRow(Icons.Filled.Key, "Metadatos TMDb", if (TmdbRepository.isConfigured) "Hay una API Key local configurada." else "Falta la API Key local. Añádela en local.properties o en TMDB_API_KEY.")
                 TvSourceRow(Icons.Filled.LiveTv, "Canales de televisión", "Catálogo de emisiones en directo de distintos países.")
-                TvSourceRow(Icons.Filled.Movie, "Catálogo M3U", "${playlist.statusMessage} Las fuentes se incluyen desde samplay_catalog.m3u en el proyecto.")
+                TvSourceRow(Icons.Filled.Movie, "Catálogo M3U", "${playlist.statusMessage} $syncStatus")
+                TvActionButton(if (refreshing) "Buscando novedades…" else "Actualizar catálogo", onClick = {
+                    if (!refreshing) {
+                        refreshing = true
+                        scope.launch {
+                            try { MediaPlaylistRepository.refresh(context.applicationContext) } finally { refreshing = false }
+                        }
+                    }
+                }, icon = Icons.Filled.Refresh)
+            }
+            TvInfoPanel {
+                TvSectionLabel("Notificaciones de novedades")
+                CatalogNotificationSettings()
             }
             TvInfoPanel {
                 TvSectionLabel("Privacidad y atribución")

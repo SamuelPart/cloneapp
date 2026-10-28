@@ -8,10 +8,12 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.myiptv.clean.R
+import com.myiptv.clean.notifications.CatalogSyncScheduler
 
 class IptvActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CatalogSyncScheduler.schedule(applicationContext)
         val background = ContextCompat.getColor(this, R.color.background)
         val isTelevision = isTelevisionDevice()
         window.statusBarColor = background

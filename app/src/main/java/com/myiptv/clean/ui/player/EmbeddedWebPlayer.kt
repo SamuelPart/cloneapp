@@ -15,10 +15,12 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import java.io.ByteArrayInputStream
 import java.util.Collections
 
-/** A sandboxed page player. The local bot only reads same-origin DOM; there is no native JS bridge. */
+/** A sandboxed page player. The playback bot uses same-origin DOM; no script has a native JS bridge. */
 internal class EmbeddedWebPlayer(
     context: Context,
     private val sourceUrl: String,
@@ -45,6 +47,10 @@ internal class EmbeddedWebPlayer(
     private var blankWhileBackground = false
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    private val adGuardScript = runCatching {
+        context.assets.open("samplay_frame_adguard.js").bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }.getOrDefault("")
+    private var adGuardAtDocumentStart = false
 
     init {
         container.setBackgroundColor(android.graphics.Color.BLACK)
@@ -64,6 +70,20 @@ internal class EmbeddedWebPlayer(
             // them in the current WebView on some Android versions.
             setSupportMultipleWindows(true)
             setGeolocationEnabled(false)
+        }
+        // Unlike evaluateJavascript on the top page, document-start registration also runs in
+        // cross-origin iframe documents. Older WebViews use the same-origin fallback below.
+        if (adGuardScript.isNotBlank()) {
+            adGuardAtDocumentStart = try {
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                    WebViewCompat.addDocumentStartJavaScript(webView, adGuardScript, setOf("*"))
+                    true
+                } else false
+            } catch (_: Exception) {
+                false
+            } catch (_: LinkageError) {
+                false
+            }
         }
         webView.webChromeClient = object : WebChromeClient() {
             override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean = false
@@ -135,6 +155,7 @@ internal class EmbeddedWebPlayer(
                 if (!disposed && !blankWhileBackground && isAllowed(url, isMainFrame = true)) {
                     pageCommitted = true
                     onLoading(false)
+                    installFallbackAdGuard(view)
                     bot.onPageFinished()
                 }
             }
@@ -143,6 +164,7 @@ internal class EmbeddedWebPlayer(
                 if (!disposed && !blankWhileBackground && isAllowed(url, isMainFrame = true)) {
                     pageCommitted = true
                     onLoading(false)
+                    installFallbackAdGuard(view)
                     bot.onPageFinished()
                 }
             }
@@ -170,6 +192,12 @@ internal class EmbeddedWebPlayer(
             }
         }
         webView.loadUrl(sourceUrl)
+    }
+
+    private fun installFallbackAdGuard(view: WebView) {
+        if (!adGuardAtDocumentStart && adGuardScript.isNotBlank()) {
+            runCatching { view.evaluateJavascript(adGuardScript, null) }
+        }
     }
 
     fun onForeground() {

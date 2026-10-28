@@ -243,7 +243,7 @@ object MediaPlaylistParser {
     }
 
     /** An iframe's opening tag may be pasted across several physical lines. */
-    private fun logicalLines(text: String): List<String> {
+    internal fun logicalLines(text: String): List<String> {
         val result = mutableListOf<String>()
         var iframe: StringBuilder? = null
         for (raw in text.lineSequence()) {

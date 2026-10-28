@@ -20,8 +20,8 @@ android {
         applicationId 'com.myiptv.clean'
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName '1.0.0'
+        versionCode 2
+        versionName '1.1.0'
         buildConfigField 'String', 'TMDB_API_KEY', '"' + tmdbApiKey + '"'
     }
 
@@ -54,6 +54,8 @@ android {
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
+    // Inject the ad-layer guard at document start, including third-party iframe documents.
+    implementation 'androidx.webkit:webkit:1.11.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.fragment:fragment-ktx:1.6.2'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'

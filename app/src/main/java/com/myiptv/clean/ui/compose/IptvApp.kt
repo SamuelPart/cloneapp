@@ -62,6 +62,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -76,6 +79,8 @@ import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 import com.myiptv.clean.data.repository.loadPlaylistMetadata
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -120,6 +125,7 @@ private val sidebarDestinations = listOf(
 @Composable
 fun IptvApp() {
     val context = LocalContext.current
+    val appContext = context.applicationContext
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: IptvRoute.HOME
@@ -129,11 +135,22 @@ fun IptvApp() {
     val uiMode = LocalConfiguration.current.uiMode
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     val favoritesViewModel: FavoritesViewModel = viewModel()
-    val playlist by produceState(initialValue = MediaPlaylist.Loading, key1 = context.applicationContext) {
-        val local = MediaPlaylistRepository.load(context)
-        value = local // Videos remain available while TMDb requests run in the background.
-        if (TmdbRepository.isConfigured) {
-            loadPlaylistMetadata(local, TmdbRepository::playlistMetadata) { value = it }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    RequestCatalogNotificationsOnce()
+    val playlist by produceState(initialValue = MediaPlaylist.Loading, key1 = appContext) {
+        MediaPlaylistRepository.observe(appContext).collectLatest { local ->
+            value = local // Videos remain available while TMDb requests run in the background.
+            if (TmdbRepository.isConfigured) {
+                loadPlaylistMetadata(local, TmdbRepository::playlistMetadata) { value = it }
+            }
+        }
+    }
+    LaunchedEffect(appContext, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                MediaPlaylistRepository.refresh(appContext)
+                delay(MediaPlaylistRepository.REFRESH_INTERVAL_MS)
+            }
         }
     }
     LaunchedEffect(playlist.items) { favoritesViewModel.canonicalize(playlist) }

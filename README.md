@@ -22,7 +22,9 @@ En móvil, los controles de SamPlay se ocultan tras unos segundos sin interacci�
 
 En TV, el botón central del mando pausa o reanuda cuando el vídeo tiene el foco; con las flechas puedes revelar los controles y desplazarte entre ellos. La barra y los saltos de 10 segundos aparecen solo cuando VLC permite buscar en la fuente; en emisiones que no admiten pausa, la app lo indica. Al salir de la app se detiene el audio; al regresar se intenta recuperar la posición en los vídeos que permiten búsqueda y el estado de pausa.
 
-Las páginas web y embeds se abren en WebView. Un **bot local basado en reglas** (no un servicio de IA externo) intenta detectar el vídeo, pulsar Play o iniciarlo automáticamente y cerrar u ocultar capas de anuncios reconocibles. Bloquea ventanas emergentes, recursos de varias redes publicitarias conocidas y navegaciones principales fuera del proveedor; los iframes de vídeo en otros dominios siguen permitidos salvo que coincidan con la lista de anuncios. El bloqueo es limitado y puede afectar a algún proveedor que necesite una redirección externa. Si una redirección bloqueada impide cargar la página, la app muestra el dominio y permite autorizarlo explícitamente solo durante esa reproducción; nunca autoriza redes publicitarias conocidas ni rebajas de HTTPS a HTTP. No se incluyen credenciales ni se instala una interfaz JavaScript con acceso nativo.
+Las páginas web y embeds se abren en WebView. Un **bot local basado en reglas** (no un servicio de IA externo) intenta detectar el vídeo, pulsar Play o iniciarlo automáticamente y cerrar u ocultar capas de anuncios reconocibles. Además, si el WebView admite `DOCUMENT_START_SCRIPT`, SamPlay ejecuta un filtro de capas publicitarias al comienzo de cada página y cada iframe, incluidos los de otro origen. En WebViews antiguos utiliza un filtro de respaldo en la página y los iframes accesibles del mismo origen. El filtro no pulsa enlaces y procura conservar los vídeos, iframes de reproducción y controles; no puede reconocer todos los anuncios ni eliminar los que están integrados en la imagen o el audio del vídeo.
+
+También se bloquean ventanas emergentes, recursos de varias redes publicitarias conocidas y navegaciones principales fuera del proveedor; los iframes de vídeo en otros dominios siguen permitidos salvo que coincidan con la lista de anuncios. El bloqueo es limitado y puede afectar a algún proveedor que necesite una redirección externa. Si una redirección bloqueada impide cargar la página, la app muestra el dominio y permite autorizarlo explícitamente solo durante esa reproducción; nunca autoriza redes publicitarias conocidas ni rebajas de HTTPS a HTTP. No se incluyen credenciales ni se instala una interfaz JavaScript con acceso nativo.
 
 Cuando el bot puede acceder al elemento de vídeo HTML de la página o de un iframe del mismo origen, muestra los controles de SamPlay para reproducir, pausar y buscar. El botón **Controles web** vuelve a los originales del proveedor. Si el proveedor rechaza el inicio automático por exigir un toque, la app muestra sus controles para que el usuario lo inicie. Si el vídeo está en un iframe de otro origen, protegido o sin una API accesible, se mantienen los controles del proveedor: el bot no puede garantizar inicio automático, pausa, avance ni eliminación completa de anuncios en esos casos. Las páginas externas, sus enlaces y audio no se han probado en un dispositivo. Al pasar al fondo se intenta pausar el vídeo accesible; un iframe que el bot no puede controlar se descarga y vuelve a cargar al regresar, por lo que puede perder su posición. VLC y su selector de audio se usan solo con fuentes directas.
 
@@ -32,9 +34,17 @@ Las imágenes de las fichas aparecen suavemente al cargar y mantienen un fondo d
 
 ## Añadir vídeos al catálogo M3U
 
-1. Abre `app/src/main/assets/samplay_catalog.m3u` y conserva la primera línea `#EXTM3U`.
-2. Añade una entrada `#EXTINF` seguida, en la línea siguiente, por el enlace directo o el iframe. Sustituye todos los valores de ejemplo de abajo por datos reales y autorizados.
-3. Vuelve a compilar e instalar la aplicación. El archivo se empaqueta dentro del APK; editarlo en el proyecto no actualiza una instalación ya compilada.
+La versión con actualización en línea debe instalarse **una vez** sobre la anterior (con la misma firma si se quiere actualizar sin desinstalar). Después, los cambios de la lista no requieren reinstalar la app:
+
+1. Abre [samplay_catalog.m3u en la rama `arena/2b6cd77d-cloneapp`](https://github.com/SamuelPart/cloneapp/blob/arena/2b6cd77d-cloneapp/app/src/main/assets/samplay_catalog.m3u) y conserva la primera línea `#EXTM3U`. La app consulta específicamente esta rama, no `main`.
+2. Añade una entrada `#EXTINF` seguida, en la línea siguiente, por el enlace directo o el iframe. Sustituye los valores de ejemplo por datos reales y autorizados.
+3. Guarda el cambio en esa rama y súbelo a GitHub (haz commit y push si editaste el proyecto localmente). **Ajustes → Actualizar catálogo** permite buscarlo manualmente; también se busca al abrir la app y, mientras está abierta, aproximadamente cada 15 minutos.
+
+La app usa HTTPS para leer la lista pública en GitHub y conserva una copia local de la última versión válida; el M3U incluido en el APK sirve como respaldo inicial. Si no hay conexión, la descarga está incompleta o alguna entrada tiene un formato inválido, se mantiene la copia anterior y Ajustes informa del fallo. Un archivo con solo `#EXTM3U` sí se considera una lista vacía intencionada. El tamaño máximo de descarga es 4 MiB. GitHub puede tardar en reflejar un cambio por su caché.
+
+El seguimiento en segundo plano usa `JobScheduler` con un intervalo periódico mínimo de 15 minutos, no un servicio push: Android puede retrasarlo por batería, conectividad o restricciones del dispositivo. Si se fuerza la detención de la app, hay que abrirla de nuevo. La rama debe seguir disponible; si se elimina o el archivo deja de ser público, SamPlay sigue usando la copia guardada y ya no recibirá futuras ediciones de esa dirección.
+
+Al detectar películas, series o episodios nuevos se envía una notificación con sus nombres y el sonido original de SamPlay. La lista incluida en el APK es la base inicial, por lo que no se anuncia todo de nuevo al instalar. La app pide permiso en Android 13 o superior; también puedes revisar **Ajustes → Notificaciones de novedades**. Si los avisos están desactivados, se guardan como pendientes hasta que se permitan; si se sincroniza su retirada antes de habilitar los avisos, no se anuncia. El sonido y la aparición dependen de los ajustes del sistema, el modo silencio y la compatibilidad de notificaciones de cada Android TV.
 
 Puedes usar el formato sencillo incluido en el catálogo. Una película y un capítulo se escriben así, con la URL en texto plano en la siguiente línea:
 
@@ -82,9 +92,9 @@ En vez de `tmdb-id` y `media-type`, puedes usar `tvg-id="tmdb_movie_ID"`, `tvg-i
 
 Para entradas sencillas **sin ID**, la búsqueda automática compara el tipo y el título completo o el título original, sin distinguir mayúsculas, acentos ni puntuación. Si se indica un año, también debe coincidir; por ejemplo, `Nombre (2026)`. Solo se usa una coincidencia única y se consultan como máximo cinco páginas: si hay ambigüedad o demasiados resultados, se mantiene la entrada local sin inventar datos. Para resolver esos casos, añade el ID real. El atributo opcional `tmdb-match-id="ID_NUMÉRICO_TMDB"` fija solo los metadatos sin cambiar el ID M3U existente; en una serie agrupada basta ponerlo en un episodio, y los IDs contradictorios se rechazan. El catálogo incluido ya identifica así [*Marsupilami*](https://www.themoviedb.org/movie/1145899-marsupilami) (`1145899`, película) y [*La Brea*](https://www.themoviedb.org/tv/128839-la-brea) (`128839`, serie). El formato sencillo sigue siendo válido para nuevos títulos, sin necesidad de añadir el atributo cuando la coincidencia es inequívoca.
 
-En duplicados para el mismo título o episodio se usa la primera fuente válida. Ajustes muestra el estado del catálogo y si se ignoraron entradas por formato incorrecto.
+En duplicados para el mismo título o episodio se usa la primera fuente válida. Conserva el nombre o identificador de cada obra al actualizarla: si cambia su identidad, puede detectarse como un título nuevo. En la lista remota, una entrada inválida impide aplicar esa actualización para no perder títulos; corrige el formato y vuelve a guardar. Ajustes muestra el estado de la sincronización.
 
-El catálogo queda dentro del APK. No incluyas contraseñas, credenciales ni enlaces privados que no puedas distribuir; tampoco los subas a Git por accidente. Los enlaces presentes fueron facilitados por el propietario de este proyecto y su funcionamiento, disponibilidad y autorización deben comprobarse antes de distribuir la app.
+El catálogo incluido en el APK y su copia en GitHub son públicos. No incluyas contraseñas, credenciales ni enlaces privados que no puedas distribuir; tampoco los subas a Git por accidente. Los enlaces presentes fueron facilitados por el propietario de este proyecto y su funcionamiento, disponibilidad y autorización deben comprobarse antes de distribuir la app.
 
 ## Configurar TMDb
 
@@ -122,6 +132,9 @@ También puedes ejecutar `./gradlew :app:assembleDebug` desde la raíz. Se neces
 
 - `app/src/main/assets/samplay_catalog.m3u`: catálogo de fuentes de películas y series proporcionadas.
 - `app/src/main/assets/samplay_embed_bot.js`: bot local de reproducción y cierre de capas de anuncios reconocibles.
+- `app/src/main/assets/samplay_frame_adguard.js`: filtro local para capas publicitarias en páginas y iframes compatibles.
+- `app/src/main/java/com/myiptv/clean/notifications`: búsqueda periódica y avisos de novedades.
+- `app/src/main/res/raw/samplay_notification.wav`: sonido original, regenerable con `tools/generate_notification_sound.py`.
 - `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación y ViewModels.
 - `app/src/main/java/com/myiptv/clean/ui/player`: interacción táctil y con mando del reproductor directo.
 - `app/src/main/java/com/myiptv/clean/data/repository`: catálogos TMDb, canales, M3U y respaldo de fuentes locales.
