@@ -158,12 +158,11 @@ fun PlayerScreen(
                 }
             }
         }
-    }
-
-    androidx.compose.runtime.LaunchedEffect(isTv) {
-        if (isTv) {
-            kotlinx.coroutines.delay(150)
-            runCatching { initialFocus.requestFocus() }
+        androidx.compose.runtime.LaunchedEffect(isTv) {
+            if (isTv) {
+                kotlinx.coroutines.delay(150)
+                runCatching { initialFocus.requestFocus() }
+            }
         }
     }
 }
