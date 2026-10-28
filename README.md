@@ -5,7 +5,7 @@ Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. Los me
 ## Fuentes y comportamiento
 
 - **Películas y series:** TMDb aporta títulos, géneros, fichas, reparto, temporadas, episodios e imágenes cuando hay una API Key configurada. El M3U también puede incluir títulos propios sin ID de TMDb. Sin datos disponibles, la app muestra estados vacíos en vez de contenido ficticio.
-- **Vídeos:** el archivo `app/src/main/assets/samplay_catalog.m3u` se entrega vacío. Admite enlaces HTTP/HTTPS directos que pueda reproducir LibVLC (incluidos HLS y DASH) y URLs o código de iframe/embed. Los vídeos que se hayan guardado localmente en versiones anteriores siguen sirviendo como respaldo, pero ya no hay botones para añadir o cambiar enlaces en las fichas. Si existen ambas fuentes para el mismo título o episodio, prevalece la del M3U.
+- **Vídeos:** `app/src/main/assets/samplay_catalog.m3u` contiene los enlaces proporcionados para *Marsupilami (2026)* y 12 capítulos de *La Brea* (diez de la temporada 1 y dos de la temporada 2). Admite enlaces HTTP/HTTPS directos que pueda reproducir LibVLC (incluidos HLS y DASH) y URLs o código de iframe/embed. Los vídeos guardados localmente en versiones anteriores siguen sirviendo como respaldo; no hay botones para añadir o cambiar enlaces en las fichas. Si existen ambas fuentes para el mismo título o episodio, prevalece la del M3U. No se ha verificado la disponibilidad de estos enlaces.
 - **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta canales y streams directos de distintos países. Solo se muestran entradas con nombre y URL HTTP/HTTPS directa; no se extraen enlaces de páginas embed ni se eluden bloqueos. Las señales dependen de sus proveedores y no hay programación EPG integrada.
 - **Descargas e historial:** todavía no están implementados y muestran estados vacíos.
 - **Favoritos:** se mantienen en memoria durante la sesión actual.
@@ -20,7 +20,9 @@ Los canales y vídeos directos utilizan **LibVLC 3.6.4**, integrado en SamPlay; 
 
 Toca el centro del vídeo para pausar o reanudar y mostrar los controles. En TV, el botón central del mando hace lo mismo cuando el vídeo tiene el foco; con las flechas puedes revelar los controles y desplazarte entre ellos. La barra y los saltos de 10 segundos aparecen solo cuando VLC permite buscar en la fuente; en emisiones que no admiten pausa, la app lo indica. Los controles se ocultan después de unos segundos durante la reproducción. Al salir de la app se detiene el audio; al regresar se intenta recuperar la posición en los vídeos que permiten búsqueda y el estado de pausa.
 
-Un embed se abre en WebView y depende de los controles y la compatibilidad de su proveedor. VLC y el selector de audio de SamPlay no controlan esos reproductores externos. Como cada iframe puede pertenecer a otro dominio y tener su propio reproductor, SamPlay no puede garantizar que un toque o el mando pausen todos los embeds desde fuera. El botón Atrás permite salir.
+Las páginas web y embeds se abren en WebView. Un **bot local basado en reglas** (no un servicio de IA externo) intenta detectar el vídeo, pulsar Play o iniciarlo automáticamente y cerrar u ocultar capas de anuncios reconocibles. Bloquea ventanas emergentes, recursos de varias redes publicitarias conocidas y navegaciones principales fuera del proveedor; los iframes de vídeo en otros dominios siguen permitidos salvo que coincidan con la lista de anuncios. El bloqueo es limitado y puede afectar a algún proveedor que necesite una redirección externa. Si una redirección bloqueada impide cargar la página, la app muestra el dominio y permite autorizarlo explícitamente solo durante esa reproducción; nunca autoriza redes publicitarias conocidas ni rebajas de HTTPS a HTTP. No se incluyen credenciales ni se instala una interfaz JavaScript con acceso nativo.
+
+Cuando el bot puede acceder al elemento de vídeo HTML de la página o de un iframe del mismo origen, muestra los controles de SamPlay para reproducir, pausar y buscar. El botón **Controles web** vuelve a los originales del proveedor. Si el proveedor rechaza el inicio automático por exigir un toque, la app muestra sus controles para que el usuario lo inicie. Si el vídeo está en un iframe de otro origen, protegido o sin una API accesible, se mantienen los controles del proveedor: el bot no puede garantizar inicio automático, pausa, avance ni eliminación completa de anuncios en esos casos. Las páginas externas, sus enlaces y audio no se han probado en un dispositivo. Al pasar al fondo se intenta pausar el vídeo accesible; un iframe que el bot no puede controlar se descarga y vuelve a cargar al regresar, por lo que puede perder su posición. VLC y su selector de audio se usan solo con fuentes directas.
 
 LibVLC añade bibliotecas nativas para varias arquitecturas, por lo que puede aumentar el tamaño del APK. Consulta el [proyecto y la licencia de LibVLC](https://github.com/videolan/vlc-android) antes de distribuir la aplicación.
 
@@ -32,7 +34,19 @@ Las imágenes de las fichas aparecen suavemente al cargar y mantienen un fondo d
 2. Añade una entrada `#EXTINF` seguida, en la línea siguiente, por el enlace directo o el iframe. Sustituye todos los valores de ejemplo de abajo por datos reales y autorizados.
 3. Vuelve a compilar e instalar la aplicación. El archivo se empaqueta dentro del APK; editarlo en el proyecto no actualiza una instalación ya compilada.
 
-Una película sin identificación de TMDb se muestra como un título propio del M3U:
+Puedes usar el formato sencillo incluido en el catálogo. Una película y un capítulo se escriben así, con la URL en texto plano en la siguiente línea:
+
+```m3u
+#EXTINF:-1 tvg-logo="" group-title="Peliculas",Marsupilami (2026)
+https://nupload.my/watch/60SsUrowOEw2cDkHmN3M0iIojHFkXJ8oFYM3jz37kz7IctGTs
+
+#EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 1",Capítulo 1
+https://nupload.my/watch/o3xAJQ7kz7MBPKokvwmPuBO9MmRijQgxxIUPl0zF0WoUmE
+```
+
+En series, repite el mismo nombre antes de `Temporada N` y numera cada `Capítulo N`: la app agrupa las temporadas bajo una sola serie. También acepta `Episodio N`, espacios en blanco y enlaces de Markdown. Un `tvg-logo` vacío no genera una imagen ficticia. Sin identificación de TMDb, cada título se muestra como una entrada propia del M3U.
+
+El formato anterior más explícito también sigue funcionando, por ejemplo:
 
 ```m3u
 #EXTINF:-1 media-type="movie",TÍTULO DE LA PELÍCULA
@@ -60,11 +74,11 @@ Para un embed, usa `playback-type="iframe"` con la URL de la página del reprodu
 https://TU_DOMINIO/RUTA/EMBED
 ```
 
-También se puede poner una etiqueta `<iframe src="https://TU_DOMINIO/RUTA/EMBED"></iframe>` en la línea del enlace; la app extrae únicamente su `src`. Solo se aceptan URLs HTTP/HTTPS. Una URL de página embed sin etiqueta debe llevar `playback-type="iframe"`; de otro modo se trata como enlace directo.
+También se puede poner una etiqueta `<iframe src="https://TU_DOMINIO/RUTA/EMBED"></iframe>` en la línea del enlace; la app extrae únicamente su `src`. Solo se aceptan URLs HTTP/HTTPS. Las rutas evidentes `/watch/`, `/embed/`, `/iframe/` y las páginas `.html` se reconocen como web; las extensiones de vídeo conocidas, como `.mp4` o `.m3u8`, se reproducen con VLC. Los enlaces ambiguos se consideran directos para conservar el comportamiento previo. Usa `playback-type="iframe"` o `playback-type="direct"` si necesitas indicar el tipo explícitamente.
 
 En vez de `tmdb-id` y `media-type`, puedes usar `tvg-id="tmdb_movie_ID"`, `tvg-id="tmdb_tv_ID"` o `tvg-id="tmdb_tv_ID_sTEMPORADA_eEPISODIO"`, sustituyendo cada marcador por sus números. La app **no empareja títulos por nombre** con TMDb para evitar reproducir una fuente equivocada. En duplicados para el mismo título o episodio se usa la primera fuente válida. Ajustes muestra el estado del catálogo y si se ignoraron entradas por formato incorrecto.
 
-El catálogo queda dentro del APK. No incluyas contraseñas, credenciales ni enlaces privados que no puedas distribuir; tampoco los subas a Git por accidente. No se suministran fuentes de películas ni series con la aplicación.
+El catálogo queda dentro del APK. No incluyas contraseñas, credenciales ni enlaces privados que no puedas distribuir; tampoco los subas a Git por accidente. Los enlaces presentes fueron facilitados por el propietario de este proyecto y su funcionamiento, disponibilidad y autorización deben comprobarse antes de distribuir la app.
 
 ## Configurar TMDb
 
@@ -96,11 +110,12 @@ La API escucha solo en `127.0.0.1:8765` y ofrece `/catalog`, `/health` y `/play?
 3. Usa JDK 17 o 21 y permite que Android Studio sincronice Gradle. Se requiere Android SDK 34.
 4. Selecciona un dispositivo o emulador con Android 5.0 o posterior y pulsa **Run**.
 
-También puedes ejecutar `./gradlew :app:assembleDebug` desde la raíz. Se necesita conexión a Internet para obtener dependencias y consultar las fuentes de datos.
+También puedes ejecutar `./gradlew :app:assembleDebug` desde la raíz. Se necesita conexión a Internet para obtener dependencias y consultar las fuentes de datos. Para las pruebas opcionales del bot web, instala Node.js 18 o posterior y ejecuta `npm ci` seguido de `npm run test:web-bot`; Node no es necesario para compilar Android.
 
 ## Estructura
 
-- `app/src/main/assets/samplay_catalog.m3u`: catálogo de fuentes de películas y series, inicialmente vacío.
+- `app/src/main/assets/samplay_catalog.m3u`: catálogo de fuentes de películas y series proporcionadas.
+- `app/src/main/assets/samplay_embed_bot.js`: bot local de reproducción y cierre de capas de anuncios reconocibles.
 - `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación y ViewModels.
 - `app/src/main/java/com/myiptv/clean/ui/player`: interacción táctil y con mando del reproductor directo.
 - `app/src/main/java/com/myiptv/clean/data/repository`: catálogos TMDb, canales, M3U y respaldo de fuentes locales.

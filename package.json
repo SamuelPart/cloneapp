@@ -1,0 +1,13 @@
+{
+  "name": "samplay-web-bot-tests",
+  "private": true,
+  "scripts": {
+    "test:web-bot": "node --test app/src/test/js/*.test.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

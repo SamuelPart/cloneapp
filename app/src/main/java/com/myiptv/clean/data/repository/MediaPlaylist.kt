@@ -103,6 +103,12 @@ object MediaPlaylistParser {
     private val attributes = Regex("""([A-Za-z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+))""")
     private val tmdbIdentity = Regex("""^tmdb_(movie|tv)_(\d+)(?:_s(\d+)_e(\d+))?$""", RegexOption.IGNORE_CASE)
     private val iframeSource = Regex("""(?i)(?:^|[\s<])src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))""")
+    private val seasonGroup = Regex("""^(.+?)\s+temporada\s+(\d+)\s*$""", RegexOption.IGNORE_CASE)
+    private val numberedEpisode = Regex("""^(?:cap[ií]tulo|episodio|episode|chapter)\s+(\d+)(?:\s*[-:.]\s*.*)?$""", RegexOption.IGNORE_CASE)
+    private val movieYear = Regex("""\s+\(((?:19|20)\d{2})\)\s*$""")
+    private val markdownLink = Regex("""^\[[^]]*]\((https?://\S+)\)$""", RegexOption.IGNORE_CASE)
+    private val directMediaPath = Regex("""\.(?:m3u8|mpd|mp4|m4v|mkv|webm|avi|mov|ts|m2ts|mpeg|mpg|aac|mp3|flac|ogg|ogv)$""", RegexOption.IGNORE_CASE)
+    private val webPlayerPath = Regex("""/(?:watch|embed|iframe)(?:/|$)|\.html?$""", RegexOption.IGNORE_CASE)
 
     fun parse(text: String): MediaPlaylist {
         val titles = linkedMapOf<String, MediaItem>()
@@ -211,7 +217,16 @@ object MediaPlaylistParser {
         }
         val declaredKind = kindFrom(values["media-type"] ?: values["content-type"] ?: values["kind"])
         if (idKind != null && declaredKind != null && idKind != declaredKind) return null
-        val kind = idKind ?: declaredKind ?: kindFrom(values["group-title"]) ?: return null
+        val groupMatch = seasonGroup.matchEntire(values["group-title"].orEmpty().trim())
+        val groupSeason = groupMatch?.groupValues?.get(2)?.toIntOrNull()
+        if (groupMatch != null && groupSeason == null) return null
+        val groupSeriesTitle = groupMatch?.groupValues?.get(1)?.trim()?.takeIf(String::isNotBlank)
+        val groupEpisodeMatch = if (groupMatch != null) numberedEpisode.matchEntire(displayName) else null
+        val groupEpisode = groupEpisodeMatch?.groupValues?.get(1)?.toIntOrNull()
+        if (groupEpisodeMatch != null && groupEpisode == null) return null
+        val kind = idKind ?: declaredKind ?: kindFrom(values["group-title"])
+            ?: if (groupMatch != null && groupEpisode != null) MediaKind.SERIES else return null
+        if (groupMatch != null && kind != MediaKind.SERIES) return null
 
         val idSeasonText = tmdbMatch?.groupValues?.get(3)?.takeIf(String::isNotBlank)
         val idEpisodeText = tmdbMatch?.groupValues?.get(4)?.takeIf(String::isNotBlank)
@@ -224,9 +239,13 @@ object MediaPlaylistParser {
         val suppliedEpisode = episodeValue?.toIntOrNull()
         if ((seasonValue != null && suppliedSeason == null) || (episodeValue != null && suppliedEpisode == null)) return null
         if ((idSeason != null && suppliedSeason != null && idSeason != suppliedSeason) ||
-            (idEpisode != null && suppliedEpisode != null && idEpisode != suppliedEpisode)) return null
-        val season = idSeason ?: suppliedSeason
-        val episode = idEpisode ?: suppliedEpisode
+            (idEpisode != null && suppliedEpisode != null && idEpisode != suppliedEpisode) ||
+            (groupSeason != null && idSeason != null && groupSeason != idSeason) ||
+            (groupSeason != null && suppliedSeason != null && groupSeason != suppliedSeason) ||
+            (groupEpisode != null && idEpisode != null && groupEpisode != idEpisode) ||
+            (groupEpisode != null && suppliedEpisode != null && groupEpisode != suppliedEpisode)) return null
+        val season = idSeason ?: suppliedSeason ?: groupSeason
+        val episode = idEpisode ?: suppliedEpisode ?: groupEpisode
         if ((season == null) != (episode == null) || (season != null && (kind != MediaKind.SERIES || season < 0 || episode!! < 1))) return null
 
         val idFromTag = tmdbMatch?.groupValues?.get(2)?.toLongOrNull()
@@ -235,21 +254,24 @@ object MediaPlaylistParser {
         if (idFromTag != null && suppliedTmdb != null && idFromTag != suppliedTmdb) return null
         val numericTmdb = idFromTag ?: suppliedTmdb
         if (numericTmdb != null && numericTmdb <= 0) return null
-        val seriesTitle = values["series-title"].orEmpty().ifBlank { displayName }
+        val seriesTitle = values["series-title"].orEmpty().ifBlank { groupSeriesTitle ?: displayName }
         val title = if (season != null) seriesTitle else displayName
         val mediaId = if (numericTmdb != null) {
             "tmdb_${if (kind == MediaKind.MOVIE) "movie" else "tv"}_$numericTmdb"
         } else {
             val identity = if (season != null) values["series-id"].orEmpty().ifBlank { seriesTitle }
             else rawId.ifBlank { displayName }
-            val stableKey = listOf(kind.name, identity, values["year"].orEmpty(), values["group-title"].orEmpty()).joinToString("\u0000")
+            // Season-specific group names must not split one series into separate titles.
+            val identityGroup = if (groupMatch != null && season != null) "" else values["group-title"].orEmpty()
+            val stableKey = listOf(kind.name, identity, values["year"].orEmpty(), identityGroup).joinToString("\u0000")
             "m3u_${if (kind == MediaKind.MOVIE) "movie" else "tv"}_${stableHash(stableKey)}"
         }
         val imageUrl = httpUrl(values["tvg-logo"].orEmpty())
         val backdropUrl = httpUrl(values["tvg-backdrop"].orEmpty())
         val type = when ((values["playback-type"] ?: values["type"]).orEmpty().lowercase(Locale.ROOT)) {
             "iframe", "embed" -> MediaPlaybackType.IFRAME
-            "", "direct", "directo" -> MediaPlaybackType.DIRECT
+            "direct", "directo" -> MediaPlaybackType.DIRECT
+            "" -> null // Infer obvious web-player URLs; preserve direct playback for ambiguous URLs.
             else -> return null
         }
         return Metadata(
@@ -260,7 +282,8 @@ object MediaPlaylistParser {
             season = season,
             episode = episode,
             tmdbId = numericTmdb,
-            year = values["year"]?.toIntOrNull()?.takeIf { it > 0 } ?: 0,
+            year = values["year"]?.toIntOrNull()?.takeIf { it > 0 }
+                ?: if (kind == MediaKind.MOVIE) movieYear.find(displayName)?.groupValues?.get(1)?.toIntOrNull() ?: 0 else 0,
             genres = values["genre"].orEmpty().split('|').map(String::trim).filter(String::isNotEmpty),
             description = values["description"].orEmpty().ifBlank { "Sinopsis no disponible." },
             duration = values["duration"].orEmpty().ifBlank { "—" },
@@ -270,14 +293,21 @@ object MediaPlaylistParser {
         )
     }
 
-    private fun parseSource(value: String, declaredType: MediaPlaybackType): PlaylistSource? {
-        val iframeMarkup = value.trim().startsWith("<iframe", ignoreCase = true)
+    private fun parseSource(value: String, declaredType: MediaPlaybackType?): PlaylistSource? {
+        val trimmed = value.trim()
+        val iframeMarkup = trimmed.startsWith("<iframe", ignoreCase = true)
         val candidate = if (iframeMarkup) {
-            iframeSource.find(value)?.groupValues?.drop(1)?.firstOrNull(String::isNotBlank)
+            iframeSource.find(trimmed)?.groupValues?.drop(1)?.firstOrNull(String::isNotBlank)
                 ?.replace("&amp;", "&", ignoreCase = true)
-        } else value.trim()
+        } else markdownLink.matchEntire(trimmed)?.groupValues?.get(1) ?: trimmed
         val url = httpUrl(candidate.orEmpty()) ?: return null
-        return PlaylistSource(url, if (iframeMarkup) MediaPlaybackType.IFRAME else declaredType)
+        val path = runCatching { URI(url).path.orEmpty() }.getOrDefault("")
+        val inferred = when {
+            directMediaPath.containsMatchIn(path) -> MediaPlaybackType.DIRECT
+            webPlayerPath.containsMatchIn(path) -> MediaPlaybackType.IFRAME
+            else -> MediaPlaybackType.DIRECT
+        }
+        return PlaylistSource(url, if (iframeMarkup) MediaPlaybackType.IFRAME else declaredType ?: inferred)
     }
 
     private fun kindFrom(value: String?): MediaKind? = when (value?.trim()?.lowercase(Locale.ROOT)) {
@@ -319,7 +349,7 @@ object MediaPlaylistParser {
         val duration: String,
         val imageUrl: String?,
         val backdropUrl: String?,
-        val playbackType: MediaPlaybackType
+        val playbackType: MediaPlaybackType?
     ) {
         fun toMediaItem() = MediaItem(
             id = mediaId,

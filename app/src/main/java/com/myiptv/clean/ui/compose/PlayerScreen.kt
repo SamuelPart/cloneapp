@@ -1,21 +1,13 @@
 package com.myiptv.clean.ui.compose
 
 import android.net.Uri
-import android.view.ViewGroup
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -27,22 +19,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.LocalMediaSources
 import com.myiptv.clean.data.repository.MediaPlaylist
@@ -50,7 +35,6 @@ import com.myiptv.clean.data.repository.PlaylistSource
 import com.myiptv.clean.data.repository.TmdbRepository
 import com.myiptv.clean.data.repository.parseEpisodeSourceId
 import com.myiptv.clean.data.repository.resolvePlaybackSource
-import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(
@@ -112,96 +96,19 @@ fun PlayerScreen(
     }
 }
 
-/** Third-party embeds retain their own player and controls; VLC handles only direct media. */
+/** Web pages use a local bot when their player exposes a controllable HTML video. */
 @Composable
 private fun EmbedPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, onBack: () -> Unit) {
-    val context = LocalContext.current
     val embedUrl = remember(sourceUrl) { iframeSourceUrl(sourceUrl) }
-    var headerVisible by remember(sourceUrl) { mutableStateOf(true) }
-    LaunchedEffect(sourceUrl, isTv) {
-        if (isTv) {
-            headerVisible = true
-            delay(5_000)
-            headerVisible = false
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        if (embedUrl == null) {
-            Column(modifier = Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    if (embedUrl == null) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("El embed iframe no contiene una URL HTTP/HTTPS válida.", color = Color.White, textAlign = TextAlign.Center)
                 PlayerBackButton(onBack, isTv)
             }
-        } else {
-            val webView = remember(embedUrl) {
-                WebView(context).apply {
-                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.mediaPlaybackRequiresUserGesture = true
-                    settings.allowFileAccess = false
-                    settings.allowContentAccess = false
-                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                    webChromeClient = WebChromeClient()
-                    if (isTv) {
-                        isFocusable = true
-                        isFocusableInTouchMode = true
-                        post { requestFocus() }
-                    }
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                            val scheme = request.url.scheme?.lowercase()
-                            return scheme !in setOf("http", "https")
-                        }
-
-                        @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-                        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                            val scheme = Uri.parse(url).scheme?.lowercase()
-                            return scheme !in setOf("http", "https")
-                        }
-                    }
-                    loadUrl(embedUrl)
-                }
-            }
-            DisposableEffect(webView) {
-                onDispose {
-                    webView.stopLoading()
-                    webView.loadUrl("about:blank")
-                    webView.destroy()
-                }
-            }
-            AndroidView(modifier = Modifier.fillMaxSize(), factory = { webView })
-
-            if (isTv && headerVisible) {
-                TvPlayerHeader(title, "Embed", onBack, Modifier.align(Alignment.TopStart))
-            } else if (!isTv) {
-                Surface(modifier = Modifier.align(Alignment.TopStart).padding(14.dp), color = Color(0xAA090C13), shape = MaterialTheme.shapes.large) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(end = 16.dp)) {
-                        PlayerBackButton(onBack, false)
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Text("Embed", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-            }
         }
-    }
-}
-
-@Composable
-private fun TvPlayerHeader(title: String, subtitle: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.9f), Color.Transparent)))
-            .padding(horizontal = 28.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        TvActionButton("Volver", onBack, icon = Icons.Filled.ArrowBack)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-            Text(subtitle, color = TvMuted, style = MaterialTheme.typography.labelSmall)
-        }
+    } else {
+        WebPlayerScreen(embedUrl, title, isTv, onBack)
     }
 }
 
@@ -228,16 +135,7 @@ private fun iframeSourceUrl(value: String): String? {
 }
 
 private fun extractIframeUrl(markup: String): String? {
-    val sourceStart = markup.indexOf("src", ignoreCase = true)
-    if (sourceStart < 0) return null
-    val equals = markup.indexOf('=', startIndex = sourceStart + 3)
-    if (equals < 0) return null
-    var start = equals + 1
-    while (start < markup.length && markup[start].isWhitespace()) start++
-    if (start >= markup.length) return null
-    val quote = markup[start].takeIf { it == '"' || it == '\'' }
-    if (quote != null) start++
-    val end = if (quote != null) markup.indexOf(quote, start) else markup.indexOfAny(charArrayOf(' ', '\t', '\r', '\n', '>'), start)
-    val safeEnd = if (end < 0) markup.length else end
-    return markup.substring(start, safeEnd).takeIf(String::isNotBlank)
+    val source = Regex("""(?i)(?:^|[\s<])src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))""")
+        .find(markup)?.groupValues?.drop(1)?.firstOrNull(String::isNotBlank)
+    return source?.replace("&amp;", "&", ignoreCase = true)
 }

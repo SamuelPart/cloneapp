@@ -356,7 +356,7 @@ private fun VlcPlayerHeader(title: String, isLiveChannel: Boolean, isTv: Boolean
 }
 
 @Composable
-private fun PlayerIconButton(
+internal fun PlayerIconButton(
     icon: ImageVector,
     label: String,
     sizeDp: Float,
@@ -435,7 +435,7 @@ private fun VlcBottomControls(
 }
 
 @Composable
-private fun PlayerTimeline(
+internal fun PlayerTimeline(
     state: PlaybackState,
     isTv: Boolean,
     onInteraction: () -> Unit,
@@ -476,7 +476,7 @@ private fun PlayerTimeline(
 }
 
 @Composable
-private fun PlayerTextButton(icon: ImageVector?, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun PlayerTextButton(icon: ImageVector?, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(6.dp)
     Row(

@@ -7,6 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class MediaPlaylistTest {
     @Test
@@ -15,6 +16,86 @@ class MediaPlaylistTest {
         assertTrue(catalog.items.isEmpty())
         assertTrue(catalog.sources.isEmpty())
         assertEquals(0, catalog.ignoredEntries)
+    }
+
+    @Test
+    fun simpleSeasonGroupsShareOneSeriesAndKeepTheirOwnEpisodeLinks() {
+        val catalog = MediaPlaylistParser.parse(
+            """
+            #EXTM3U
+            #EXTINF:-1 tvg-logo="" group-title="Peliculas",Marsupilami (2026)
+            https://nupload.my/watch/movie
+            #EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 1",Capítulo 2
+            https://nupload.my/watch/t1e2
+            #EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 1",Capítulo 1
+            [https://nupload.my/watch/t1e1](https://nupload.my/watch/t1e1)
+            #EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 2",Capítulo 1
+            https://nupload.my/watch/t2e1
+            """.trimIndent()
+        )
+        assertEquals(0, catalog.ignoredEntries)
+        assertEquals(2, catalog.items.size)
+        val movie = catalog.items.first { it.kind == MediaKind.MOVIE }
+        val series = catalog.items.first { it.kind == MediaKind.SERIES }
+        assertEquals("Marsupilami (2026)", movie.title)
+        assertEquals(2026, movie.year)
+        assertEquals("La Brea", series.title)
+        assertEquals(2, series.seasonCount)
+        assertEquals(3, series.episodeCount)
+        assertEquals(listOf(1, 2), catalog.seasons(series.id))
+        assertEquals(listOf(1, 2), catalog.episodes(series.id, 1).map { it.number })
+        assertEquals(listOf(1), catalog.episodes(series.id, 2).map { it.number })
+        assertEquals(PlaylistSource("https://nupload.my/watch/t1e1", MediaPlaybackType.IFRAME), catalog.source(episodeSourceId(series.id, 1, 1)))
+        assertEquals(PlaylistSource("https://nupload.my/watch/t2e1", MediaPlaybackType.IFRAME), catalog.source(episodeSourceId(series.id, 2, 1)))
+        assertEquals(MediaPlaybackType.IFRAME, catalog.source(movie.id)?.type)
+    }
+
+    @Test
+    fun explicitSourceTypeWinsAndObviousDirectFilesStillUseVlc() {
+        val catalog = MediaPlaylistParser.parse(
+            """
+            #EXTM3U
+            #EXTINF:-1 group-title="Peliculas",Reproductor web
+            https://video.example/embed/123
+            #EXTINF:-1 group-title="Peliculas",Archivo directo
+            https://video.example/watch/film.m3u8?token=ok
+            #EXTINF:-1 group-title="Peliculas" playback-type="direct",Directo explícito
+            https://video.example/watch/stream
+            #EXTINF:-1 group-title="Peliculas",Directo sin extensión
+            https://video.example/get.php?id=1
+            """.trimIndent()
+        )
+        assertEquals(listOf(MediaPlaybackType.IFRAME, MediaPlaybackType.DIRECT, MediaPlaybackType.DIRECT, MediaPlaybackType.DIRECT),
+            catalog.items.map { catalog.source(it.id)?.type })
+    }
+
+    @Test
+    fun contradictoryOrUnnumberedSeasonEntriesAreIgnored() {
+        val catalog = MediaPlaylistParser.parse(
+            """
+            #EXTM3U
+            #EXTINF:-1 group-title="La Brea Temporada 1" season="2" episode="1",Capítulo 1
+            https://video.example/watch/one
+            #EXTINF:-1 group-title="La Brea Temporada 1" episode="2",Capítulo 1
+            https://video.example/watch/two
+            #EXTINF:-1 group-title="La Brea Temporada 1",Capítulo sin número
+            https://video.example/watch/three
+            #EXTINF:-1 group-title="La Brea Temporada 1",Capítulo 0
+            https://video.example/watch/four
+            """.trimIndent()
+        )
+        assertTrue(catalog.items.isEmpty())
+        assertEquals(4, catalog.ignoredEntries)
+    }
+
+    @Test
+    fun packagedCatalogHasNoMalformedEntries() {
+        val asset = listOf(File("src/main/assets/samplay_catalog.m3u"), File("app/src/main/assets/samplay_catalog.m3u"))
+            .firstOrNull(File::isFile) ?: error("No se encontró el catálogo incluido")
+        val catalog = MediaPlaylistParser.parse(asset.readText(Charsets.UTF_8))
+        assertEquals(0, catalog.ignoredEntries)
+        assertTrue(catalog.sources.values.all { it.url.startsWith("https://") || it.url.startsWith("http://") })
+        assertEquals(catalog.items.size, catalog.items.map { it.id }.distinct().size)
     }
 
     @Test
