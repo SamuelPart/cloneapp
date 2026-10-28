@@ -13,12 +13,18 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private const val TMDB_DOCUMENTARY_GENRE = 99
+
 class HomeViewModel : ViewModel() {
     var featured by mutableStateOf<MediaItem?>(null)
         private set
     var trending by mutableStateOf<List<MediaItem>>(emptyList())
         private set
     var recommended by mutableStateOf<List<MediaItem>>(emptyList())
+        private set
+    var weeklyTrends by mutableStateOf<List<MediaItem>>(emptyList())
+        private set
+    var documentaries by mutableStateOf<List<MediaItem>>(emptyList())
         private set
     var liveChannels by mutableStateOf<List<LiveChannel>>(emptyList())
         private set
@@ -29,6 +35,10 @@ class HomeViewModel : ViewModel() {
 
     private var mediaStatus = if (TmdbRepository.isConfigured) "Consultando catálogo TMDb…" else "TMDb requiere una clave API local."
     private var channelStatus = "Consultando canales de televisión…"
+    private var tvShelvesLoaded = false
+    private var tvShelvesJob: Job? = null
+    private var documentaryMovies: List<MediaItem> = emptyList()
+    private var documentarySeries: List<MediaItem> = emptyList()
 
     init {
         loadChannels()
@@ -68,7 +78,7 @@ class HomeViewModel : ViewModel() {
                 }
                 val all = movies + series
                 featured = movies.firstOrNull() ?: series.firstOrNull()
-                trending = movies.sortedByDescending(MediaItem::rating).take(12)
+                trending = movies.take(12)
                 recommended = series.take(12)
                 mediaStatus = if (all.isEmpty()) "TMDb no devolvió títulos." else "Metadatos e imágenes cargados desde TMDb."
             } catch (_: Exception) {
@@ -77,6 +87,24 @@ class HomeViewModel : ViewModel() {
                 isLoading = false
                 updateStatus()
             }
+        }
+    }
+
+    /** Optional shelves use TMDb data only and never block the main catalog or live channels. */
+    fun loadTvShelves() {
+        if (!TmdbRepository.isConfigured || tvShelvesLoaded || tvShelvesJob?.isActive == true) return
+        tvShelvesJob = viewModelScope.launch {
+            val result = loadTvShelfData(
+                loadTrends = { TmdbRepository.trendingThisWeek() },
+                loadDocumentaryMovies = { TmdbRepository.discoverMovies(TMDB_DOCUMENTARY_GENRE) },
+                loadDocumentarySeries = { TmdbRepository.discoverSeries(TMDB_DOCUMENTARY_GENRE) }
+            )
+            result.trends?.let { weeklyTrends = it.distinctBy(MediaItem::id).take(12) }
+            result.documentaryMovies?.let { documentaryMovies = it }
+            result.documentarySeries?.let { documentarySeries = it }
+            documentaries = homeGridCatalog(documentaryMovies, documentarySeries, MediaItem::id)
+            // Keep earlier successful results and retry failed shelves when home is reopened.
+            tvShelvesLoaded = result.allSucceeded
         }
     }
 

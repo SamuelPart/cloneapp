@@ -1,7 +1,6 @@
 package com.myiptv.clean.ui.welcome
 
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -47,6 +46,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,18 +60,20 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.myiptv.clean.R
 import com.myiptv.clean.ui.compose.CleanIPTVTheme
 import com.myiptv.clean.ui.compose.IptvActivity
+import com.myiptv.clean.ui.compose.isTelevisionDevice
 import kotlinx.coroutines.delay
 
 class WelcomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val background = ContextCompat.getColor(this, R.color.background)
+        val isTelevision = isTelevisionDevice()
         window.statusBarColor = background
         window.navigationBarColor = background
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
-            if (packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+            if (isTelevision) {
                 hide(WindowInsetsCompat.Type.systemBars())
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
@@ -92,10 +94,11 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
     val focusRequester = remember { FocusRequester() }
     var buttonFocused by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val isLeanback = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) }
+    val uiMode = LocalConfiguration.current.uiMode
+    val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     val background = MaterialTheme.colorScheme.background
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(background)) {
-        val isTv = isLeanback || maxWidth >= 840.dp
+        val isTv = isTelevision || maxWidth >= 840.dp
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawRect(Brush.linearGradient(listOf(Color(0xFF081722), background, Color(0xFF09181C))))
             drawCircle(Color(0xFF38BDF8).copy(alpha = 0.12f), radius = size.maxDimension * 0.35f, center = Offset(size.width * 0.88f, size.height * 0.16f))

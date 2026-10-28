@@ -22,3 +22,11 @@ internal fun <T : Any, K> homeGridCatalog(movies: List<T>, series: List<T>, key:
 
 internal fun nextCarouselIndex(current: Int, count: Int): Int =
     if (count <= 1) 0 else (current.coerceAtLeast(0) % count + 1) % count
+
+/** Some TV boxes do not advertise Leanback but do report TV mode or lack a touchscreen. */
+internal fun usesTvDeviceLayout(
+    isTelevisionMode: Boolean,
+    hasLeanback: Boolean,
+    hasTelevisionFeature: Boolean,
+    hasTouchscreen: Boolean
+): Boolean = isTelevisionMode || hasLeanback || hasTelevisionFeature || !hasTouchscreen

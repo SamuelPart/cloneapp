@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,8 +42,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.myiptv.clean.data.repository.TmdbRepository
 import kotlinx.coroutines.delay
-import kotlin.math.roundToInt
 
 @Composable
 fun TvHomeScreen(
@@ -66,16 +65,19 @@ fun TvHomeScreen(
     val featured = remember(viewModel.featured, viewModel.trending, viewModel.recommended) {
         featuredCatalog(viewModel.featured, viewModel.trending, viewModel.recommended, MediaItem::id)
     }
-    val mediaRows = remember(viewModel.trending, viewModel.recommended) {
-        homeGridCatalog(viewModel.trending, viewModel.recommended, MediaItem::id).chunked(4)
+    val gridTitles = remember(viewModel.trending, viewModel.recommended) {
+        homeGridCatalog(viewModel.trending, viewModel.recommended, MediaItem::id)
     }
-    val channelRows = remember(viewModel.liveChannels) { viewModel.liveChannels.take(8).chunked(4) }
     var slide by rememberSaveable { mutableStateOf(0) }
     var primaryHeroFocused by remember { mutableStateOf(false) }
     var secondaryHeroFocused by remember { mutableStateOf(false) }
     val index = if (featured.isEmpty()) 0 else slide.coerceAtLeast(0) % featured.size
+    val first = featured.getOrNull(index)
+    val second = if (featured.size > 1) featured[(index + 1) % featured.size] else null
 
-    // Do not replace the title while the viewer is focused on it with the remote.
+    LaunchedEffect(viewModel) { viewModel.loadTvShelves() }
+
+    // Do not replace either featured title while it is focused with the remote.
     LaunchedEffect(featured.map(MediaItem::id), primaryHeroFocused, secondaryHeroFocused) {
         if (!primaryHeroFocused && !secondaryHeroFocused && featured.size > 1) {
             while (true) {
@@ -86,8 +88,11 @@ fun TvHomeScreen(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(end = 24.dp)) {
-        val heroHeight = (maxWidth * 0.30f).coerceIn(150.dp, 310.dp)
-        val tileHeight = (maxWidth * 0.145f).coerceIn(82.dp, 150.dp)
+        val compact = maxWidth < 600.dp
+        val columns = if (compact) 2 else 4
+        val heroHeight = if (compact) (maxWidth * 0.54f).coerceIn(145.dp, 230.dp) else (maxWidth * 0.30f).coerceIn(150.dp, 310.dp)
+        val tileHeight = if (compact) (maxWidth * 0.28f).coerceIn(100.dp, 155.dp) else (maxWidth * 0.145f).coerceIn(82.dp, 150.dp)
+        val mediaRows = remember(gridTitles, columns) { gridTitles.chunked(columns) }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -95,92 +100,120 @@ fun TvHomeScreen(
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item(key = "featured") {
-                Row(modifier = Modifier.fillMaxWidth().height(heroHeight), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    val first = featured.getOrNull(index)
-                    if (first != null) {
-                        TvMediaArtwork(
+                if (compact) {
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        TvPrimaryFeatured(
+                            item = first,
+                            modifier = Modifier.fillMaxWidth().height(heroHeight),
+                            index = index,
+                            count = featured.size,
+                            loading = viewModel.isLoading,
+                            status = viewModel.statusMessage.substringBefore(" · "),
+                            onFocus = { primaryHeroFocused = it },
+                            onOpenMedia = onOpenMedia,
+                            onOpenSettings = onOpenSettings
+                        )
+                        TvSecondaryFeatured(
+                            item = second,
+                            modifier = Modifier.fillMaxWidth().height(heroHeight),
+                            channelCount = viewModel.liveChannels.size,
+                            onFocus = { secondaryHeroFocused = it },
+                            onOpenMedia = onOpenMedia,
+                            onOpenChannels = onOpenChannels
+                        )
+                    }
+                } else {
+                    Row(modifier = Modifier.fillMaxWidth().height(heroHeight), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        TvPrimaryFeatured(
                             item = first,
                             modifier = Modifier.weight(1f).fillMaxSize(),
-                            featured = true,
-                            activeSlide = index,
-                            slideCount = featured.size,
-                            onFocus = { primaryHeroFocused = it },
-                            onClick = { onOpenMedia(first.id) }
-                        )
-                    } else {
-                        TvCatalogPlaceholder(
+                            index = index,
+                            count = featured.size,
                             loading = viewModel.isLoading,
-                            configured = TmdbRepository.isConfigured,
                             status = viewModel.statusMessage.substringBefore(" · "),
-                            modifier = Modifier.weight(1f).fillMaxSize(),
-                            onClick = onOpenSettings
+                            onFocus = { primaryHeroFocused = it },
+                            onOpenMedia = onOpenMedia,
+                            onOpenSettings = onOpenSettings
                         )
-                    }
-                    val second = if (featured.size > 1) featured[(index + 1) % featured.size] else null
-                    if (second != null) {
-                        TvMediaArtwork(
+                        TvSecondaryFeatured(
                             item = second,
                             modifier = Modifier.weight(1f).fillMaxSize(),
-                            featured = true,
-                            onFocus = { secondaryHeroFocused = it },
-                            onClick = { onOpenMedia(second.id) }
-                        )
-                    } else {
-                        TvLiveSpotlight(
                             channelCount = viewModel.liveChannels.size,
-                            modifier = Modifier.weight(1f).fillMaxSize(),
-                            onClick = onOpenChannels
+                            onFocus = { secondaryHeroFocused = it },
+                            onOpenMedia = onOpenMedia,
+                            onOpenChannels = onOpenChannels
                         )
                     }
                 }
             }
 
-            if (mediaRows.isNotEmpty()) {
-                item(key = "media-heading") {
-                    TvShelfHeading("PELÍCULAS Y SERIES", "Ver películas", onOpenMovies, "Ver series", onOpenSeries)
-                }
-                itemsIndexed(mediaRows, key = { _, row -> "media-${row.first().id}" }) { _, row ->
-                    Row(modifier = Modifier.fillMaxWidth().height(tileHeight), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        row.forEach { item ->
-                            key(item.id) {
-                                TvMediaArtwork(
-                                    item = item,
-                                    modifier = Modifier.weight(1f).fillMaxSize(),
-                                    featured = false,
-                                    onClick = { onOpenMedia(item.id) }
-                                )
-                            }
+            itemsIndexed(mediaRows, key = { _, row -> "media-${row.first().id}" }) { _, row ->
+                Row(modifier = Modifier.fillMaxWidth().height(tileHeight), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    row.forEach { item ->
+                        key(item.id) {
+                            TvMediaArtwork(
+                                item = item,
+                                modifier = Modifier.weight(1f).fillMaxSize(),
+                                featured = false,
+                                onClick = { onOpenMedia(item.id) }
+                            )
                         }
-                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
 
-            item(key = "channels-heading") {
-                TvShelfHeading("TV EN DIRECTO", "Ver canales", onOpenChannels)
-            }
-            if (channelRows.isEmpty()) {
-                item(key = "channels-empty") {
+            item(key = "continue") {
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 15.dp)) {
+                    TvShelfHeading("Continuar viendo")
                     Text(
-                        text = viewModel.statusMessage.substringAfter(" · ", "Cargando fuentes de TV…"),
-                        modifier = Modifier.padding(vertical = 12.dp),
+                        "El progreso de reproducción todavía no se guarda en este dispositivo.",
+                        modifier = Modifier.padding(bottom = 5.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-            } else {
-                itemsIndexed(channelRows, key = { _, row -> "channels-${row.first().id}" }) { _, row ->
-                    Row(modifier = Modifier.fillMaxWidth().height(tileHeight), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        row.forEach { channel ->
-                            key(channel.id) {
+            }
+            if (viewModel.weeklyTrends.isNotEmpty()) {
+                item(key = "weekly-trends") {
+                    TvMediaShelf("Tendencias esta semana", viewModel.weeklyTrends, compact, onOpenMedia)
+                }
+            }
+            if (viewModel.trending.isNotEmpty()) {
+                item(key = "popular-movies") {
+                    TvMediaShelf("Películas populares", viewModel.trending, compact, onOpenMedia, "Ver películas", onOpenMovies)
+                }
+            }
+            if (viewModel.recommended.isNotEmpty()) {
+                item(key = "popular-series") {
+                    TvMediaShelf("Series populares", viewModel.recommended, compact, onOpenMedia, "Ver series", onOpenSeries)
+                }
+            }
+            if (viewModel.documentaries.isNotEmpty()) {
+                item(key = "documentaries") {
+                    TvMediaShelf("Documentales", viewModel.documentaries, compact, onOpenMedia)
+                }
+            }
+            item(key = "live-channels") {
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 15.dp)) {
+                    TvShelfHeading("TV en directo", "Ver canales", onOpenChannels)
+                    if (viewModel.liveChannels.isEmpty()) {
+                        Text(
+                            text = viewModel.statusMessage.substringAfter(" · ", "Cargando fuentes de TV…"),
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    } else {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            items(viewModel.liveChannels.take(20), key = LiveChannel::id) { channel ->
                                 TvChannelArtwork(
                                     channel = channel,
-                                    modifier = Modifier.weight(1f).fillMaxSize(),
+                                    modifier = Modifier.width(if (compact) 175.dp else 195.dp).height(if (compact) 100.dp else 110.dp),
                                     onClick = { onOpenChannel(channel.id) }
                                 )
                             }
                         }
-                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
@@ -190,6 +223,67 @@ fun TvHomeScreen(
                     modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvPrimaryFeatured(
+    item: MediaItem?,
+    modifier: Modifier,
+    index: Int,
+    count: Int,
+    loading: Boolean,
+    status: String,
+    onFocus: (Boolean) -> Unit,
+    onOpenMedia: (String) -> Unit,
+    onOpenSettings: () -> Unit
+) {
+    if (item != null) {
+        TvMediaArtwork(item, modifier, featured = true, activeSlide = index, slideCount = count, onFocus = onFocus) {
+            onOpenMedia(item.id)
+        }
+    } else {
+        TvCatalogPlaceholder(loading, TmdbRepository.isConfigured, status, modifier, onOpenSettings)
+    }
+}
+
+@Composable
+private fun TvSecondaryFeatured(
+    item: MediaItem?,
+    modifier: Modifier,
+    channelCount: Int,
+    onFocus: (Boolean) -> Unit,
+    onOpenMedia: (String) -> Unit,
+    onOpenChannels: () -> Unit
+) {
+    if (item != null) {
+        TvMediaArtwork(item, modifier, featured = true, onFocus = onFocus) { onOpenMedia(item.id) }
+    } else {
+        TvLiveSpotlight(channelCount, modifier, onOpenChannels)
+    }
+}
+
+@Composable
+private fun TvMediaShelf(
+    title: String,
+    titles: List<MediaItem>,
+    compact: Boolean,
+    onOpenMedia: (String) -> Unit,
+    action: String? = null,
+    onAction: (() -> Unit)? = null
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 15.dp)) {
+        TvShelfHeading(title, action, onAction)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            items(titles.distinctBy(MediaItem::id), key = MediaItem::id) { item ->
+                TvMediaArtwork(
+                    item = item,
+                    modifier = Modifier.width(if (compact) 175.dp else 195.dp).height(if (compact) 100.dp else 110.dp),
+                    featured = false,
+                    onClick = { onOpenMedia(item.id) }
                 )
             }
         }
@@ -233,7 +327,7 @@ internal fun TvMediaArtwork(
     TvArtworkCard(
         title = item.title,
         subtitle = "${if (item.kind == MediaKind.MOVIE) "Película" else "Serie"} · ${item.year.takeIf { it > 0 } ?: "—"}",
-        imageUrl = item.backdropUrl ?: item.posterUrl,
+        imageUrl = item.backdropUrl?.takeIf(String::isNotBlank) ?: item.posterUrl,
         colorA = item.colorA,
         colorB = item.colorB,
         modifier = modifier,
@@ -245,7 +339,7 @@ internal fun TvMediaArtwork(
     )
 }
 
-/** Shared artwork treatment for real titles and the explicitly labelled design preview. */
+/** Artwork treatment used by the real TV catalog and related titles. */
 @Composable
 internal fun TvArtworkCard(
     title: String,
@@ -257,7 +351,6 @@ internal fun TvArtworkCard(
     colorB: Long = 0xFF101014L,
     activeSlide: Int = 0,
     slideCount: Int = 0,
-    progress: Float? = null,
     onFocus: (Boolean) -> Unit = {},
     onClick: () -> Unit
 ) {
@@ -289,16 +382,6 @@ internal fun TvArtworkCard(
             )
             if (!featured) {
                 Text(subtitle, color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            if (progress != null) {
-                val amount = progress.coerceIn(0f, 1f)
-                Box(
-                    Modifier.fillMaxWidth().padding(top = 5.dp).height(3.dp)
-                        .background(Color.White.copy(alpha = 0.3f), CircleShape)
-                        .semantics { contentDescription = "Progreso de ejemplo: ${(amount * 100).roundToInt()} %" }
-                ) {
-                    Box(Modifier.fillMaxWidth(amount).height(3.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
-                }
             }
             if (slideCount > 1) {
                 Row(modifier = Modifier.padding(top = 9.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -334,7 +417,7 @@ private fun TvCatalogPlaceholder(
             Text(
                 when {
                     loading -> "Cargando catálogo"
-                    configured -> "Catálogo no disponible"
+                    configured -> "Catálogo principal no disponible"
                     else -> "Explora nuevas historias"
                 },
                 color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold, maxLines = 2
@@ -376,19 +459,16 @@ private fun TvChannelArtwork(channel: LiveChannel, modifier: Modifier, onClick: 
 @Composable
 private fun TvShelfHeading(
     title: String,
-    action: String,
-    onAction: () -> Unit,
-    secondAction: String? = null,
-    onSecondAction: (() -> Unit)? = null
+    action: String? = null,
+    onAction: (() -> Unit)? = null
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 3.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(title, modifier = Modifier.weight(1f), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp, maxLines = 1)
-        TvShelfAction(action, onAction)
-        if (secondAction != null && onSecondAction != null) TvShelfAction(secondAction, onSecondAction)
+        Text(title, modifier = Modifier.weight(1f), color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (action != null && onAction != null) TvShelfAction(action, onAction)
     }
 }
 

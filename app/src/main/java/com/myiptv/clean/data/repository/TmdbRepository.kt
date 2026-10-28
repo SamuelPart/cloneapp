@@ -28,7 +28,9 @@ object TmdbRepository {
             .create(TmdbApi::class.java)
     }
 
-    private val mediaCache = ConcurrentHashMap<String, MediaItem>()
+    private data class CachedMedia(val item: MediaItem, val hasDetails: Boolean)
+
+    private val mediaCache = ConcurrentHashMap<String, CachedMedia>()
     private var movieGenresById: Map<Int, String> = emptyMap()
     private var seriesGenresById: Map<Int, String> = emptyMap()
 
@@ -41,6 +43,9 @@ object TmdbRepository {
         val response = api.popularSeries(BuildConfig.TMDB_API_KEY, LANGUAGE, 1)
         return response.toMediaItems("tv", seriesGenresById)
     }
+
+    suspend fun trendingThisWeek(): List<MediaItem> =
+        api.trendingThisWeek(BuildConfig.TMDB_API_KEY, LANGUAGE).toMixedMediaItems()
 
     suspend fun discoverMovies(genreId: Int): List<MediaItem> =
         api.discoverMovies(BuildConfig.TMDB_API_KEY, LANGUAGE, genreId).toMediaItems("movie", movieGenresById)
@@ -64,23 +69,20 @@ object TmdbRepository {
     suspend fun search(query: String): List<MediaItem> {
         if (query.isBlank()) return emptyList()
         val response = api.searchMulti(BuildConfig.TMDB_API_KEY, LANGUAGE, query.trim())
-        return response.results.orEmpty()
-            .filter { it.mediaType == "movie" || it.mediaType == "tv" }
-            .mapNotNull { media ->
-                val type = media.mediaType ?: return@mapNotNull null
-                media.toMediaItem(type, genreMapFor(type)).also { mediaCache[it.id] = it }
-            }
+        return response.toMixedMediaItems()
     }
 
     suspend fun details(itemId: String): MediaItem? {
-        val parsed = parseTmdbId(itemId) ?: return mediaCache[itemId]
+        val parsed = parseTmdbId(itemId) ?: return mediaCache[itemId]?.item
         val (tmdbId, mediaType) = parsed
         val detail = if (mediaType == "movie") {
             api.movieDetails(tmdbId, BuildConfig.TMDB_API_KEY, LANGUAGE)
         } else {
             api.seriesDetails(tmdbId, BuildConfig.TMDB_API_KEY, LANGUAGE)
         }
-        return detail.toMediaItem(mediaType, genreMapFor(mediaType)).also { mediaCache[it.id] = it }
+        return detail.toMediaItem(mediaType, genreMapFor(mediaType)).also { item ->
+            synchronized(mediaCache) { mediaCache[item.id] = CachedMedia(item, hasDetails = true) }
+        }
     }
 
     suspend fun seasonEpisodes(seriesId: Long, seasonNumber: Int): List<MediaEpisode> {
@@ -88,15 +90,31 @@ object TmdbRepository {
         return response.episodes.orEmpty().map { it.toMediaEpisode() }
     }
 
-    fun cachedMedia(itemId: String): MediaItem? = mediaCache[itemId]
+    fun cachedMedia(itemId: String): MediaItem? = mediaCache[itemId]?.item
 
-    fun cachedCatalog(): List<MediaItem> = mediaCache.values.toList()
+    fun cachedCatalog(): List<MediaItem> = mediaCache.values.map(CachedMedia::item)
 
     private fun TmdbPageResponse.toMediaItems(
         mediaType: String,
         genreMap: Map<Int, String>
     ): List<MediaItem> = results.orEmpty().map { media ->
-        media.toMediaItem(mediaType, genreMap).also { mediaCache[it.id] = it }
+        media.toMediaItem(mediaType, genreMap).also(::cacheSummary)
+    }
+
+    /** Only movies and series from mixed search/trending responses can be opened as media. */
+    internal fun TmdbPageResponse.toMixedMediaItems(): List<MediaItem> =
+        results.orEmpty().mapNotNull { media ->
+            val type = media.mediaType?.takeIf { it == "movie" || it == "tv" } ?: return@mapNotNull null
+            media.toMediaItem(type, genreMapFor(type)).also(::cacheSummary)
+        }
+
+    private fun cacheSummary(item: MediaItem) {
+        // Trending/discover requests can finish after a detail request; keep the richer ficha.
+        synchronized(mediaCache) {
+            if (mediaCache[item.id]?.hasDetails != true) {
+                mediaCache[item.id] = CachedMedia(item, hasDetails = false)
+            }
+        }
     }
 
     private fun TmdbMediaResponse.toMediaItem(

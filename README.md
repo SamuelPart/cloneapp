@@ -15,11 +15,11 @@ Usa únicamente emisiones abiertas y enlaces para los que tengas autorización. 
 
 ## Interfaz para Android TV
 
-La pantalla de inicio adapta la referencia visual de XUPER TV a Jetpack Compose: menú lateral, tarjetas panorámicas, carrusel y foco visible para el mando. El carrusel se detiene mientras una de sus tarjetas está enfocada. El tema usa el fondo `#08090c` e Inter para la interfaz, conservando las cabeceras serif del diseño. Las imágenes de fondo de las fichas aparecen con una transición suave al terminar de cargar; si fallan, permanece visible el fondo de reserva. En el catálogo real, las fichas y el reproductor siguen usando las fuentes reales de la aplicación.
+En Android TV, el diseño de XUPER TV es la interfaz principal: menú lateral izquierdo, tarjetas panorámicas, cuadrícula, carrusel, filas horizontales y foco visible para el mando. Los destacados y las filas utilizan títulos reales de TMDb; «Tendencias esta semana» consulta las tendencias semanales y «Documentales» usa el género documental de TMDb. Los canales proceden de los catálogos configurados. El carrusel se detiene mientras una de sus tarjetas está enfocada. La disposición se adapta a televisores con menos espacio y conserva el menú lateral incluso en dispositivos sin pantalla táctil o que anuncian el modo televisión sin Leanback.
+
+No se incluyen títulos, porcentajes ni progresos de muestra. «Continuar viendo» informa de que el progreso aún no se guarda; las descargas y el historial siguen sin implementarse. Las fichas y el reproductor conservan las fuentes reales de la aplicación. El tema usa el fondo `#08090c` e Inter para la interfaz, con cabeceras serif. Las imágenes de las fichas aparecen suavemente al cargar y mantienen un fondo de reserva si fallan.
 
 La tipografía [Inter](https://github.com/rsms/inter/tree/66647c0bbbe41a850d79d9c76fb13add3378940f) se distribuye con la aplicación bajo la licencia SIL Open Font License 1.1, incluida en `app/src/main/assets/licenses/Inter-OFL.txt`. Los pesos estáticos oficiales se convirtieron de WOFF2 a TTF para funcionar también en las versiones antiguas de Android.
-
-El botón **DEMO** de la barra superior abre una vista de diseño independiente con los 12 títulos, imágenes y filas del `data.ts` proporcionado. Sus coincidencias, clasificaciones y progresos son ficticios; no hay vídeos ni tráileres para reproducir y esos títulos no se mezclan con el catálogo real ni con los favoritos. Pulsa **Salir** o **Atrás** para volver. Las imágenes de Unsplash requieren conexión a Internet; sin ella se muestra un fondo de reserva.
 
 Las secciones **Kids** y **Anime** utilizan los filtros de descubrimiento de TMDb y requieren una clave configurada. Kids reúne películas familiares y series infantiles clasificadas por TMDb, pero no es un control parental; Anime muestra series de animación de origen japonés según TMDb. La disponibilidad y clasificación dependen del proveedor.
 

@@ -23,6 +23,13 @@ interface TmdbApi {
         @Query("page") page: Int
     ): TmdbPageResponse
 
+    @GET("trending/all/week")
+    suspend fun trendingThisWeek(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
     @GET("discover/movie")
     suspend fun discoverMovies(
         @Query("api_key") apiKey: String,

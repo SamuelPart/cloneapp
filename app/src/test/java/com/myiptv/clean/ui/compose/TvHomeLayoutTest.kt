@@ -43,4 +43,13 @@ class TvHomeLayoutTest {
         assertEquals(2, nextCarouselIndex(5, 4))
         assertEquals(1, nextCarouselIndex(-1, 4))
     }
+
+    @Test
+    fun recognizesTelevisionModeFeaturesAndNonTouchDevices() {
+        assertEquals(true, usesTvDeviceLayout(true, false, false, true))
+        assertEquals(true, usesTvDeviceLayout(false, true, false, true))
+        assertEquals(true, usesTvDeviceLayout(false, false, true, true))
+        assertEquals(true, usesTvDeviceLayout(false, false, false, false))
+        assertEquals(false, usesTvDeviceLayout(false, false, false, true))
+    }
 }
