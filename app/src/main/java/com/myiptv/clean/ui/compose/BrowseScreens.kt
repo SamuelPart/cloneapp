@@ -22,16 +22,15 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.myiptv.clean.data.repository.TdtChannelsRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
@@ -69,13 +69,17 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(if (isTv) 28.dp else 23.dp)
     ) {
-        FeaturedHero(
-            item = featured,
-            isTv = isTv,
-            onPlay = { onOpenPlayer(featured.id) },
-            onMore = { onOpenMedia(featured.id) },
-            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = if (isTv) 8.dp else 4.dp)
-        )
+        if (featured != null) {
+            FeaturedHero(
+                item = featured,
+                isTv = isTv,
+                onPlay = if (featured.streamUrl != null) ({ onOpenPlayer(featured.id) }) else null,
+                onMore = { onOpenMedia(featured.id) },
+                modifier = Modifier.padding(horizontal = horizontalPadding, vertical = if (isTv) 8.dp else 4.dp)
+            )
+        } else {
+            EmptyState(Icons.Filled.Movie, "No hay títulos disponibles", viewModel.statusMessage)
+        }
 
         Column(modifier = Modifier.padding(horizontal = horizontalPadding)) {
             SectionTitle("Explora por categoría")
@@ -83,7 +87,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                DemoCatalog.categories.forEach { category ->
+                ContentCategories.items.forEach { category ->
                     CategoryTile(
                         category = category,
                         onClick = {
@@ -100,41 +104,51 @@ fun HomeScreen(
 
         Column(modifier = Modifier.padding(start = horizontalPadding)) {
             SectionTitle("Ahora en vivo", "Ver todos", onOpenChannels, modifier = Modifier.padding(end = horizontalPadding))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
-                items(viewModel.liveChannels.take(5), key = LiveChannel::id) { channel ->
-                    CompactChannelCard(channel = channel, modifier = Modifier.width(if (isTv) 330.dp else 286.dp)) {
-                        onOpenChannel(channel.id)
+            if (viewModel.liveChannels.isEmpty()) {
+                Text("Los canales de TDTChannels todavía no están disponibles.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
+                    items(viewModel.liveChannels.take(8), key = LiveChannel::id) { channel ->
+                        CompactChannelCard(channel = channel, modifier = Modifier.width(if (isTv) 330.dp else 286.dp)) {
+                            onOpenChannel(channel.id)
+                        }
                     }
                 }
             }
         }
 
         Column(modifier = Modifier.padding(start = horizontalPadding)) {
-            SectionTitle("Tendencias para ti", "Ver películas", onOpenMovies, modifier = Modifier.padding(end = horizontalPadding))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
-                items(viewModel.trending, key = MediaItem::id) { item ->
-                    MediaPosterCard(
-                        item = item,
-                        modifier = Modifier.width(if (isTv) 190.dp else 148.dp),
-                        isFavorite = item.id in favorites,
-                        onClick = { onOpenMedia(item.id) },
-                        onFavoriteClick = { onToggleFavorite(item.id) }
-                    )
+            SectionTitle("Películas populares en TMDb", "Ver películas", onOpenMovies, modifier = Modifier.padding(end = horizontalPadding))
+            if (viewModel.trending.isEmpty()) {
+                Text("Los títulos aparecerán cuando TMDb esté configurado.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(end = horizontalPadding))
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
+                    items(viewModel.trending, key = MediaItem::id) { item ->
+                        MediaPosterCard(
+                            item = item,
+                            modifier = Modifier.width(if (isTv) 190.dp else 148.dp),
+                            isFavorite = item.id in favorites,
+                            onClick = { onOpenMedia(item.id) },
+                            onFavoriteClick = { onToggleFavorite(item.id) }
+                        )
+                    }
                 }
             }
         }
 
-        Column(modifier = Modifier.padding(start = horizontalPadding)) {
-            SectionTitle("Series que podrías disfrutar", "Explorar series", onOpenSeries, modifier = Modifier.padding(end = horizontalPadding))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
-                items(viewModel.recommended.filter { it.kind == MediaKind.SERIES }, key = MediaItem::id) { item ->
-                    MediaPosterCard(
-                        item = item,
-                        modifier = Modifier.width(if (isTv) 190.dp else 148.dp),
-                        isFavorite = item.id in favorites,
-                        onClick = { onOpenMedia(item.id) },
-                        onFavoriteClick = { onToggleFavorite(item.id) }
-                    )
+        if (viewModel.recommended.isNotEmpty()) {
+            Column(modifier = Modifier.padding(start = horizontalPadding)) {
+                SectionTitle("Series populares", "Ver series", onOpenSeries, modifier = Modifier.padding(end = horizontalPadding))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = horizontalPadding)) {
+                    items(viewModel.recommended.filter { it.kind == MediaKind.SERIES }, key = MediaItem::id) { item ->
+                        MediaPosterCard(
+                            item = item,
+                            modifier = Modifier.width(if (isTv) 190.dp else 148.dp),
+                            isFavorite = item.id in favorites,
+                            onClick = { onOpenMedia(item.id) },
+                            onFavoriteClick = { onToggleFavorite(item.id) }
+                        )
+                    }
                 }
             }
         }
@@ -152,7 +166,7 @@ fun HomeScreen(
 private fun FeaturedHero(
     item: MediaItem,
     isTv: Boolean,
-    onPlay: () -> Unit,
+    onPlay: (() -> Unit)?,
     onMore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -202,7 +216,7 @@ private fun FeaturedHero(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color(0xFFFFD38B), modifier = Modifier.size(17.dp))
-                    Text(if (item.tmdbId != null) "DESTACADO EN TMDb" else "DESTACADO DE LA SEMANA", color = Color(0xFFFFD38B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                    Text(if (item.tmdbId != null) "POPULAR EN TMDb" else "TÍTULO DESTACADO", color = Color(0xFFFFD38B), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                 }
                 Text(
                     item.title,
@@ -213,7 +227,7 @@ private fun FeaturedHero(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    "${item.year.takeIf { it > 0 } ?: "—"}   ·   ${item.genres.take(2).joinToString(" / ")}   ·   ★ ${item.rating}   ·   ${item.quality}",
+                    "${item.year.takeIf { it > 0 } ?: "—"}   ·   ${item.genres.take(2).joinToString(" / ")}   ·   ★ ${item.rating.takeIf { it > 0.0 }?.let { "%.1f".format(it) } ?: "—"}",
                     color = Color.White.copy(alpha = 0.82f),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
@@ -228,7 +242,7 @@ private fun FeaturedHero(
                     modifier = Modifier.fillMaxWidth(if (isTv) 0.72f else 1f)
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    PrimaryButton("Ver ahora", Icons.Filled.Movie, onPlay)
+                    if (onPlay != null) PrimaryButton("Reproducir", Icons.Filled.PlayArrow, onPlay)
                     TertiaryButton("Detalles", onClick = onMore)
                 }
             }
@@ -252,8 +266,7 @@ fun ChannelsScreen(
         PageHeading(
             eyebrow = "Señal en directo",
             title = "Canales",
-            description = "Encuentra algo que ver ahora.",
-            trailing = { LiveIndicator() }
+            description = "Lista pública de televisión de TDTChannels."
         )
         SearchBox(
             value = viewModel.query,
@@ -262,18 +275,22 @@ fun ChannelsScreen(
             modifier = Modifier.padding(bottom = 12.dp)
         )
         FilterChips(
-            options = DemoCatalog.channelCategories,
+            options = viewModel.categories,
             selected = viewModel.selectedCategory,
             onSelect = { viewModel.selectedCategory = it },
             modifier = Modifier.padding(bottom = 10.dp)
         )
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("${viewModel.filteredChannels.size} canales", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
-            Text("Guía de programación · Ejemplo", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text(viewModel.errorMessage.ifBlank { "Fuente: TDTChannels" }, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
         if (viewModel.filteredChannels.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                EmptyState(Icons.Filled.Search, "No encontramos canales", "Prueba con otro nombre o categoría.")
+                when {
+                    viewModel.isLoading -> EmptyState(Icons.Filled.LiveTv, "Cargando canales", "Consultando la lista oficial de TDTChannels.")
+                    viewModel.errorMessage.isNotBlank() -> EmptyState(Icons.Filled.LiveTv, "No se pudo cargar la lista", viewModel.errorMessage, "Reintentar", viewModel::refresh)
+                    else -> EmptyState(Icons.Filled.Search, "No hay canales", "No se encontraron canales para este filtro.")
+                }
             }
         } else {
             LazyVerticalGrid(
@@ -288,18 +305,6 @@ fun ChannelsScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LiveIndicator() {
-    Row(
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color(0xFFFF5271).copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFFF6B82)))
-        Text("EN VIVO", color = Color(0xFFFF8797), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -337,7 +342,11 @@ fun BrowseMediaScreen(
         Text("${items.size} títulos · ${viewModel.statusMessage}", modifier = Modifier.padding(vertical = 5.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (items.isEmpty()) {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                EmptyState(Icons.Filled.Movie, "Sin resultados", "Cambia el filtro o busca otro título.")
+                EmptyState(
+                    Icons.Filled.Movie,
+                    if (viewModel.isLoading) "Cargando catálogo" else "No hay títulos",
+                    viewModel.statusMessage
+                )
             }
         } else {
             LazyVerticalGrid(
@@ -370,8 +379,8 @@ fun FavoritesScreen(
     onOpenChannel: (String) -> Unit,
     onExplore: () -> Unit
 ) {
-    val media = (DemoCatalog.media + TmdbRepository.cachedCatalog()).distinctBy(MediaItem::id).filter { it.id in savedIds }
-    val channels = DemoCatalog.channels.filter { it.id in savedIds }
+    val media = TmdbRepository.cachedCatalog().filter { it.id in savedIds }
+    val channels = TdtChannelsRepository.cachedChannels().filter { it.id in savedIds }
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Tu colección", "Mi lista", "Todo lo que guardaste, en un solo lugar.")
         if (media.isEmpty() && channels.isEmpty()) {
@@ -424,8 +433,7 @@ fun SearchScreen(
     onOpenChannel: (String) -> Unit,
     viewModel: SearchViewModel = viewModel()
 ) {
-    val recent = DemoCatalog.recentSearches
-    val trendingMedia = TmdbRepository.cachedCatalog().ifEmpty { DemoCatalog.media }.sortedByDescending(MediaItem::rating).take(5)
+    val trendingMedia = viewModel.featuredMedia.sortedByDescending(MediaItem::rating).take(5)
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 16.dp)) {
         PageHeading("Encuentra tu próximo favorito", "Buscar", "Películas, series y canales en un solo lugar.")
         SearchBox(
@@ -435,36 +443,29 @@ fun SearchScreen(
         )
         if (viewModel.query.isBlank()) {
             Column(modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 22.dp), verticalArrangement = Arrangement.spacedBy(22.dp)) {
-                Column {
-                    SectionTitle("Búsquedas recientes")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                        recent.forEach { term ->
-                            AssistChip(
-                                onClick = { viewModel.query = term },
-                                label = { Text(term) },
-                                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                colors = AssistChipDefaults.assistChipColors(labelColor = MaterialTheme.colorScheme.onSurface)
-                            )
+                if (trendingMedia.isNotEmpty()) {
+                    Column {
+                        SectionTitle("Películas y series")
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(trendingMedia, key = MediaItem::id) { item ->
+                                MediaPosterCard(item, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(item.id) })
+                            }
                         }
                     }
                 }
-                Column {
-                    SectionTitle("Tendencias")
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(trendingMedia, key = MediaItem::id) { item ->
-                            MediaPosterCard(item, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(item.id) })
+                if (viewModel.channels.isNotEmpty()) {
+                    Column {
+                        SectionTitle("Canales de TDTChannels")
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(viewModel.channels.take(12), key = LiveChannel::id) { channel ->
+                                CompactChannelCard(channel, modifier = Modifier.width(if (isTv) 320.dp else 280.dp)) { onOpenChannel(channel.id) }
+                            }
                         }
                     }
                 }
-                Column {
-                    SectionTitle("Canales en directo")
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(DemoCatalog.channels.take(4), key = LiveChannel::id) { channel ->
-                            CompactChannelCard(channel, modifier = Modifier.width(if (isTv) 320.dp else 280.dp)) { onOpenChannel(channel.id) }
-                        }
-                    }
+                if (trendingMedia.isEmpty() && viewModel.channels.isEmpty()) {
+                    EmptyState(Icons.Filled.Search, "No hay contenido disponible", viewModel.statusMessage)
                 }
-                Text(viewModel.statusMessage, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             }
         } else {
             val mediaResults = viewModel.mediaResults

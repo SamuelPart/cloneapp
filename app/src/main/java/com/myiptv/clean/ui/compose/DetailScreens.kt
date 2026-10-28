@@ -30,10 +30,14 @@ import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,10 +50,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.myiptv.clean.data.repository.ConfiguredMediaSource
+import com.myiptv.clean.data.repository.LocalMediaSources
+import com.myiptv.clean.data.repository.TdtChannelsRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
@@ -60,22 +68,26 @@ fun ChannelDetailScreen(
     isFavorite: (String) -> Boolean,
     onToggleFavorite: (String) -> Unit
 ) {
-    val channel = DemoCatalog.channels.find { it.id == channelId }
+    val channel = TdtChannelsRepository.cachedChannel(channelId)
     if (channel == null) {
         Column(Modifier.fillMaxSize().padding(24.dp)) {
             DetailBackButton(onBack)
-            EmptyState(Icons.Filled.LiveTv, "Canal no disponible", "Este canal no está en el catálogo de demostración.")
+            EmptyState(Icons.Filled.LiveTv, "Canal no disponible", "Actualiza la lista de TDTChannels y vuelve a intentarlo.")
         }
         return
     }
+
     val favorite = isFavorite(channel.id)
     var favoriteFocused by remember { mutableStateOf(false) }
     val isTv = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             DetailBackButton(onBack)
-            Text("Guía del canal", modifier = Modifier.padding(start = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+            Text("Televisión abierta  /  ${channel.name}", modifier = Modifier.padding(start = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box(
             modifier = Modifier
@@ -83,11 +95,11 @@ fun ChannelDetailScreen(
                 .padding(horizontal = if (isTv) 36.dp else 18.dp)
                 .height(if (isTv) 330.dp else 280.dp)
                 .clip(RoundedCornerShape(25.dp))
-                .background(Brush.linearGradient(listOf(Color(channel.accent).copy(alpha = 0.75f), Color(0xFF101725), Color(0xFF131326))))
+                .background(Brush.linearGradient(listOf(Color(channel.accent).copy(alpha = 0.78f), Color(0xFF101725), Color(0xFF131326))))
         ) {
-            Box(modifier = Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.15f), Color.Transparent, Color.Black.copy(alpha = 0.42f)))))
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.12f), Color.Transparent, Color.Black.copy(alpha = 0.42f)))))
             Column(
-                modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(if (isTv) 0.64f else 1f).padding(horizontal = if (isTv) 40.dp else 22.dp),
+                modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(if (isTv) 0.68f else 1f).padding(horizontal = if (isTv) 40.dp else 22.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -95,21 +107,18 @@ fun ChannelDetailScreen(
                     Column {
                         LiveBadge()
                         Spacer(Modifier.height(8.dp))
-                        Text(channel.category.uppercase(), color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall, letterSpacing = 1.sp)
+                        Text(channel.category.uppercase(), color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall, letterSpacing = 1.sp)
                     }
                 }
-                Text(channel.name, color = Color.White, style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
-                Text(channel.currentProgram, color = Color.White.copy(alpha = 0.88f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                Text("Programación de ejemplo · ${channel.startTime} — ${channel.endTime}", color = Color.White.copy(alpha = 0.65f), style = MaterialTheme.typography.bodySmall)
+                Text(channel.name, color = Color.White, style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("Señal de televisión en abierto", color = Color.White.copy(alpha = 0.86f), style = MaterialTheme.typography.titleMedium)
+                Text("Fuente: TDTChannels", color = Color.White.copy(alpha = 0.66f), style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 5.dp)) {
                     PrimaryButton("Ver canal", Icons.Filled.PlayArrow, onClick = { onPlay(channel.id) })
                     Surface(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .onFocusChanged { favoriteFocused = it.isFocused }
+                        modifier = Modifier.size(48.dp).onFocusChanged { favoriteFocused = it.isFocused }
                             .border(if (favoriteFocused) 2.dp else 1.dp, if (favoriteFocused) MaterialTheme.colorScheme.secondary else Color.Transparent, CircleShape)
-                            .clip(CircleShape)
-                            .clickable { onToggleFavorite(channel.id) },
+                            .clip(CircleShape).clickable { onToggleFavorite(channel.id) },
                         color = Color.White.copy(alpha = 0.12f),
                         contentColor = Color.White
                     ) {
@@ -129,46 +138,17 @@ fun ChannelDetailScreen(
         }
 
         Column(modifier = Modifier.padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Column {
-                SectionTitle("Ahora y próximamente")
-                channel.schedule.forEachIndexed { index, programme ->
-                    EpgProgramCard(programme, isCurrent = index == 0, modifier = Modifier.padding(bottom = 9.dp))
-                }
-                Text("La guía EPG es ilustrativa y no está conectada a una programación real.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SectionTitle("Información de la señal")
+                DetailInfoRow("Categoría", channel.category)
+                DetailInfoRow("Origen", "TDTChannels · lista pública de TV")
+                channel.epgId?.let { DetailInfoRow("ID EPG", it) }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionTitle("Más canales")
-                DemoCatalog.channels.filter { it.id != channel.id }.take(3).forEach { nextChannel ->
-                    ChannelCard(nextChannel, modifier = Modifier.fillMaxWidth()) { onPlay(nextChannel.id) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EpgProgramCard(programme: ProgramItem, isCurrent: Boolean, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.13f) else MaterialTheme.colorScheme.surface)
-            .border(1.dp, if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.45f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-            .padding(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(54.dp)) {
-            Text(programme.start, color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            Text(programme.end, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
-        }
-        Box(Modifier.width(3.dp).height(44.dp).clip(CircleShape).background(if (isCurrent) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline))
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(programme.title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                if (isCurrent) LiveBadge()
-            }
-            Text(programme.description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                "La disponibilidad de cada emisión depende de su operador y puede variar según la región.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
@@ -182,9 +162,7 @@ fun MediaDetailScreen(
     isFavorite: (String) -> Boolean,
     onToggleFavorite: (String) -> Unit
 ) {
-    val initialItem = remember(mediaId) {
-        TmdbRepository.cachedMedia(mediaId) ?: DemoCatalog.media.find { it.id == mediaId }
-    }
+    val initialItem = remember(mediaId) { TmdbRepository.cachedMedia(mediaId) }
     val isTmdbItem = mediaId.startsWith("tmdb_") && TmdbRepository.isConfigured
     var detailLoading by remember(mediaId) { mutableStateOf(initialItem == null && isTmdbItem) }
     val loadedItem by produceState<MediaItem?>(initialValue = initialItem, key1 = mediaId) {
@@ -192,7 +170,7 @@ fun MediaDetailScreen(
             try {
                 value = TmdbRepository.details(mediaId) ?: value
             } catch (_: Exception) {
-                // Preserve the cached list item if the details request is temporarily unavailable.
+                // Keep any metadata already returned by the catalog/search request.
             } finally {
                 detailLoading = false
             }
@@ -204,40 +182,47 @@ fun MediaDetailScreen(
             EmptyState(
                 Icons.Filled.Movie,
                 if (detailLoading) "Cargando ficha" else "Título no disponible",
-                if (detailLoading) "Consultando la información del título…" else "No pudimos cargar este título. Revisa tu conexión con TMDb."
+                if (detailLoading) "Consultando los datos reales de TMDb…" else "No hay una ficha TMDb disponible para este título."
             )
         }
         return
     }
+
     val item = loadedItem ?: return
+    val context = LocalContext.current
     val isTv = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
     val favorite = isFavorite(item.id)
     var favoriteFocused by remember { mutableStateOf(false) }
     var selectedSeason by remember(item.id) { mutableStateOf(1) }
+    var savedSource by remember(item.id) { mutableStateOf(LocalMediaSources.get(context, item.id)) }
+    var showSourceDialog by remember(item.id) { mutableStateOf(false) }
     val isRemoteSeries = item.kind == MediaKind.SERIES && item.tmdbId != null && item.tmdbMediaType == "tv"
-    val demoEpisodes = remember(item.id, selectedSeason) { sampleEpisodesForSeason(selectedSeason) }
-    var episodeNotice by remember(item.id, selectedSeason) {
-        mutableStateOf(if (isRemoteSeries) "Cargando episodios…" else "Episodios de demostración.")
-    }
+    val seasonCount = item.seasonCount?.coerceAtLeast(0) ?: 0
+    var episodeNotice by remember(item.id, selectedSeason, seasonCount) { mutableStateOf("Cargando episodios desde TMDb…") }
     val episodes by produceState<List<MediaEpisode>>(
-        initialValue = if (isRemoteSeries) emptyList() else demoEpisodes,
+        initialValue = emptyList(),
         key1 = item.id,
-        key2 = selectedSeason
+        key2 = "$selectedSeason:$seasonCount:$isRemoteSeries"
     ) {
-        if (isRemoteSeries && TmdbRepository.isConfigured) {
+        if (isRemoteSeries && TmdbRepository.isConfigured && seasonCount > 0) {
             try {
                 value = TmdbRepository.seasonEpisodes(item.tmdbId!!, selectedSeason)
-                episodeNotice = if (value.isEmpty()) "TMDb no devolvió episodios para esta temporada." else "Episodios y sinopsis obtenidos de TMDb."
+                episodeNotice = if (value.isEmpty()) "TMDb no devolvió episodios para esta temporada." else "Episodios cargados desde TMDb."
             } catch (_: Exception) {
                 value = emptyList()
                 episodeNotice = "No se pudieron cargar los episodios desde TMDb."
             }
         } else {
-            value = demoEpisodes
-            episodeNotice = "Episodios de demostración."
+            value = emptyList()
+            episodeNotice = when {
+                !TmdbRepository.isConfigured -> "Configura TMDb para consultar los episodios."
+                seasonCount == 0 -> "TMDb no informó temporadas para esta ficha."
+                else -> "Los episodios no están disponibles desde TMDb."
+            }
         }
     }
-    val seasons = (1..(item.seasonCount ?: 2).coerceIn(1, 20)).toList()
+    val seasons = if (seasonCount > 0) (1..seasonCount).toList() else emptyList()
+    val playbackUrl = savedSource?.url ?: item.streamUrl
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -245,11 +230,8 @@ fun MediaDetailScreen(
             Text("${if (item.kind == MediaKind.SERIES) "Series" else "Películas"}  /  ${item.title}", modifier = Modifier.padding(start = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = if (isTv) 36.dp else 18.dp)
-                .height(if (isTv) 260.dp else 165.dp)
-                .clip(RoundedCornerShape(22.dp))
+            modifier = Modifier.fillMaxWidth().padding(horizontal = if (isTv) 36.dp else 18.dp)
+                .height(if (isTv) 260.dp else 165.dp).clip(RoundedCornerShape(22.dp))
                 .background(Brush.linearGradient(listOf(Color(item.colorA), Color(item.colorB), Color(0xFF121827))))
         ) {
             if (!item.backdropUrl.isNullOrBlank()) {
@@ -272,22 +254,33 @@ fun MediaDetailScreen(
                 PosterArtwork(item, Modifier.fillMaxSize())
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (isTv) 12.dp else 8.dp)) {
-                    Text(if (item.kind == MediaKind.SERIES) "SERIE" else "PELÍCULA", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+                Text(if (item.kind == MediaKind.SERIES) "SERIE" else "PELÍCULA", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
                 Text(item.title, color = MaterialTheme.colorScheme.onBackground, style = if (isTv) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(item.year.takeIf { it > 0 }?.toString() ?: "—", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(item.duration, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFC56E), modifier = Modifier.size(15.dp))
-                    Text(item.rating.toString(), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    if (item.rating > 0.0) {
+                        Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFC56E), modifier = Modifier.size(15.dp))
+                        Text("%.1f".format(item.rating), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("Sin valoración", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
                 Text(item.genres.joinToString("  ·  "), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
                 Text(item.synopsis, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium, maxLines = if (isTv) 5 else 4, overflow = TextOverflow.Ellipsis)
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    PrimaryButton(if (isTv) "Reproducir" else "Ver", Icons.Filled.PlayArrow, onClick = { onPlay(item.id) })
+                    if (!playbackUrl.isNullOrBlank()) {
+                        PrimaryButton("Reproducir", Icons.Filled.PlayArrow, onClick = { onPlay(item.id) })
+                        TertiaryButton("Cambiar enlace", onClick = { showSourceDialog = true })
+                    } else {
+                        TertiaryButton("Añadir enlace", onClick = { showSourceDialog = true })
+                    }
                     Surface(
-                        modifier = Modifier.size(48.dp).onFocusChanged { favoriteFocused = it.isFocused }.border(if (favoriteFocused) 2.dp else 1.dp, if (favoriteFocused) MaterialTheme.colorScheme.secondary else Color.Transparent, CircleShape).clip(CircleShape).clickable { onToggleFavorite(item.id) },
+                        modifier = Modifier.size(48.dp).onFocusChanged { favoriteFocused = it.isFocused }
+                            .border(if (favoriteFocused) 2.dp else 1.dp, if (favoriteFocused) MaterialTheme.colorScheme.secondary else Color.Transparent, CircleShape)
+                            .clip(CircleShape).clickable { onToggleFavorite(item.id) },
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -299,79 +292,153 @@ fun MediaDetailScreen(
         }
 
         Column(modifier = Modifier.padding(horizontal = if (isTv) 36.dp else 18.dp, vertical = 18.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            if (playbackUrl.isNullOrBlank()) {
+                Text(
+                    if (item.kind == MediaKind.SERIES) "TMDb aporta información e imágenes. Añade una fuente autorizada para la serie o un enlace independiente junto a cada episodio."
+                    else "TMDb aporta información e imágenes; añade un enlace de vídeo directo autorizado o un embed iframe para reproducir este título.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             if (item.kind == MediaKind.SERIES) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionTitle("Episodios")
-                    Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        seasons.forEach { season ->
-                            androidx.compose.material3.FilterChip(
-                                selected = selectedSeason == season,
-                                onClick = { selectedSeason = season },
-                                label = { Text("Temporada $season") }
-                            )
-                        }
-                    }
-                    if (episodes.isEmpty()) {
+                    if (seasons.isEmpty()) {
                         Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     } else {
-                        episodes.forEach { episode ->
-                            EpisodeRow(episode, onClick = { onPlay(item.id) })
+                        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            seasons.forEach { season ->
+                                FilterChip(
+                                    selected = selectedSeason == season,
+                                    onClick = { selectedSeason = season },
+                                    label = { Text("Temporada $season") }
+                                )
+                            }
                         }
-                        Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        if (episodes.isEmpty()) {
+                            Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        } else {
+                            episodes.forEach { episode ->
+                                val episodeSourceId = "${item.id}_s${selectedSeason}_e${episode.number}"
+                                EpisodeRow(episode, episodeSourceId, onPlay)
+                            }
+                            Text(episodeNotice, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                SectionTitle("Información")
+                SectionTitle("Información de TMDb")
                 DetailInfoRow("Año", item.year.takeIf { it > 0 }?.toString() ?: "—")
                 DetailInfoRow("Reparto", item.castNames.take(5).joinToString(", ").ifBlank { "No disponible" })
                 DetailInfoRow("Géneros", item.genres.joinToString(", ").ifBlank { "No disponible" })
+                if (item.kind == MediaKind.SERIES) {
+                    DetailInfoRow("Temporadas", seasonCount.takeIf { it > 0 }?.toString() ?: "—")
+                    DetailInfoRow("Episodios", item.episodeCount?.toString() ?: "—")
+                }
             }
-            Column {
-                SectionTitle("También te puede gustar")
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items((TmdbRepository.cachedCatalog() + DemoCatalog.media).distinctBy(MediaItem::id).filter { it.id != item.id }.take(5), key = MediaItem::id) { recommendation ->
-                        MediaPosterCard(recommendation, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(recommendation.id) })
+            val related = TmdbRepository.cachedCatalog().filter { it.id != item.id }.take(8)
+            if (related.isNotEmpty()) {
+                Column {
+                    SectionTitle("Más títulos")
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(related, key = MediaItem::id) { recommendation ->
+                            MediaPosterCard(recommendation, modifier = Modifier.width(if (isTv) 190.dp else 148.dp), onClick = { onOpenMedia(recommendation.id) })
+                        }
                     }
                 }
             }
-            Text(
-                if (item.tmdbId != null) "Metadatos e imágenes proporcionados por TMDb. La reproducción no está conectada a un stream real."
-                else "Ficha de muestra · No hay contenido multimedia conectado.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall
-            )
+            Text("Metadatos e imágenes: TMDb. Los derechos de cada enlace de reproducción corresponden a su fuente.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
+    }
+
+    if (showSourceDialog) {
+        MediaSourceDialog(
+            initialSource = savedSource,
+            onDismiss = { showSourceDialog = false },
+            onSave = { url, type ->
+                if (LocalMediaSources.save(context, item.id, url, type)) {
+                    savedSource = LocalMediaSources.get(context, item.id)
+                    true
+                } else false
+            },
+            onRemove = if (savedSource != null) {
+                {
+                    LocalMediaSources.remove(context, item.id)
+                    savedSource = null
+                }
+            } else null
+        )
     }
 }
 
-private fun sampleEpisodesForSeason(season: Int): List<MediaEpisode> = if (season == 1) {
-    listOf(
-        MediaEpisode(1, "La señal", "42 min", "Un hallazgo inesperado pone en marcha una investigación."),
-        MediaEpisode(2, "Luces lejanas", "39 min", "El equipo sigue una pista hasta el otro lado de la ciudad."),
-        MediaEpisode(3, "Punto ciego", "44 min", "Una vieja amistad cambia el rumbo del caso.")
-    )
-} else {
-    listOf(
-        MediaEpisode(1, "Regreso", "46 min", "La ciudad ha cambiado y las respuestas también."),
-        MediaEpisode(2, "Frecuencia", "41 min", "Una transmisión revela un nuevo patrón."),
-        MediaEpisode(3, "La última luz", "48 min", "Todo converge en una noche decisiva.")
+@Composable
+private fun MediaSourceDialog(
+    initialSource: ConfiguredMediaSource?,
+    onDismiss: () -> Unit,
+    onSave: (String, MediaPlaybackType) -> Boolean,
+    onRemove: (() -> Unit)?
+) {
+    var url by remember(initialSource?.url) { mutableStateOf(initialSource?.url.orEmpty()) }
+    var type by remember(initialSource?.type) { mutableStateOf(initialSource?.type ?: MediaPlaybackType.DIRECT) }
+    var error by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Enlace de reproducción") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Añade una fuente pública y autorizada. Se guarda solo en este dispositivo.", style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(if (type == MediaPlaybackType.IFRAME) "URL o código iframe" else "URL directa de vídeo") },
+                    minLines = 2,
+                    maxLines = 4
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = type == MediaPlaybackType.DIRECT, onClick = { type = MediaPlaybackType.DIRECT }, label = { Text("Directo") })
+                    FilterChip(selected = type == MediaPlaybackType.IFRAME, onClick = { type = MediaPlaybackType.IFRAME }, label = { Text("Embed iframe") })
+                }
+                if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (onSave(url, type)) onDismiss() else error = "Usa un enlace HTTP/HTTPS válido para esta fuente." }) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            Row {
+                if (onRemove != null) TextButton(onClick = { onRemove(); onDismiss() }) { Text("Quitar enlace") }
+                TextButton(onClick = onDismiss) { Text("Cancelar") }
+            }
+        }
     )
 }
 
 @Composable
-private fun EpisodeRow(episode: MediaEpisode, onClick: () -> Unit) {
+private fun EpisodeRow(
+    episode: MediaEpisode,
+    sourceId: String,
+    onPlay: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var configuredSource by remember(sourceId) { mutableStateOf(LocalMediaSources.get(context, sourceId)) }
+    var showSourceDialog by remember(sourceId) { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(16.dp)
     Row(
-        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape).clip(shape).background(MaterialTheme.colorScheme.surface).clickable(onClick = onClick).padding(12.dp),
+        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }
+            .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), shape)
+            .clip(shape).background(MaterialTheme.colorScheme.surface).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         Box(
-            modifier = Modifier.width(104.dp).aspectRatio(1.45f).clip(RoundedCornerShape(12.dp)).background(
-                Brush.linearGradient(listOf(Color(0xFF44338B), Color(0xFF176A78), Color(0xFF161D31)))
-            ),
+            modifier = Modifier.width(104.dp).aspectRatio(1.45f).clip(RoundedCornerShape(12.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF25334B), Color(0xFF161D31)))),
             contentAlignment = Alignment.Center
         ) {
             if (!episode.stillUrl.isNullOrBlank()) {
@@ -381,23 +448,47 @@ private fun EpisodeRow(episode: MediaEpisode, onClick: () -> Unit) {
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+            } else {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(27.dp))
             }
-            Icon(Icons.Filled.PlayArrow, contentDescription = "Reproducir episodio ${episode.number}", tint = Color.White, modifier = Modifier.size(27.dp))
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("EPISODIO ${episode.number.toString().padStart(2, '0')}  ·  ${episode.duration}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            Text("EPISODIO ${episode.number.toString().padStart(2, '0')} · ${episode.duration}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
             Text(episode.title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(episode.synopsis, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        if (configuredSource == null) {
+            TertiaryButton("Añadir enlace", onClick = { showSourceDialog = true })
+        } else {
+            PrimaryButton("Reproducir", Icons.Filled.PlayArrow, onClick = { onPlay(sourceId) })
+        }
+    }
+
+    if (showSourceDialog) {
+        MediaSourceDialog(
+            initialSource = configuredSource,
+            onDismiss = { showSourceDialog = false },
+            onSave = { url, type ->
+                if (LocalMediaSources.save(context, sourceId, url, type)) {
+                    configuredSource = LocalMediaSources.get(context, sourceId)
+                    true
+                } else false
+            },
+            onRemove = if (configuredSource != null) {
+                {
+                    LocalMediaSources.remove(context, sourceId)
+                    configuredSource = null
+                }
+            } else null
+        )
     }
 }
 
 @Composable
 private fun DetailInfoRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        Text(label, modifier = Modifier.width(76.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-        Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+        Text(label, modifier = Modifier.width(90.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        Text(value, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -405,7 +496,9 @@ private fun DetailInfoRow(label: String, value: String) {
 private fun DetailBackButton(onBack: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Surface(
-        modifier = Modifier.size(42.dp).onFocusChanged { focused = it.isFocused }.border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline, CircleShape).clip(CircleShape).clickable(onClick = onBack),
+        modifier = Modifier.size(42.dp).onFocusChanged { focused = it.isFocused }
+            .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline, CircleShape)
+            .clip(CircleShape).clickable(onClick = onBack),
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Box(contentAlignment = Alignment.Center) {

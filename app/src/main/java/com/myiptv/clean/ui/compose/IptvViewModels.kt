@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myiptv.clean.data.repository.TdtChannelsRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -13,24 +14,44 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class HomeViewModel : ViewModel() {
-    var featured by mutableStateOf(DemoCatalog.media.first())
+    var featured by mutableStateOf<MediaItem?>(null)
         private set
-    var trending by mutableStateOf(DemoCatalog.media.sortedByDescending(MediaItem::rating).take(6))
+    var trending by mutableStateOf<List<MediaItem>>(emptyList())
         private set
-    var recommended by mutableStateOf(DemoCatalog.media.drop(2))
+    var recommended by mutableStateOf<List<MediaItem>>(emptyList())
         private set
-    val liveChannels = DemoCatalog.channels
+    var liveChannels by mutableStateOf<List<LiveChannel>>(emptyList())
+        private set
     var isLoading by mutableStateOf(false)
         private set
-    var statusMessage by mutableStateOf(configurationMessage())
+    var statusMessage by mutableStateOf("Cargando fuentes…")
         private set
 
+    private var mediaStatus = if (TmdbRepository.isConfigured) "Consultando catálogo TMDb…" else "TMDb requiere una clave API local."
+    private var channelStatus = "Consultando la lista de TDTChannels…"
+
     init {
+        loadChannels()
         loadCatalog()
     }
 
+    private fun loadChannels() {
+        viewModelScope.launch {
+            try {
+                liveChannels = TdtChannelsRepository.refresh()
+                channelStatus = "Canales públicos cargados desde TDTChannels."
+            } catch (_: Exception) {
+                channelStatus = "No se pudo cargar la lista de TDTChannels."
+            }
+            updateStatus()
+        }
+    }
+
     private fun loadCatalog() {
-        if (!TmdbRepository.isConfigured) return
+        if (!TmdbRepository.isConfigured) {
+            updateStatus()
+            return
+        }
         isLoading = true
         viewModelScope.launch {
             try {
@@ -46,12 +67,57 @@ class HomeViewModel : ViewModel() {
                     moviesRequest.await() to seriesRequest.await()
                 }
                 val all = movies + series
-                featured = movies.firstOrNull() ?: series.firstOrNull() ?: featured
-                trending = all.sortedByDescending(MediaItem::rating).take(12).ifEmpty { trending }
-                recommended = series.ifEmpty { recommended }
-                statusMessage = "Catálogo, fichas e imágenes servidos por TMDb. La reproducción y los canales siguen siendo de demostración."
+                featured = movies.firstOrNull() ?: series.firstOrNull()
+                trending = movies.sortedByDescending(MediaItem::rating).take(12)
+                recommended = series.take(12)
+                mediaStatus = if (all.isEmpty()) "TMDb no devolvió títulos." else "Metadatos e imágenes cargados desde TMDb."
             } catch (_: Exception) {
-                statusMessage = "No se pudo conectar con TMDb; se muestra el catálogo de demostración."
+                mediaStatus = "No se pudo obtener el catálogo desde TMDb."
+            } finally {
+                isLoading = false
+                updateStatus()
+            }
+        }
+    }
+
+    private fun updateStatus() {
+        statusMessage = "$mediaStatus · $channelStatus"
+    }
+}
+
+class ChannelsViewModel : ViewModel() {
+    var query by mutableStateOf("")
+    var selectedCategory by mutableStateOf("Todos")
+    var channels by mutableStateOf<List<LiveChannel>>(emptyList())
+        private set
+    var isLoading by mutableStateOf(false)
+        private set
+    var errorMessage by mutableStateOf("")
+        private set
+
+    val categories: List<String>
+        get() = listOf("Todos") + channels.map(LiveChannel::category).distinct().sorted()
+
+    val filteredChannels: List<LiveChannel>
+        get() = channels.filter { channel ->
+            (selectedCategory == "Todos" || channel.category == selectedCategory) &&
+                (query.isBlank() || channel.name.contains(query, ignoreCase = true) || channel.category.contains(query, ignoreCase = true))
+        }
+
+    init {
+        refresh()
+    }
+
+    fun refresh() {
+        if (isLoading) return
+        isLoading = true
+        viewModelScope.launch {
+            try {
+                channels = TdtChannelsRepository.refresh()
+                errorMessage = ""
+            } catch (_: Exception) {
+                channels = TdtChannelsRepository.cachedChannels()
+                errorMessage = "No fue posible actualizar TDTChannels. Comprueba tu conexión."
             } finally {
                 isLoading = false
             }
@@ -59,20 +125,9 @@ class HomeViewModel : ViewModel() {
     }
 }
 
-class ChannelsViewModel : ViewModel() {
-    var query by mutableStateOf("")
-    var selectedCategory by mutableStateOf("Todos")
-
-    val filteredChannels: List<LiveChannel>
-        get() = DemoCatalog.channels.filter { channel ->
-            (selectedCategory == "Todos" || channel.category == selectedCategory) &&
-                channel.name.contains(query, ignoreCase = true)
-        }
-}
-
 class MoviesViewModel : ViewModel() {
-    private var movieCatalog by mutableStateOf(DemoCatalog.media.filter { it.kind == MediaKind.MOVIE })
-    private var seriesCatalog by mutableStateOf(DemoCatalog.media.filter { it.kind == MediaKind.SERIES })
+    private var movieCatalog by mutableStateOf<List<MediaItem>>(emptyList())
+    private var seriesCatalog by mutableStateOf<List<MediaItem>>(emptyList())
     private var remoteSearchResults by mutableStateOf<List<MediaItem>?>(null)
     private val queryState = mutableStateOf("")
     private var searchJob: Job? = null
@@ -83,14 +138,19 @@ class MoviesViewModel : ViewModel() {
             queryState.value = value
             searchJob?.cancel()
             remoteSearchResults = null
-            if (value.trim().length < 2 || !TmdbRepository.isConfigured) return
+            if (value.trim().length < 2) return
+            if (!TmdbRepository.isConfigured) {
+                statusMessage = "Configura una clave TMDb local para buscar títulos."
+                return
+            }
             searchJob = viewModelScope.launch {
                 delay(350)
                 try {
                     remoteSearchResults = TmdbRepository.search(value)
-                    statusMessage = "Resultados de búsqueda obtenidos de TMDb."
+                    statusMessage = if (remoteSearchResults.isNullOrEmpty()) "TMDb no encontró coincidencias."
+                    else "Resultados cargados desde TMDb."
                 } catch (_: Exception) {
-                    statusMessage = "No se pudo buscar en TMDb; se filtra el catálogo disponible."
+                    statusMessage = "No se pudo completar la búsqueda en TMDb."
                 }
             }
         }
@@ -103,7 +163,7 @@ class MoviesViewModel : ViewModel() {
         private set
     var isLoading by mutableStateOf(false)
         private set
-    var statusMessage by mutableStateOf(configurationMessage())
+    var statusMessage by mutableStateOf(catalogMessage())
         private set
 
     init {
@@ -128,7 +188,10 @@ class MoviesViewModel : ViewModel() {
     }
 
     private fun loadCatalog() {
-        if (!TmdbRepository.isConfigured) return
+        if (!TmdbRepository.isConfigured) {
+            statusMessage = "Configura una clave TMDb local para cargar películas y series."
+            return
+        }
         isLoading = true
         viewModelScope.launch {
             try {
@@ -144,11 +207,11 @@ class MoviesViewModel : ViewModel() {
                     val seriesRequest = async { TmdbRepository.popularSeries() }
                     moviesRequest.await() to seriesRequest.await()
                 }
-                movieCatalog = movies.ifEmpty { movieCatalog }
-                seriesCatalog = series.ifEmpty { seriesCatalog }
-                statusMessage = "Catálogo y géneros obtenidos de TMDb."
+                movieCatalog = movies
+                seriesCatalog = series
+                statusMessage = if (movies.isEmpty() && series.isEmpty()) "TMDb no devolvió títulos." else "Catálogo actualizado desde TMDb."
             } catch (_: Exception) {
-                statusMessage = "No se pudo conectar con TMDb; se muestra el catálogo de demostración."
+                statusMessage = "No se pudo cargar el catálogo de TMDb."
             } finally {
                 isLoading = false
             }
@@ -157,7 +220,7 @@ class MoviesViewModel : ViewModel() {
 }
 
 class FavoritesViewModel : ViewModel() {
-    var savedIds by mutableStateOf(setOf("m-azul", "ch-cultura"))
+    var savedIds by mutableStateOf(emptySet<String>())
         private set
 
     fun toggle(id: String) {
@@ -165,18 +228,14 @@ class FavoritesViewModel : ViewModel() {
     }
 }
 
-class SettingsViewModel : ViewModel() {
-    var autoPlay by mutableStateOf(true)
-    var skipIntro by mutableStateOf(false)
-    var pushNotifications by mutableStateOf(true)
-    var newEpisodes by mutableStateOf(true)
-    var selectedQuality by mutableStateOf("Auto")
-}
-
 class SearchViewModel : ViewModel() {
     private val queryState = mutableStateOf("")
     private var searchJob: Job? = null
     private var remoteResults by mutableStateOf<List<MediaItem>?>(null)
+    var featuredMedia by mutableStateOf(TmdbRepository.cachedCatalog())
+        private set
+    var channels by mutableStateOf<List<LiveChannel>>(TdtChannelsRepository.cachedChannels())
+        private set
 
     var query: String
         get() = queryState.value
@@ -184,15 +243,20 @@ class SearchViewModel : ViewModel() {
             queryState.value = value
             searchJob?.cancel()
             remoteResults = null
-            if (value.trim().length < 2 || !TmdbRepository.isConfigured) return
+            if (value.trim().length < 2) return
+            if (!TmdbRepository.isConfigured) {
+                statusMessage = "Configura una clave TMDb local para buscar películas y series."
+                return
+            }
             searchJob = viewModelScope.launch {
                 delay(350)
                 isLoading = true
                 try {
                     remoteResults = TmdbRepository.search(value)
-                    statusMessage = "Resultados de películas y series obtenidos de TMDb."
+                    statusMessage = if (remoteResults.isNullOrEmpty()) "TMDb no encontró coincidencias."
+                    else "Resultados cargados desde TMDb."
                 } catch (_: Exception) {
-                    statusMessage = "No se pudo buscar en TMDb; se muestran coincidencias locales."
+                    statusMessage = "No se pudo completar la búsqueda en TMDb."
                 } finally {
                     isLoading = false
                 }
@@ -201,42 +265,41 @@ class SearchViewModel : ViewModel() {
 
     var isLoading by mutableStateOf(false)
         private set
-    var statusMessage by mutableStateOf(configurationMessage())
+    var statusMessage by mutableStateOf(catalogMessage())
         private set
 
     val mediaResults: List<MediaItem>
-        get() = remoteResults ?: DemoCatalog.media.filter {
-            it.title.contains(query, ignoreCase = true) || it.genres.any { genre -> genre.contains(query, true) }
-        }
+        get() = remoteResults.orEmpty()
 
     val channelResults: List<LiveChannel>
-        get() = DemoCatalog.channels.filter {
-            it.name.contains(query, ignoreCase = true) || it.category.contains(query, ignoreCase = true)
+        get() = channels.filter {
+            query.isBlank() || it.name.contains(query, ignoreCase = true) || it.category.contains(query, ignoreCase = true)
         }
-}
 
-class DownloadsViewModel : ViewModel() {
-    val sampleItems = DemoCatalog.media.take(2)
-}
-
-class HistoryViewModel : ViewModel() {
-    val recentlyWatched = DemoCatalog.media.take(4)
-    var historyCleared by mutableStateOf(false)
-        private set
-
-    fun clear() {
-        historyCleared = true
+    init {
+        viewModelScope.launch {
+            try {
+                channels = TdtChannelsRepository.refresh()
+            } catch (_: Exception) {
+                channels = TdtChannelsRepository.cachedChannels()
+            }
+        }
+        if (TmdbRepository.isConfigured) {
+            viewModelScope.launch {
+                try {
+                    featuredMedia = TmdbRepository.popularMovies() + TmdbRepository.popularSeries()
+                    statusMessage = if (featuredMedia.isEmpty()) "TMDb no devolvió títulos." else "Metadatos disponibles desde TMDb."
+                } catch (_: Exception) {
+                    featuredMedia = TmdbRepository.cachedCatalog()
+                    if (featuredMedia.isEmpty()) statusMessage = "No se pudo cargar el catálogo de TMDb."
+                }
+            }
+        }
     }
 }
 
-class PlayerViewModel : ViewModel() {
-    var selectedQuality by mutableStateOf("Auto")
-    var subtitlesEnabled by mutableStateOf(false)
-    var audioLanguage by mutableStateOf("Español")
-}
-
-private fun configurationMessage(): String = if (TmdbRepository.isConfigured) {
-    "Conectando con TMDb…"
+private fun catalogMessage(): String = if (TmdbRepository.isConfigured) {
+    "Catálogo conectado a TMDb."
 } else {
-    "Configura tu clave TMDb local para cargar fichas y pósteres reales."
+    "TMDb sin configurar: agrega la clave local para cargar películas y series."
 }

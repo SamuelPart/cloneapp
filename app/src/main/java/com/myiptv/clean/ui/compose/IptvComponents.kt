@@ -217,7 +217,7 @@ fun MediaPosterCard(
                 color = Color.Black.copy(alpha = 0.48f)
             ) {
                 Text(
-                    text = if (item.kind == MediaKind.SERIES) "SERIE" else item.quality,
+                    text = if (item.kind == MediaKind.SERIES) "SERIE" else "PELÍCULA",
                     modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
@@ -250,7 +250,7 @@ fun MediaPosterCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("★", color = Color(0xFFFFC56E), style = MaterialTheme.typography.labelMedium)
             Text(
-                text = " ${item.rating}  ·  ${item.year.takeIf { it > 0 } ?: "—"}",
+                text = " ${item.rating.takeIf { it > 0.0 }?.let { "%.1f".format(it) } ?: "—"}  ·  ${item.year.takeIf { it > 0 } ?: "—"}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1
@@ -354,13 +354,9 @@ fun ChannelCard(
                 LiveBadge()
             }
             Spacer(Modifier.height(4.dp))
-            Text(channel.currentProgram, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(channel.category, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(7.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${channel.startTime} — ${channel.endTime}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall)
-                Spacer(Modifier.width(8.dp))
-                Text("·  ${channel.nextProgram}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+            Text("Señal directa · TDTChannels", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall)
         }
         Icon(Icons.Filled.PlayArrow, contentDescription = "Ver ${channel.name}", tint = MaterialTheme.colorScheme.primary)
     }
@@ -388,14 +384,8 @@ fun CompactChannelCard(channel: LiveChannel, modifier: Modifier = Modifier, onCl
             }
             LiveBadge()
         }
-        Text(channel.currentProgram, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        androidx.compose.material3.LinearProgressIndicator(
-            progress = 0.58f,
-            modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
-            color = MaterialTheme.colorScheme.secondary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-        Text("${channel.endTime}  ·  Después: ${channel.nextProgram}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text("Señal directa · TDTChannels", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(channel.category, color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -407,7 +397,16 @@ fun ChannelLogo(channel: LiveChannel, modifier: Modifier = Modifier) {
             .background(Brush.linearGradient(listOf(Color(channel.accent), Color(channel.accent).copy(alpha = 0.38f)))),
         contentAlignment = Alignment.Center
     ) {
-        Text(channel.logoLetters, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+        if (!channel.logoUrl.isNullOrBlank()) {
+            coil.compose.AsyncImage(
+                model = channel.logoUrl,
+                contentDescription = "Logo de ${channel.name}",
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(6.dp)
+            )
+        } else {
+            Text(channel.logoLetters, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
+        }
     }
 }
 

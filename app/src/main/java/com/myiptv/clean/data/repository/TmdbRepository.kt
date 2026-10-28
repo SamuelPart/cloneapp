@@ -103,9 +103,9 @@ object TmdbRepository {
         val year = (releaseDate ?: firstAirDate)?.take(4)?.toIntOrNull() ?: 0
         val runtimeMinutes = runtime ?: episodeRunTime.orEmpty().firstOrNull()
         val duration = if (kind == MediaKind.SERIES) {
-            numberOfSeasons?.let { "$it ${if (it == 1) "temporada" else "temporadas"}" } ?: "Serie"
+            numberOfSeasons?.takeIf { it > 0 }?.let { "$it ${if (it == 1) "temporada" else "temporadas"}" } ?: "—"
         } else {
-            runtimeMinutes?.let(::formatRuntime) ?: "Película"
+            runtimeMinutes?.takeIf { it > 0 }?.let(::formatRuntime) ?: "—"
         }
         val colors = colorPair(id)
 
@@ -118,7 +118,6 @@ object TmdbRepository {
             genres = itemGenres,
             synopsis = overview.orEmpty().ifBlank { "Sinopsis no disponible." },
             duration = duration,
-            quality = "TMDb",
             colorA = colors.first,
             colorB = colors.second,
             posterUrl = posterPath?.let { IMAGE_BASE_URL + "w500" + it },

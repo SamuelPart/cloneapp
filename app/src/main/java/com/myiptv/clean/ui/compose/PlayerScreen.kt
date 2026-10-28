@@ -1,202 +1,230 @@
 package com.myiptv.clean.ui.compose
 
+import android.net.Uri
+import android.view.ViewGroup
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem as ExoMediaItem
+import com.google.android.exoplayer2.PlaybackException
+import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.ui.AspectRatioFrameLayout
+import com.google.android.exoplayer2.ui.PlayerView
+import com.myiptv.clean.data.repository.LocalMediaSources
+import com.myiptv.clean.data.repository.TdtChannelsRepository
+import com.myiptv.clean.data.repository.TmdbRepository
 
 @Composable
 fun PlayerScreen(
     contentId: String,
-    onBack: () -> Unit,
-    viewModel: PlayerViewModel = viewModel()
+    onBack: () -> Unit
 ) {
-    val channel = DemoCatalog.channels.find { it.id == contentId }
-    val media = DemoCatalog.media.find { it.id == contentId }
-    val title = channel?.name ?: media?.title ?: "Reproductor"
-    val subtitle = channel?.currentProgram ?: if (media?.kind == MediaKind.SERIES) "Episodio de muestra · Temporada 1" else "Reproducción de muestra"
-    var isPlaying by remember { mutableStateOf(false) }
-    var centerFocused by remember { mutableStateOf(false) }
-    var bottomPlayFocused by remember { mutableStateOf(false) }
-    var progress by remember { mutableFloatStateOf(0.38f) }
-    var controlsVisible by remember { mutableStateOf(true) }
-    val initialFocus = remember { FocusRequester() }
+    val context = LocalContext.current
+    val episodeReference = remember(contentId) { parseEpisodeSourceId(contentId) }
+    val mediaId = episodeReference?.mediaId ?: contentId
+    val channel = remember(contentId) { TdtChannelsRepository.cachedChannel(contentId) }
+    val media = remember(mediaId) { TmdbRepository.cachedMedia(mediaId) }
+    val savedSource = remember(contentId) { LocalMediaSources.get(context, contentId) }
+    val sourceUrl = channel?.streamUrl ?: savedSource?.url ?: if (episodeReference == null) media?.streamUrl else null
+    val sourceType = when {
+        channel != null -> MediaPlaybackType.DIRECT
+        savedSource != null -> savedSource.type
+        else -> media?.playbackType ?: MediaPlaybackType.DIRECT
+    }
+    val title = when {
+        channel != null -> channel.name
+        media == null -> "Reproductor"
+        episodeReference == null -> media.title
+        else -> "${media.title} · T${episodeReference.seasonNumber} · E${episodeReference.episodeNumber}"
+    }
+    val isChannelReference = contentId.startsWith("tdt_")
 
     BackHandler(onBack = onBack)
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(Color(0xFF05070B)).clickable { controlsVisible = !controlsVisible }
-    ) {
-        val isTv = maxWidth >= 840.dp || androidx.compose.ui.platform.LocalContext.current.packageManager.hasSystemFeature("android.software.leanback")
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(Brush.radialGradient(listOf(Color(0xFF20274D), Color(0xFF080B12)), center = Offset(size.width * 0.5f, size.height * 0.45f), radius = size.maxDimension * 0.72f))
-            drawCircle(Color(0xFF8F72FF).copy(alpha = 0.11f), radius = size.minDimension * 0.3f, center = Offset(size.width * 0.68f, size.height * 0.37f))
-            drawCircle(Color.White.copy(alpha = 0.13f), radius = size.minDimension * 0.17f, center = Offset(size.width * 0.68f, size.height * 0.37f), style = Stroke(width = 1.4.dp.toPx()))
+    if (sourceUrl.isNullOrBlank()) {
+        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF080B12)), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(28.dp)) {
+                Icon(if (isChannelReference) Icons.Filled.LiveTv else Icons.Filled.Movie, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(38.dp))
+                Text("Fuente de reproducción no disponible", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Text(
+                    if (isChannelReference) "No se encontró una señal activa de TDTChannels para este canal."
+                    else "TMDb solo aporta metadatos. Añade un enlace directo autorizado o un embed iframe en la ficha del título.",
+                    color = Color.White.copy(alpha = 0.74f), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center
+                )
+                PlayerBackButton(onBack)
+            }
         }
-        Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent, Color.Black.copy(alpha = 0.72f)))))
+        return
+    }
 
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 44.dp else 18.dp, vertical = if (isTv) 28.dp else 18.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            if (controlsVisible) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp), modifier = Modifier.fillMaxWidth()) {
-                    PlayerIconButton(Icons.Filled.ArrowBack, "Volver", onBack)
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(title, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(subtitle, color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    if (channel != null) {
-                        LiveBadge()
-                    } else {
-                        Text("DEMO", modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                    }
-                    PlayerIconButton(Icons.Filled.Settings, "Ajustes de reproducción") {
-                        viewModel.selectedQuality = when (viewModel.selectedQuality) {
-                            "Auto" -> "HD"
-                            "HD" -> "4K"
-                            else -> "Auto"
-                        }
-                    }
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        if (sourceType == MediaPlaybackType.IFRAME) {
+            val embedUrl = remember(sourceUrl) { iframeSourceUrl(sourceUrl) }
+            if (embedUrl == null) {
+                Column(modifier = Modifier.align(Alignment.Center).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("El embed iframe no contiene una URL HTTP/HTTPS válida.", color = Color.White, textAlign = TextAlign.Center)
+                    PlayerBackButton(onBack)
                 }
             } else {
-                Spacer(Modifier.height(1.dp))
-            }
-
-            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Surface(
-                    modifier = Modifier.size(if (isTv) 100.dp else 82.dp).onFocusChanged { centerFocused = it.isFocused }.clip(CircleShape).focusRequester(initialFocus).clickable { isPlaying = !isPlaying },
-                    color = Color.White.copy(alpha = 0.12f),
-                    contentColor = Color.White,
-                    shape = CircleShape,
-                    border = androidx.compose.foundation.BorderStroke(if (centerFocused) 3.dp else 1.dp, if (centerFocused) MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = 0.45f))
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = if (isPlaying) "Pausar vista previa" else "Reproducir vista previa", tint = Color.White, modifier = Modifier.size(if (isTv) 54.dp else 44.dp))
-                    }
-                }
-                Text("Sin fuente de vídeo conectada", color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Esta pantalla es una previsualización de la interfaz. Configura una URL HLS o DASH para reproducir contenido real.",
-                    modifier = Modifier.fillMaxWidth(if (isTv) 0.6f else 0.92f),
-                    color = Color.White.copy(alpha = 0.72f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text("CONTROLES EN MODO DEMOSTRACIÓN", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-            }
-
-            if (controlsVisible) {
-                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (channel != null) "${channel.startTime}  ·  En directo" else "00:${(progress * 82).toInt().toString().padStart(2, '0')}  /  ${media?.duration ?: "--:--"}", color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelMedium)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            Text("${viewModel.selectedQuality} · ${viewModel.audioLanguage}", color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall)
-                            PlayerTextAction(if (viewModel.subtitlesEnabled) "CC activado" else "CC desactivado") { viewModel.subtitlesEnabled = !viewModel.subtitlesEnabled }
-                        }
-                    }
-                    Slider(value = progress, onValueChange = { progress = it }, modifier = Modifier.fillMaxWidth())
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Surface(modifier = Modifier.size(48.dp).onFocusChanged { bottomPlayFocused = it.isFocused }.border(if (bottomPlayFocused) 2.dp else 1.dp, if (bottomPlayFocused) MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = 0.3f), CircleShape).clip(CircleShape).clickable { isPlaying = !isPlaying }, color = Color.White.copy(alpha = 0.16f)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = if (isPlaying) "Pausar" else "Reproducir", tint = Color.White)
+                val webView = remember(embedUrl) {
+                    WebView(context).apply {
+                        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.mediaPlaybackRequiresUserGesture = true
+                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                        webChromeClient = WebChromeClient()
+                        webViewClient = object : WebViewClient() {
+                            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                                val scheme = request.url.scheme?.lowercase()
+                                return scheme !in setOf("http", "https")
                             }
                         }
-                        PlayerTextAction("−10", style = MaterialTheme.typography.labelLarge) { progress = (progress - 0.05f).coerceAtLeast(0f) }
-                        PlayerTextAction("+10", style = MaterialTheme.typography.labelLarge) { progress = (progress + 0.05f).coerceAtMost(1f) }
-                        Spacer(Modifier.weight(1f))
-                        if (isTv) {
-                            PlayerTextAction("Idioma") { viewModel.audioLanguage = if (viewModel.audioLanguage == "Español") "Original" else "Español" }
-                            PlayerTextAction("Subtítulos") { viewModel.subtitlesEnabled = !viewModel.subtitlesEnabled }
-                        } else {
-                            PlayerTextAction("${viewModel.audioLanguage} · CC") { viewModel.subtitlesEnabled = !viewModel.subtitlesEnabled }
-                        }
+                        loadUrl(embedUrl)
                     }
+                }
+                DisposableEffect(webView) {
+                    onDispose {
+                        webView.stopLoading()
+                        webView.loadUrl("about:blank")
+                        webView.destroy()
+                    }
+                }
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { webView },
+                    update = { if (it.url != embedUrl) it.loadUrl(embedUrl) }
+                )
+            }
+        } else {
+            val exoPlayer = remember(sourceUrl) {
+                ExoPlayer.Builder(context).build().apply {
+                    setMediaItem(ExoMediaItem.fromUri(Uri.parse(sourceUrl)))
+                    prepare()
+                    playWhenReady = true
+                }
+            }
+            var playbackError by remember(sourceUrl) { mutableStateOf("") }
+            DisposableEffect(exoPlayer) {
+                val listener = object : Player.Listener {
+                    override fun onPlayerError(error: PlaybackException) {
+                        playbackError = error.message ?: "No se pudo reproducir esta fuente."
+                    }
+                }
+                exoPlayer.addListener(listener)
+                onDispose {
+                    exoPlayer.removeListener(listener)
+                    exoPlayer.release()
+                }
+            }
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { viewContext ->
+                    PlayerView(viewContext).apply {
+                        player = exoPlayer
+                        useController = true
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    }
+                },
+                update = { playerView -> if (playerView.player !== exoPlayer) playerView.player = exoPlayer }
+            )
+            if (playbackError.isNotBlank()) {
+                Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(18.dp), color = Color(0xDD141722), shape = MaterialTheme.shapes.medium) {
+                    Text(playbackError, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), color = Color.White, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        androidx.compose.runtime.LaunchedEffect(isTv) {
-            if (isTv) {
-                kotlinx.coroutines.delay(150)
-                runCatching { initialFocus.requestFocus() }
+
+        Surface(modifier = Modifier.align(Alignment.TopStart).padding(14.dp), color = Color(0xAA090C13), shape = MaterialTheme.shapes.large) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(end = 16.dp)) {
+                PlayerBackButton(onBack)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(if (channel != null) "TDTChannels" else if (sourceType == MediaPlaybackType.IFRAME) "Embed" else "Enlace directo", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun PlayerTextAction(
-    label: String,
-    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.labelMedium,
-    onClick: () -> Unit
-) {
-    var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(10.dp)
-    Box(
-        modifier = Modifier
-            .onFocusChanged { focused = it.isFocused }
-            .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = 0.22f), shape)
-            .clip(shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+private fun PlayerBackButton(onBack: () -> Unit) {
+    Surface(
+        modifier = Modifier.clip(MaterialTheme.shapes.large).clickable(onClick = onBack),
+        color = Color(0xAA171B26), contentColor = Color.White, shape = MaterialTheme.shapes.large
     ) {
-        Text(label, color = if (focused) MaterialTheme.colorScheme.secondary else Color.White, style = style)
+        androidx.compose.foundation.layout.Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", modifier = Modifier.size(21.dp))
+        }
     }
 }
 
-@Composable
-private fun PlayerIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Box(
-        modifier = Modifier.size(46.dp).onFocusChanged { focused = it.isFocused }.clip(CircleShape)
-            .background(if (focused) Color.White.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f))
-            .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else Color.White.copy(alpha = 0.3f), CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, contentDescription = description, tint = Color.White, modifier = Modifier.size(20.dp))
-    }
+private data class EpisodeSourceReference(
+    val mediaId: String,
+    val seasonNumber: Int,
+    val episodeNumber: Int
+)
+
+private fun parseEpisodeSourceId(value: String): EpisodeSourceReference? {
+    val match = Regex("""^(tmdb_(?:movie|tv)_\d+)_s(\d+)_e(\d+)$""").matchEntire(value) ?: return null
+    return EpisodeSourceReference(
+        mediaId = match.groupValues[1],
+        seasonNumber = match.groupValues[2].toIntOrNull() ?: return null,
+        episodeNumber = match.groupValues[3].toIntOrNull() ?: return null
+    )
+}
+
+private fun iframeSourceUrl(value: String): String? {
+    val candidate = if (value.contains("<iframe", ignoreCase = true)) extractIframeUrl(value) else value.trim()
+    val uri = candidate?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return null
+    return uri.toString().takeIf { uri.scheme?.lowercase() in setOf("http", "https") && !uri.host.isNullOrBlank() }
+}
+
+private fun extractIframeUrl(markup: String): String? {
+    val sourceStart = markup.indexOf("src", ignoreCase = true)
+    if (sourceStart < 0) return null
+    val equals = markup.indexOf('=', startIndex = sourceStart + 3)
+    if (equals < 0) return null
+    var start = equals + 1
+    while (start < markup.length && markup[start].isWhitespace()) start++
+    if (start >= markup.length) return null
+    val quote = markup[start].takeIf { it == '"' || it == '\'' }
+    if (quote != null) start++
+    val end = if (quote != null) markup.indexOf(quote, start) else markup.indexOfAny(charArrayOf(' ', '\t', '\r', '\n', '>'), start)
+    val safeEnd = if (end < 0) markup.length else end
+    return markup.substring(start, safeEnd).takeIf(String::isNotBlank)
 }

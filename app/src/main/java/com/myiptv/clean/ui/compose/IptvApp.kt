@@ -107,7 +107,6 @@ fun IptvApp() {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     }
     val favoritesViewModel: FavoritesViewModel = viewModel()
-    val settingsViewModel: SettingsViewModel = viewModel()
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
@@ -129,7 +128,6 @@ fun IptvApp() {
                         navController = navController,
                         isTv = isTvLayout,
                         favoritesViewModel = favoritesViewModel,
-                        settingsViewModel = settingsViewModel,
                         modifier = Modifier.weight(1f).fillMaxWidth()
                     )
                 }
@@ -143,7 +141,6 @@ fun IptvApp() {
                     navController = navController,
                     isTv = false,
                     favoritesViewModel = favoritesViewModel,
-                    settingsViewModel = settingsViewModel,
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
                 if (showChrome) {
@@ -170,7 +167,6 @@ private fun IptvNavigationGraph(
     navController: NavHostController,
     isTv: Boolean,
     favoritesViewModel: FavoritesViewModel,
-    settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
     NavHost(navController = navController, startDestination = IptvRoute.HOME, modifier = modifier) {
@@ -226,17 +222,13 @@ private fun IptvNavigationGraph(
             )
         }
         composable(IptvRoute.DOWNLOADS) {
-            DownloadsScreen(isTv, onOpenMedia = { navController.navigate(IptvRoute.media(it)) })
+            DownloadsScreen(isTv)
         }
         composable(IptvRoute.HISTORY) {
-            HistoryScreen(isTv, onOpenMedia = { navController.navigate(IptvRoute.media(it)) }, onOpenPlayer = { navController.navigate(IptvRoute.player(it)) })
+            HistoryScreen(isTv)
         }
         composable(IptvRoute.SETTINGS) {
-            SettingsScreen(
-                viewModel = settingsViewModel,
-                onOpenDownloads = { navigateTopLevel(navController, IptvRoute.DOWNLOADS) },
-                onOpenHistory = { navigateTopLevel(navController, IptvRoute.HISTORY) }
-            )
+            SettingsScreen(isTv)
         }
         composable(
             route = IptvRoute.CHANNEL_DETAIL,
@@ -368,7 +360,7 @@ private fun TvSidebar(currentRoute: String, onNavigate: (String) -> Unit) {
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 0.6.sp
         )
-        Text("Interfaz de demostración", modifier = Modifier.padding(start = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
+        Text("Fuentes configurables", modifier = Modifier.padding(start = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
     }
     LaunchedEffect(Unit) {
         delay(180)

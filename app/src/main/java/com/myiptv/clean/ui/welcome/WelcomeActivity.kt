@@ -106,7 +106,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
             }
             Spacer(Modifier.height(18.dp))
             Text(
-                "Tu entretenimiento,\na tu manera.",
+                "Tu contenido,\na tus fuentes.",
                 modifier = Modifier.fillMaxWidth(if (isTv) 0.75f else 1f),
                 color = Color.White,
                 style = if (isTv) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
@@ -116,7 +116,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                "Canales, películas y series en una experiencia simple, pensada para tu móvil y tu televisor.",
+                "Canales de TDTChannels, metadatos de TMDb y enlaces de reproducción que configuras en tu dispositivo.",
                 modifier = Modifier.fillMaxWidth(if (isTv) 0.58f else 0.94f),
                 color = Color.White.copy(alpha = 0.73f),
                 style = MaterialTheme.typography.bodyLarge,
@@ -124,9 +124,9 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
             )
             Spacer(Modifier.height(22.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
-                WelcomeFeature("En vivo")
-                WelcomeFeature("Películas")
-                WelcomeFeature("Series")
+                WelcomeFeature("TDTChannels")
+                WelcomeFeature("TMDb")
+                WelcomeFeature("Directo / iframe")
             }
             Spacer(Modifier.height(30.dp))
             Button(
@@ -140,11 +140,11 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
             ) {
-                Text("Explorar la interfaz", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text("Explorar contenido", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
             }
             Spacer(Modifier.height(15.dp))
             Text(
-                "Interfaz de demostración · La reproducción necesita una fuente IPTV configurada.",
+                "La reproducción requiere enlaces públicos y autorizados.",
                 modifier = Modifier.fillMaxWidth(if (isTv) 0.68f else 1f),
                 color = Color.White.copy(alpha = 0.52f),
                 style = MaterialTheme.typography.labelMedium,
