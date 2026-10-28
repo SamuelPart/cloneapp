@@ -13,6 +13,16 @@ Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. El cat
 
 Usa únicamente emisiones abiertas y enlaces para los que tengas autorización. Respeta las condiciones de TDTChannels y los proveedores de cada contenido. La app no intenta eludir DRM, geobloqueos, autenticación ni otras restricciones. Para admitir algunas fuentes públicas, Android permite tráfico HTTP sin cifrar; prefiere HTTPS cuando esté disponible y ten en cuenta que HTTP puede ser interceptado.
 
+## Interfaz para Android TV
+
+La pantalla de inicio adapta la referencia visual de XUPER TV a Jetpack Compose: menú lateral, tarjetas panorámicas, carrusel y foco visible para el mando. El carrusel se detiene mientras una de sus tarjetas está enfocada. El tema usa el fondo `#08090c` e Inter para la interfaz, conservando las cabeceras serif del diseño. Las imágenes de fondo de las fichas aparecen con una transición suave al terminar de cargar; si fallan, permanece visible el fondo de reserva. En el catálogo real, las fichas y el reproductor siguen usando las fuentes reales de la aplicación.
+
+La tipografía [Inter](https://github.com/rsms/inter/tree/66647c0bbbe41a850d79d9c76fb13add3378940f) se distribuye con la aplicación bajo la licencia SIL Open Font License 1.1, incluida en `app/src/main/assets/licenses/Inter-OFL.txt`. Los pesos estáticos oficiales se convirtieron de WOFF2 a TTF para funcionar también en las versiones antiguas de Android.
+
+El botón **DEMO** de la barra superior abre una vista de diseño independiente con los 12 títulos, imágenes y filas del `data.ts` proporcionado. Sus coincidencias, clasificaciones y progresos son ficticios; no hay vídeos ni tráileres para reproducir y esos títulos no se mezclan con el catálogo real ni con los favoritos. Pulsa **Salir** o **Atrás** para volver. Las imágenes de Unsplash requieren conexión a Internet; sin ella se muestra un fondo de reserva.
+
+Las secciones **Kids** y **Anime** utilizan los filtros de descubrimiento de TMDb y requieren una clave configurada. Kids reúne películas familiares y series infantiles clasificadas por TMDb, pero no es un control parental; Anime muestra series de animación de origen japonés según TMDb. La disponibilidad y clasificación dependen del proveedor.
+
 ## Configurar TMDb
 
 La app lee una API Key v3 desde `local.properties` (recomendado para desarrollo local) o desde la variable de entorno `TMDB_API_KEY`:

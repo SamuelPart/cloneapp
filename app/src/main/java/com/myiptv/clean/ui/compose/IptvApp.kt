@@ -4,6 +4,8 @@ import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,19 +22,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Animation
+import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Theaters
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +52,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,17 +68,24 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private object IptvRoute {
     const val HOME = "home"
     const val CHANNELS = "channels"
     const val MOVIES = "movies"
     const val SERIES = "series"
+    const val KIDS = "kids"
+    const val ANIME = "anime"
     const val FAVORITES = "favorites"
     const val SEARCH = "search"
     const val DOWNLOADS = "downloads"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
+    const val DESIGN_PREVIEW = "design_preview"
+    const val DESIGN_DETAIL = "design_detail/{id}/{progress}"
     const val CHANNEL_DETAIL = "channel/{id}"
     const val MEDIA_DETAIL = "media/{id}"
     const val PLAYER = "player/{id}"
@@ -79,19 +93,23 @@ private object IptvRoute {
     fun channel(id: String) = "channel/$id"
     fun media(id: String) = "media/$id"
     fun player(id: String) = "player/$id"
+    fun designDetail(id: String, progress: Float?) = "design_detail/$id/${progress ?: -1f}"
 }
 
 private data class AppDestination(val route: String, val label: String, val icon: ImageVector)
 
 private val sidebarDestinations = listOf(
-    AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
-    AppDestination(IptvRoute.CHANNELS, "Canales", Icons.Filled.LiveTv),
-    AppDestination(IptvRoute.MOVIES, "Películas", Icons.Filled.Movie),
-    AppDestination(IptvRoute.SERIES, "Series", Icons.Filled.Theaters),
-    AppDestination(IptvRoute.FAVORITES, "Mi lista", Icons.Filled.Favorite),
-    AppDestination(IptvRoute.DOWNLOADS, "Descargas", Icons.Filled.Download),
-    AppDestination(IptvRoute.HISTORY, "Historial", Icons.Filled.History),
-    AppDestination(IptvRoute.SETTINGS, "Ajustes", Icons.Filled.Settings)
+    AppDestination(IptvRoute.CHANNELS, "TV", Icons.Filled.LiveTv),
+    AppDestination(IptvRoute.HOME, "DESTACADO", Icons.Filled.ThumbUp),
+    AppDestination(IptvRoute.MOVIES, "PELÍCULAS", Icons.Filled.Movie),
+    AppDestination(IptvRoute.SERIES, "SERIES", Icons.Filled.Theaters),
+    AppDestination(IptvRoute.KIDS, "KIDS", Icons.Filled.ChildCare),
+    AppDestination(IptvRoute.ANIME, "ANIME", Icons.Filled.Animation),
+    AppDestination(IptvRoute.SEARCH, "EXPLORAR", Icons.Filled.Explore),
+    AppDestination(IptvRoute.FAVORITES, "MI LISTA", Icons.Filled.Favorite),
+    AppDestination(IptvRoute.DOWNLOADS, "DESCARGAS", Icons.Filled.Download),
+    AppDestination(IptvRoute.HISTORY, "HISTORIAL", Icons.Filled.History),
+    AppDestination(IptvRoute.SETTINGS, "AJUSTES", Icons.Filled.Settings)
 )
 
 @Composable
@@ -101,7 +119,7 @@ fun IptvApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: IptvRoute.HOME
     val isPlayer = currentRoute == IptvRoute.PLAYER
-    val isDetail = currentRoute == IptvRoute.CHANNEL_DETAIL || currentRoute == IptvRoute.MEDIA_DETAIL
+    val isDetail = currentRoute == IptvRoute.CHANNEL_DETAIL || currentRoute == IptvRoute.MEDIA_DETAIL || currentRoute == IptvRoute.DESIGN_DETAIL
     val showChrome = !isPlayer && !isDetail
     val isLeanback = remember {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
@@ -116,13 +134,19 @@ fun IptvApp() {
             Row(modifier = Modifier.fillMaxSize()) {
                 if (showChrome) {
                     TvSidebar(
-                        currentRoute = currentRoute,
+                        currentRoute = if (currentRoute == IptvRoute.DESIGN_PREVIEW) IptvRoute.HOME else currentRoute,
                         onNavigate = { navigateTopLevel(navController, it) }
                     )
                 }
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     if (showChrome) {
-                        AppTopBar(onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) }, isTv = true)
+                        AppTopBar(
+                            onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
+                            onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
+                            onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                            onDesignPreview = { navController.navigate(IptvRoute.DESIGN_PREVIEW) { launchSingleTop = true } },
+                            isTv = true
+                        )
                     }
                     IptvNavigationGraph(
                         navController = navController,
@@ -135,7 +159,13 @@ fun IptvApp() {
         } else {
             Column(modifier = Modifier.fillMaxSize()) {
                 if (showChrome) {
-                    AppTopBar(onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) }, isTv = false)
+                    AppTopBar(
+                        onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
+                        onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
+                        onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                        onDesignPreview = { navController.navigate(IptvRoute.DESIGN_PREVIEW) { launchSingleTop = true } },
+                        isTv = false
+                    )
                 }
                 IptvNavigationGraph(
                     navController = navController,
@@ -176,6 +206,7 @@ private fun IptvNavigationGraph(
                 onOpenChannels = { navigateTopLevel(navController, IptvRoute.CHANNELS) },
                 onOpenMovies = { navigateTopLevel(navController, IptvRoute.MOVIES) },
                 onOpenSeries = { navigateTopLevel(navController, IptvRoute.SERIES) },
+                onOpenSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
                 onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 onOpenPlayer = { navController.navigate(IptvRoute.player(it)) },
@@ -199,6 +230,24 @@ private fun IptvNavigationGraph(
             BrowseMediaScreen(
                 isTv = isTv,
                 kind = MediaKind.SERIES,
+                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                favorites = favoritesViewModel.savedIds,
+                onToggleFavorite = favoritesViewModel::toggle
+            )
+        }
+        composable(IptvRoute.KIDS) {
+            MediaCollectionScreen(
+                collection = MediaCollection.KIDS,
+                isTv = isTv,
+                onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                favorites = favoritesViewModel.savedIds,
+                onToggleFavorite = favoritesViewModel::toggle
+            )
+        }
+        composable(IptvRoute.ANIME) {
+            MediaCollectionScreen(
+                collection = MediaCollection.ANIME,
+                isTv = isTv,
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 favorites = favoritesViewModel.savedIds,
                 onToggleFavorite = favoritesViewModel::toggle
@@ -230,12 +279,34 @@ private fun IptvNavigationGraph(
         composable(IptvRoute.SETTINGS) {
             SettingsScreen(isTv)
         }
+        composable(IptvRoute.DESIGN_PREVIEW) {
+            DesignPreviewScreen(
+                onClose = { navController.popBackStack() },
+                onOpenTitle = { id, progress -> navController.navigate(IptvRoute.designDetail(id, progress)) }
+            )
+        }
+        composable(
+            route = IptvRoute.DESIGN_DETAIL,
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("progress") { type = NavType.FloatType }
+            )
+        ) { entry ->
+            DesignDetailScreen(
+                id = entry.arguments?.getString("id").orEmpty(),
+                isTv = isTv,
+                progress = entry.arguments?.getFloat("progress")?.takeIf { it in 0f..1f },
+                onBack = { navController.popBackStack() },
+                onOpenTitle = { id -> navController.navigate(IptvRoute.designDetail(id, null)) }
+            )
+        }
         composable(
             route = IptvRoute.CHANNEL_DETAIL,
             arguments = listOf(navArgument("id") { type = NavType.StringType })
         ) { entry ->
             ChannelDetailScreen(
                 channelId = entry.arguments?.getString("id").orEmpty(),
+                isTv = isTv,
                 onBack = { navController.popBackStack() },
                 onPlay = { navController.navigate(IptvRoute.player(it)) },
                 isFavorite = { it in favoritesViewModel.savedIds },
@@ -248,6 +319,7 @@ private fun IptvNavigationGraph(
         ) { entry ->
             MediaDetailScreen(
                 mediaId = entry.arguments?.getString("id").orEmpty(),
+                isTv = isTv,
                 onBack = { navController.popBackStack() },
                 onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 onPlay = { navController.navigate(IptvRoute.player(it)) },
@@ -268,39 +340,73 @@ private fun IptvNavigationGraph(
 }
 
 @Composable
-private fun AppTopBar(onSearch: () -> Unit, isTv: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (isTv) 78.dp else 68.dp)
-            .padding(horizontal = if (isTv) 34.dp else 20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
-            Box(
-                modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(
-                    androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, Color(0xFF7054D2)))
-                ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.LiveTv, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(21.dp))
-            }
-            Column {
-                Text("CLEAN IPTV", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
-                Text("ENTRETENIMIENTO", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.sp)
-            }
+private fun AppTopBar(
+    onSearch: () -> Unit,
+    onFavorites: () -> Unit,
+    onSettings: () -> Unit,
+    onDesignPreview: () -> Unit,
+    isTv: Boolean
+) {
+    var now by remember { androidx.compose.runtime.mutableStateOf(Date()) }
+    LaunchedEffect(isTv) {
+        while (isTv) {
+            now = Date()
+            delay(15_000)
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            FocusableHeaderAction(icon = Icons.Filled.Search, description = "Buscar", onClick = onSearch)
-            if (isTv) {
-                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(38.dp)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.Person, contentDescription = "Perfil", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+    }
+    val time = remember(now) { SimpleDateFormat("hh:mm a", Locale.getDefault()).format(now) }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth().height(if (isTv) 72.dp else 64.dp)) {
+        val compactTv = isTv && maxWidth < 550.dp
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = if (isTv) 24.dp else 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (!isTv) BrandLogo()
+            Spacer(Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FocusableHeaderAction(Icons.Filled.Search, "Buscar", onSearch)
+                if (isTv && !compactTv) {
+                    FocusableHeaderAction(Icons.Filled.Favorite, "Mi lista", onFavorites)
+                    FocusableHeaderAction(Icons.Filled.Settings, "Ajustes", onSettings)
+                }
+                FocusableDemoAction(onDesignPreview)
+                if (isTv && maxWidth >= 330.dp) {
+                    Spacer(Modifier.width(6.dp))
+                    Box(Modifier.width(1.dp).height(22.dp).background(Color.White.copy(alpha = 0.3f)))
+                    Text(
+                        time,
+                        modifier = Modifier.padding(start = 12.dp),
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Light,
+                        maxLines = 1
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BrandLogo() {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            "XUPER",
+            color = Color.White,
+            fontSize = 27.sp,
+            fontWeight = FontWeight.Black,
+            fontStyle = FontStyle.Italic,
+            letterSpacing = (-1).sp,
+            lineHeight = 29.sp
+        )
+        Text(
+            "TV",
+            modifier = Modifier.padding(start = 3.dp, bottom = 3.dp),
+            color = MaterialTheme.colorScheme.primary,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -309,16 +415,34 @@ private fun FocusableHeaderAction(icon: ImageVector, description: String, onClic
     var focused by remember { androidx.compose.runtime.mutableStateOf(false) }
     Box(
         modifier = Modifier
-            .size(42.dp)
+            .size(40.dp)
             .onFocusChanged { focused = it.isFocused }
             .clip(CircleShape)
-            .background(if (focused) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
-            .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline, CircleShape)
+            .background(if (focused) Color.White else Color.Transparent)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(21.dp))
+        Icon(icon, contentDescription = description, tint = if (focused) Color.Black else Color.White.copy(alpha = 0.75f), modifier = Modifier.size(20.dp))
     }
+}
+
+@Composable
+private fun FocusableDemoAction(onClick: () -> Unit) {
+    var focused by remember { androidx.compose.runtime.mutableStateOf(false) }
+    Text(
+        text = "DEMO",
+        modifier = Modifier
+            .onFocusChanged { focused = it.isFocused }
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (focused) Color.White else Color.White.copy(alpha = 0.12f))
+            .semantics { contentDescription = "Abrir vista de diseño con contenido de ejemplo" }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        color = if (focused) Color.Black else Color.White,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 0.5.sp
+    )
 }
 
 @Composable
@@ -326,41 +450,25 @@ private fun TvSidebar(currentRoute: String, onNavigate: (String) -> Unit) {
     val initialFocus = remember { FocusRequester() }
     Column(
         modifier = Modifier
-            .width(238.dp)
+            .width(180.dp)
             .fillMaxHeight()
-            .background(Color(0xFF0D131D))
-            .padding(horizontal = 18.dp, vertical = 22.dp)
+            .background(MaterialTheme.colorScheme.background)
+            .padding(start = 24.dp, end = 8.dp, top = 20.dp, bottom = 12.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(start = 7.dp, bottom = 25.dp)) {
-            Box(
-                modifier = Modifier.size(38.dp).clip(RoundedCornerShape(13.dp)).background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.LiveTv, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
-            }
-            Column {
-                Text("CLEAN IPTV", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
-                Text("TV", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelSmall, letterSpacing = 1.2.sp)
+        Box(Modifier.padding(start = 6.dp, bottom = 28.dp)) { BrandLogo() }
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            sidebarDestinations.forEach { destination ->
+                SidebarItem(
+                    destination = destination,
+                    selected = currentRoute == destination.route,
+                    onClick = { onNavigate(destination.route) },
+                    modifier = if (currentRoute == destination.route) Modifier.focusRequester(initialFocus) else Modifier
+                )
             }
         }
-        sidebarDestinations.forEachIndexed { index, destination ->
-            SidebarItem(
-                destination = destination,
-                selected = currentRoute == destination.route,
-                onClick = { onNavigate(destination.route) },
-                modifier = if (index == 0) Modifier.focusRequester(initialFocus) else Modifier
-            )
-            Spacer(Modifier.height(5.dp))
-        }
-        Spacer(Modifier.weight(1f))
-        Text(
-            "NAVEGA CON TU CONTROL REMOTO",
-            modifier = Modifier.padding(start = 8.dp, bottom = 6.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelSmall,
-            letterSpacing = 0.6.sp
-        )
-        Text("Fuentes configurables", modifier = Modifier.padding(start = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
     }
     LaunchedEffect(Unit) {
         delay(180)
@@ -371,28 +479,31 @@ private fun TvSidebar(currentRoute: String, onNavigate: (String) -> Unit) {
 @Composable
 private fun SidebarItem(destination: AppDestination, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { androidx.compose.runtime.mutableStateOf(false) }
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(6.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(41.dp)
             .onFocusChanged { focused = it.isFocused }
             .clip(shape)
-            .background(
-                when {
-                    focused -> MaterialTheme.colorScheme.surfaceVariant
-                    selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
-                    else -> Color.Transparent
-                }
-            )
-            .border(if (focused) 2.dp else 1.dp, if (focused) MaterialTheme.colorScheme.secondary else Color.Transparent, shape)
+            .background(if (focused) Color.White.copy(alpha = 0.14f) else Color.Transparent)
+            .border(if (focused) 2.dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(13.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Icon(destination.icon, contentDescription = null, tint = if (selected || focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-        Text(destination.label, color = if (selected || focused) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge, fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Normal)
+        val tint = if (selected || focused) Color.White else Color.White.copy(alpha = 0.52f)
+        Icon(destination.icon, contentDescription = null, tint = tint, modifier = Modifier.size(19.dp))
+        Text(
+            destination.label,
+            color = tint,
+            fontSize = 12.sp,
+            letterSpacing = 0.3.sp,
+            fontWeight = if (selected || focused) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -406,7 +517,7 @@ private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
         AppDestination(IptvRoute.SETTINGS, "Ajustes", Icons.Filled.Settings)
     )
     Row(
-        modifier = Modifier.fillMaxWidth().height(72.dp).background(Color(0xFF0D131D)).padding(horizontal = 7.dp, vertical = 5.dp),
+        modifier = Modifier.fillMaxWidth().height(72.dp).background(Color(0xFF101012)).padding(horizontal = 7.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {

@@ -23,6 +23,25 @@ interface TmdbApi {
         @Query("page") page: Int
     ): TmdbPageResponse
 
+    @GET("discover/movie")
+    suspend fun discoverMovies(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("with_genres") genreId: Int,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
+    @GET("discover/tv")
+    suspend fun discoverSeries(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("with_genres") genreId: Int,
+        @Query("with_origin_country") originCountry: String? = null,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
     @GET("genre/movie/list")
     suspend fun movieGenres(
         @Query("api_key") apiKey: String,

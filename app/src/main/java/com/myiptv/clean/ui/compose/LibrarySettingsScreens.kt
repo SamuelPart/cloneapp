@@ -106,13 +106,14 @@ fun SettingsScreen(isTv: Boolean) {
             Text("Privacidad y atribución", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Text("La clave TMDb se lee desde local.properties o la variable de entorno TMDB_API_KEY; no está incluida en Git.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             Text("Este producto utiliza la API de TMDb, pero no está avalado ni certificado por TMDb.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            Text("Tipografía Inter © The Inter Project Authors, distribuida bajo SIL Open Font License 1.1.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             Text("La disponibilidad de las emisiones de televisión puede variar según el país y las condiciones de cada señal.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(7.dp))
-            Text("CLEAN IPTV · versión 1.0.0", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, letterSpacing = 0.4.sp)
+            Text("XUPER TV · versión 1.0.0", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, letterSpacing = 0.4.sp)
         }
     }
 }

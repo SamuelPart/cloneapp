@@ -55,6 +55,7 @@ fun HomeScreen(
     onOpenChannels: () -> Unit,
     onOpenMovies: () -> Unit,
     onOpenSeries: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenChannel: (String) -> Unit,
     onOpenMedia: (String) -> Unit,
     onOpenPlayer: (String) -> Unit,
@@ -62,7 +63,19 @@ fun HomeScreen(
     onToggleFavorite: (String) -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
-    val horizontalPadding = if (isTv) 36.dp else 18.dp
+    if (isTv) {
+        TvHomeScreen(
+            viewModel = viewModel,
+            onOpenChannels = onOpenChannels,
+            onOpenMovies = onOpenMovies,
+            onOpenSeries = onOpenSeries,
+            onOpenSettings = onOpenSettings,
+            onOpenChannel = onOpenChannel,
+            onOpenMedia = onOpenMedia
+        )
+        return
+    }
+    val horizontalPadding = 18.dp
     val featured = viewModel.featured
 
     Column(

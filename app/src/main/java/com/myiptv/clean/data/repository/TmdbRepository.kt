@@ -42,6 +42,12 @@ object TmdbRepository {
         return response.toMediaItems("tv", seriesGenresById)
     }
 
+    suspend fun discoverMovies(genreId: Int): List<MediaItem> =
+        api.discoverMovies(BuildConfig.TMDB_API_KEY, LANGUAGE, genreId).toMediaItems("movie", movieGenresById)
+
+    suspend fun discoverSeries(genreId: Int, originCountry: String? = null): List<MediaItem> =
+        api.discoverSeries(BuildConfig.TMDB_API_KEY, LANGUAGE, genreId, originCountry).toMediaItems("tv", seriesGenresById)
+
     suspend fun genreNames(kind: MediaKind): List<String> {
         val response = if (kind == MediaKind.MOVIE) {
             api.movieGenres(BuildConfig.TMDB_API_KEY, LANGUAGE).also { genres ->
