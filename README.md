@@ -1,55 +1,43 @@
-# Clean IPTV - Versión Limpia y Segura
+# Clean IPTV
 
-Aplicación de streaming IPTV basada en la arquitectura de la app original pero sin malware, telemetría ni VPN malicioso.
+Aplicación Android de ejemplo en Kotlin para explorar una estructura de streaming IPTV. Este repositorio contiene una base de navegación y pantallas; **no es el APK original ni una aplicación de streaming terminada**.
 
-## 🎯 Características
+## Estado actual
 
-- ✅ Sistema de configuración dinámica (similar al original)
-- ✅ Streaming HLS/DASH con ExoPlayer
-- ✅ Canales en vivo
-- ✅ Catálogo de películas
-- ✅ Sistema de favoritos
-- ✅ Búsqueda de contenido
-- ✅ Guía de programación (EPG)
-- ✅ Caching inteligente
-- ✅ UI/UX similar (Material Design)
+- Splash y navegación inferior entre Inicio, Canales, Películas, Favoritos y Ajustes.
+- Modelos de datos y contratos Retrofit para canales, películas y EPG.
+- Configuración local del endpoint con `ConfigManager`.
+- Dependencias de ExoPlayer incluidas para una futura integración HLS/DASH.
+- Las pantallas todavía muestran estados vacíos: no hay adaptadores, repositorios, autenticación, EPG ni reproducción conectados.
 
-## ❌ Lo que NO tiene (malicioso de la original)
+Las URL iniciales usan el dominio reservado `example.invalid`; reemplázalas por un servidor propio que implemente los endpoints definidos en `app/src/main/java/com/myiptv/clean/data/api/ApiService.kt`. No incluyas contraseñas, tokens ni claves en el repositorio.
 
-- ❌ Telemetría y recolección de datos
-- ❌ VPN malicioso
-- ❌ Permisos peligrosos (REQUEST_INSTALL, GET_TASKS)
-- ❌ Ofuscación de código
-- ❌ Actividad oculta
-- ❌ Dominios sospechosos
+## Abrir en Android Studio
 
-## 🏗️ Arquitectura
+1. En la pantalla inicial, selecciona **Get from VCS** (o **File → New → Project from Version Control**).
+2. Selecciona **Git** y pega `https://github.com/SamuelPart/cloneapp.git`.
+3. Clona el repositorio y abre la carpeta raíz, donde están `settings.gradle` y `gradlew`.
+4. Usa JDK 17 para Gradle y permite que Android Studio descargue Gradle y sincronice el proyecto.
+5. Selecciona un emulador/dispositivo con Android 5.0 o posterior y pulsa **Run**.
 
-Similar a la app original pero limpio:
-- MVVM con ViewBinding
-- Configuración dinámica desde JSON
-- Sistema de streaming robusto
-- Navegación con Navigation Component
-- Base de datos local con Room
+También puedes clonar desde terminal:
 
-## 📦 Instalación
+```bash
+git clone https://github.com/SamuelPart/cloneapp.git
+cd cloneapp
+./gradlew :app:assembleDebug
+```
 
-1. Clona el repositorio
-2. Abre en Android Studio
-3. Sincroniza Gradle
-4. Ejecuta en dispositivo/emulador
+## Requisitos
 
-## ⚙️ Configuración
+- Android Studio compatible con Android Gradle Plugin 8.2.2.
+- JDK 17.
+- Android SDK 34 instalado desde SDK Manager.
+- Conexión a Internet la primera vez para descargar Gradle y dependencias.
 
-Edita el archivo de configuración o usa el servidor por defecto.
+## Estructura
 
-## 📝 Licencia
-
-MIT License - Código abierto y personalizable
-
-## 🚀 Próximos pasos
-
-1. Configura tu servidor de contenido
-2. Personaliza colores y tema
-3. Agrega tus propias fuentes de contenido (TMDB, YouTube, etc.)
-4. Prueba y despliega
+- `app/src/main/java`: código Kotlin organizado por paquetes.
+- `app/src/main/res`: layouts, navegación, menú y valores.
+- `app/src/main/AndroidManifest.xml`: permisos y actividades.
+- `gradle/wrapper`: versión fija de Gradle para sincronizar de forma reproducible.

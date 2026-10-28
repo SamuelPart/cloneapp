@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Clean IPTV</string>
+    <string name="app_version">Versión 1.0.0</string>
+    <string name="loading">Preparando la aplicación…</string>
+    <string name="home">Inicio</string>
+    <string name="channels">Canales</string>
+    <string name="movies">Películas</string>
+    <string name="favorites">Favoritos</string>
+    <string name="settings">Ajustes</string>
+    <string name="home_placeholder">El contenido aparecerá cuando se configure un servidor.</string>
+    <string name="channels_placeholder">No hay canales. Configura un servidor válido.</string>
+    <string name="movies_placeholder">No hay películas disponibles todavía.</string>
+    <string name="favorites_placeholder">Todavía no tienes favoritos.</string>
+    <string name="error">Error</string>
+    <string name="no_results">Sin resultados</string>
+    <string name="play">Reproducir</string>
+    <string name="add_favorite">Agregar a favoritos</string>
+    <string name="remove_favorite">Eliminar de favoritos</string>
+</resources>
