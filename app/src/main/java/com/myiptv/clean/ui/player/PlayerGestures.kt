@@ -42,13 +42,14 @@ internal fun formatPlaybackTime(milliseconds: Long): String {
     else String.format(Locale.ROOT, "%02d:%02d", minutes, remainder)
 }
 
+/** The probe and VLC must use the same safe catalog headers. */
+internal fun safePlaybackHeader(value: String?, maxLength: Int): String? = value?.trim()?.takeIf { header ->
+    header.isNotEmpty() && header.length <= maxLength && header.none { it.code < 0x20 || it.code == 0x7f }
+}
+
 /** Apply only the two HTTP headers supplied by the channel catalog, never arbitrary VLC options. */
 internal fun vlcMediaOptions(userAgent: String?, referrer: String?): List<String> {
-    fun safeHeader(value: String?, maxLength: Int): String? = value?.trim()?.takeIf { header ->
-        header.isNotEmpty() && header.length <= maxLength && header.none { it.code < 0x20 || it.code == 0x7f }
-    }
-
-    val options = mutableListOf(":http-user-agent=${safeHeader(userAgent, 512) ?: "SamPlay/1.0"}")
-    safeHeader(referrer, 2_048)?.let { options.add(":http-referrer=$it") }
+    val options = mutableListOf(":http-user-agent=${safePlaybackHeader(userAgent, 512) ?: "SamPlay/1.0"}")
+    safePlaybackHeader(referrer, 2_048)?.let { options.add(":http-referrer=$it") }
     return options
 }

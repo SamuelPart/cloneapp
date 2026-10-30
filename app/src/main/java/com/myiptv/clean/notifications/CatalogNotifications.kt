@@ -58,30 +58,34 @@ internal object CatalogNotifications {
                 }
                 appContext.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
             }
-            val lines = additions.map(::catalogAdditionLabel)
-            // BigText is limited by Android; keep as many actual names as practical in a batch.
-            val visibleLines = lines.take(30) + if (lines.size > 30) listOf("Y ${lines.size - 30} novedades más en el catálogo") else emptyList()
-            val intent = Intent(appContext, IptvActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            additions.forEach { addition ->
+                val identity = catalogNotificationIdentity(addition)
+                val label = catalogAdditionLabel(addition)
+                val intent = Intent(appContext, IptvActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    // Extras alone do not distinguish PendingIntents; the unique data URI does.
+                    data = Uri.Builder().scheme("samplay").authority("catalogo").appendPath(identity).build()
+                    putExtra(EXTRA_CATALOG_MEDIA_ID, addition.mediaId)
+                }
+                val pendingIntent = PendingIntent.getActivity(
+                    appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_catalog_notification)
+                    .setContentTitle("Novedad en SamPlay")
+                    .setContentText(label)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(label))
+                    .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setSound(sound)
+                    .setAutoCancel(true)
+                    .setOnlyAlertOnce(true)
+                    .setContentIntent(pendingIntent)
+                    .build()
+                // The full tag avoids hash collisions and replaces an already-posted identical
+                // addition if the process dies before clearing the pending atomic cache.
+                manager.notify("catalog:$identity", 0, notification)
             }
-            val pendingIntent = PendingIntent.getActivity(
-                appContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_catalog_notification)
-                .setContentTitle(if (lines.size == 1) "Novedad en SamPlay" else "Novedades en SamPlay (${lines.size})")
-                .setContentText(if (lines.size == 1) lines.single() else lines.take(2).joinToString(" · "))
-                .setStyle(NotificationCompat.BigTextStyle().bigText(visibleLines.joinToString("\n")))
-                .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setSound(sound)
-                .setAutoCancel(true)
-                .setOnlyAlertOnce(true)
-                .setContentIntent(pendingIntent)
-                .build()
-            // A deterministic ID replaces the same batch if a process dies just after posting it.
-            val notificationId = additions.map { "${it.key}:${it.episodes.joinToString(",")}" }.sorted().joinToString("|").hashCode()
-            manager.notify(notificationId, notification)
             true
         } catch (_: RuntimeException) {
             false

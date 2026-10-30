@@ -35,8 +35,18 @@ fun HomeScreen(
 }
 
 @Composable
-fun ChannelsScreen(isTv: Boolean, onOpenChannel: (String) -> Unit, viewModel: ChannelsViewModel = viewModel()) {
-    TvChannelsScreen(viewModel, onOpenChannel, isTv)
+internal fun ChannelsScreen(
+    isTv: Boolean,
+    onOpenChannel: (String) -> Unit,
+    fullscreen: Boolean,
+    onFullscreenChange: (Boolean) -> Unit,
+    channelKeys: TvChannelKeys,
+    requestedChannel: TvChannelRequest?,
+    onRequestHandled: () -> Unit,
+    viewModel: ChannelsViewModel = viewModel()
+) {
+    if (isTv) TvLiveScreen(viewModel, fullscreen, onFullscreenChange, channelKeys, requestedChannel, onRequestHandled, onOpenChannel)
+    else TvChannelsScreen(viewModel, onOpenChannel, isTv = false)
 }
 
 @Composable

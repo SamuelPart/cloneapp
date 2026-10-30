@@ -24,6 +24,9 @@ internal sealed interface PlaybackEvent {
     data class Buffering(val percent: Float) : PlaybackEvent
     data object Playing : PlaybackEvent
     data object Paused : PlaybackEvent
+    // User intent is distinct from VLC's background/restore pause events.
+    data object UserPaused : PlaybackEvent
+    data object UserResumed : PlaybackEvent
     data object Ended : PlaybackEvent
     data object Error : PlaybackEvent
     data object ProgressChanged : PlaybackEvent
@@ -51,6 +54,7 @@ internal interface PlaybackEngine {
 
 internal class PlaybackController(
     private val engine: PlaybackEngine,
+    private val onPlaybackEvent: (PlaybackEvent) -> Unit = {},
     private val onStateChanged: (PlaybackState) -> Unit
 ) {
     var state: PlaybackState = PlaybackState()
@@ -109,6 +113,7 @@ internal class PlaybackController(
             return
         }
         wantsToPlay = true
+        reportPlaybackEvent(PlaybackEvent.UserResumed)
         update(state.copy(isPlaying = active, notice = null))
         if (active) runEngine { engine.play() }
     }
@@ -120,6 +125,7 @@ internal class PlaybackController(
             return
         }
         wantsToPlay = false
+        reportPlaybackEvent(PlaybackEvent.UserPaused)
         update(state.copy(isPlaying = false, isBuffering = false, notice = null))
         // If VLC is still opening, the Playing event below will apply the requested pause.
         if (active) runEngine { if (engine.isPlaying()) engine.pause() }
@@ -238,6 +244,9 @@ internal class PlaybackController(
         pendingAudioTrack = null
         if (active || attached) deactivate()
         update(PlaybackState())
+        // Also notify the live supervisor for a manual retry before new VLC events arrive.
+        reportPlaybackEvent(PlaybackEvent.UserResumed)
+        reportPlaybackEvent(PlaybackEvent.Opening)
         activateIfReady()
     }
 
@@ -266,8 +275,17 @@ internal class PlaybackController(
         }
     }
 
+    private fun reportPlaybackEvent(event: PlaybackEvent) {
+        try {
+            onPlaybackEvent(event)
+        } catch (_: Exception) {
+            // Monitoring must never interrupt the actual playback controller.
+        }
+    }
+
     private fun onEvent(event: PlaybackEvent) {
         if (released || !active || !foreground || state.error != null) return
+        reportPlaybackEvent(event)
         when (event) {
             PlaybackEvent.Opening -> update(state.copy(isBuffering = wantsToPlay))
             is PlaybackEvent.Buffering -> update(state.copy(isBuffering = wantsToPlay && event.percent < 100f))
@@ -277,6 +295,7 @@ internal class PlaybackController(
                 if (!wantsToPlay) {
                     if (state.canPause == false) {
                         wantsToPlay = true
+                        reportPlaybackEvent(PlaybackEvent.UserResumed)
                         update(state.copy(isPlaying = true, isBuffering = false, notice = "Esta señal no permite pausar."))
                     } else {
                         runEngine { engine.pause() }
@@ -290,6 +309,7 @@ internal class PlaybackController(
                 if (wantsToPlay) runEngine { engine.play() }
                 else update(state.copy(isPlaying = false, isBuffering = false))
             }
+            PlaybackEvent.UserPaused, PlaybackEvent.UserResumed -> Unit // emitted directly for the supervisor
             PlaybackEvent.Ended -> {
                 wantsToPlay = false
                 update(state.copy(isPlaying = false, isBuffering = false, ended = true))
@@ -302,6 +322,7 @@ internal class PlaybackController(
             is PlaybackEvent.PausableChanged -> {
                 if (!event.pausable && !wantsToPlay && !state.ended && state.error == null) {
                     wantsToPlay = true
+                    reportPlaybackEvent(PlaybackEvent.UserResumed)
                     update(state.copy(canPause = false, isPlaying = true, notice = "Esta señal no permite pausar."))
                     runEngine { engine.play() }
                 } else update(state.copy(canPause = event.pausable))

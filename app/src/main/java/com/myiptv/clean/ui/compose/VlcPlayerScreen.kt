@@ -79,6 +79,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.myiptv.clean.ui.player.PlaybackController
+import com.myiptv.clean.ui.player.PlaybackEvent
 import com.myiptv.clean.ui.player.PlaybackState
 import com.myiptv.clean.ui.player.PlayerAudioTrack
 import com.myiptv.clean.ui.player.VlcPlaybackEngine
@@ -102,18 +103,25 @@ internal fun VlcPlayerScreen(
     referrer: String?,
     isTv: Boolean,
     fullscreen: PlayerFullscreenState,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    tvPreview: Boolean = false,
+    onPreviewActivate: () -> Unit = {},
+    playbackKey: Any? = null,
+    onPlaybackEvent: (PlaybackEvent) -> Unit = {},
+    onChannelStep: ((Int) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val view = LocalView.current
-    var binding by remember(sourceUrl, userAgent, referrer) { mutableStateOf<VlcBinding?>(null) }
-    var state by remember(sourceUrl, userAgent, referrer) { mutableStateOf(PlaybackState()) }
-    var initializationError by remember(sourceUrl, userAgent, referrer) { mutableStateOf<String?>(null) }
-    var generation by remember(sourceUrl, userAgent, referrer) { mutableIntStateOf(0) }
-    var controlsVisible by remember(sourceUrl) { mutableStateOf(true) }
-    var audioDialogOpen by remember(sourceUrl) { mutableStateOf(false) }
-    var interaction by remember(sourceUrl) { mutableIntStateOf(0) }
+    var binding by remember(sourceUrl, userAgent, referrer, playbackKey) { mutableStateOf<VlcBinding?>(null) }
+    var state by remember(sourceUrl, userAgent, referrer, playbackKey) { mutableStateOf(PlaybackState()) }
+    var initializationError by remember(sourceUrl, userAgent, referrer, playbackKey) { mutableStateOf<String?>(null) }
+    var generation by remember(sourceUrl, userAgent, referrer, playbackKey) { mutableIntStateOf(0) }
+    var controlsVisible by remember(sourceUrl, playbackKey) { mutableStateOf(!tvPreview) }
+    var audioDialogOpen by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
+    var interaction by remember(sourceUrl, playbackKey) { mutableIntStateOf(0) }
+    var previewFocused by remember { mutableStateOf(false) }
+    val previousPreview = remember { mutableStateOf(tvPreview) }
     val screenFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
 
@@ -131,14 +139,16 @@ internal fun VlcPlayerScreen(
         } else binding?.controller?.togglePlayback()
     }
 
-    DisposableEffect(sourceUrl, userAgent, referrer, lifecycleOwner, generation) {
+    DisposableEffect(sourceUrl, userAgent, referrer, lifecycleOwner, generation, playbackKey) {
         var engine: VlcPlaybackEngine? = null
         var controller: PlaybackController? = null
         var observer: LifecycleEventObserver? = null
         try {
             val newEngine = VlcPlaybackEngine(context, sourceUrl, userAgent, referrer)
             engine = newEngine
-            val newController = PlaybackController(newEngine) { state = it }
+            // Keep the callback associated with this exact channel/attempt; stale VLC events must
+            // never mark the next channel as failed after a rapid manual change.
+            val newController = PlaybackController(newEngine, onPlaybackEvent = onPlaybackEvent) { state = it }
             controller = newController
             binding = VlcBinding(newEngine, newController)
             initializationError = null
@@ -198,10 +208,24 @@ internal fun VlcPlayerScreen(
             binding?.controller?.clearNotice()
         }
     }
-    LaunchedEffect(isTv, controlsVisible, audioDialogOpen, binding) {
-        if (isTv && !audioDialogOpen) {
+    LaunchedEffect(tvPreview) {
+        val returningToPreview = tvPreview && !previousPreview.value
+        previousPreview.value = tvPreview
+        if (tvPreview) {
+            controlsVisible = false
+            audioDialogOpen = false
+            if (returningToPreview) {
+                withFrameNanos { }
+                runCatching { screenFocus.requestFocus() }
+            }
+        } else if (isTv && isLiveChannel) {
+            showControls()
+        }
+    }
+    LaunchedEffect(isTv, tvPreview, controlsVisible, audioDialogOpen, binding) {
+        // The preview must not steal focus from the channel list on every channel change.
+        if (isTv && !tvPreview && !audioDialogOpen) {
             withFrameNanos { }
-            // Controls receive focus when revealed; the video surface receives it when hidden.
             runCatching { if (controlsVisible) playFocus.requestFocus() else screenFocus.requestFocus() }
         }
     }
@@ -213,6 +237,11 @@ internal fun VlcPlayerScreen(
                 val keyCode = event.nativeKeyEvent.keyCode
                 val repeated = event.nativeKeyEvent.repeatCount > 0
                 when (keyCode) {
+                    AndroidKeyEvent.KEYCODE_CHANNEL_UP, AndroidKeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                        val step = onChannelStep ?: return@onPreviewKeyEvent false
+                        if (!repeated) step(if (keyCode == AndroidKeyEvent.KEYCODE_CHANNEL_UP) 1 else -1)
+                        true
+                    }
                     AndroidKeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                         if (!repeated) togglePlayback()
                         true
@@ -234,7 +263,10 @@ internal fun VlcPlayerScreen(
                         true
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                        if (!controlsVisible) {
+                        if (tvPreview) {
+                            if (!repeated) onPreviewActivate()
+                            true
+                        } else if (!controlsVisible) {
                             if (!repeated) togglePlayback()
                             true
                         } else {
@@ -244,13 +276,17 @@ internal fun VlcPlayerScreen(
                     }
                     AndroidKeyEvent.KEYCODE_DPAD_UP, AndroidKeyEvent.KEYCODE_DPAD_DOWN,
                     AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        val wasHidden = !controlsVisible
-                        showControls()
-                        wasHidden // First direction reveals controls; the next moves focus.
+                        if (tvPreview) false else {
+                            val wasHidden = !controlsVisible
+                            showControls()
+                            wasHidden // First direction reveals controls; the next moves focus.
+                        }
                     }
                     else -> false
                 }
             }
+            .onFocusChanged { previewFocused = it.isFocused }
+            .border(if (tvPreview && previewFocused) 2.dp else 0.dp, if (tvPreview && previewFocused) TvAccent else Color.Transparent)
             .focusRequester(screenFocus)
             .focusable(enabled = isTv)
     ) {
@@ -275,15 +311,30 @@ internal fun VlcPlayerScreen(
 
         // This layer is behind the actual buttons, so touch targets and the timeline win hit testing.
         Box(
-            modifier = Modifier.matchParentSize().pointerInput(binding, initializationError, isTv, controlsVisible) {
+            modifier = Modifier.matchParentSize().pointerInput(binding, initializationError, isTv, controlsVisible, tvPreview, onPreviewActivate) {
                 detectTapGestures { point ->
-                    val center = isPlaybackCenter(point.x, point.y, size.width, size.height)
-                    if (shouldToggleOnSurfaceTap(isTv, controlsVisible, center)) togglePlayback() else showControls()
+                    if (tvPreview) onPreviewActivate() else {
+                        val center = isPlaybackCenter(point.x, point.y, size.width, size.height)
+                        if (shouldToggleOnSurfaceTap(isTv, controlsVisible, center)) togglePlayback() else showControls()
+                    }
                 }
             }
         )
 
-        if (controlsVisible) {
+        if (tvPreview) {
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.82f))))
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
+                Text(title, color = Color.White, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    initializationError ?: "Pulsa OK para pantalla completa",
+                    color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+        } else if (controlsVisible) {
             VlcPlayerHeader(title, isLiveChannel, isTv, fullscreen, onBack, {
                 showControls()
                 fullscreen.set(!fullscreen.active)
@@ -345,7 +396,8 @@ internal fun VlcPlayerScreen(
                 audioDialogOpen = false
                 showControls()
             },
-            onDismiss = { audioDialogOpen = false; showControls() }
+            onDismiss = { audioDialogOpen = false; showControls() },
+            onChannelStep = onChannelStep
         )
     }
 }
@@ -528,7 +580,8 @@ private fun AudioTracksDialog(
     selected: Int?,
     isTv: Boolean,
     onSelect: (Int) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onChannelStep: ((Int) -> Unit)?
 ) {
     val initialFocus = remember { FocusRequester() }
     // The first lazy item is guaranteed to be composed even if the selected track is far below.
@@ -540,7 +593,21 @@ private fun AudioTracksDialog(
         }
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+                val code = event.nativeKeyEvent.keyCode
+                if (onChannelStep != null && event.type == KeyEventType.KeyDown &&
+                    (code == AndroidKeyEvent.KEYCODE_CHANNEL_UP || code == AndroidKeyEvent.KEYCODE_CHANNEL_DOWN)
+                ) {
+                    if (event.nativeKeyEvent.repeatCount == 0) {
+                        onDismiss()
+                        onChannelStep(if (code == AndroidKeyEvent.KEYCODE_CHANNEL_UP) 1 else -1)
+                    }
+                    true
+                } else false
+            }.padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Surface(
                 modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp).heightIn(max = (maxHeight - 16.dp).coerceAtLeast(120.dp)),
                 shape = RoundedCornerShape(12.dp),

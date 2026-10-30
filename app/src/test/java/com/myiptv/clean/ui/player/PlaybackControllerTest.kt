@@ -243,6 +243,40 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun channelMonitoringReceivesOnlyActiveVlcEvents() {
+        val engine = FakeEngine()
+        val observed = mutableListOf<PlaybackEvent>()
+        val controller = PlaybackController(engine, onPlaybackEvent = { observed.add(it) }) {}
+        controller.onForeground()
+        controller.onSurfaceReady()
+        engine.emit(PlaybackEvent.Buffering(35f))
+        engine.emit(PlaybackEvent.Playing)
+        engine.emit(PlaybackEvent.Error)
+        engine.emit(PlaybackEvent.Playing) // An event after a terminal error is stale.
+        controller.release()
+        engine.emit(PlaybackEvent.Ended)
+        assertEquals(listOf(PlaybackEvent.Buffering(35f), PlaybackEvent.Playing, PlaybackEvent.Error), observed)
+    }
+
+    @Test
+    fun userPauseResumeAndManualRetryAreVisibleToTheChannelSupervisor() {
+        val engine = FakeEngine()
+        val observed = mutableListOf<PlaybackEvent>()
+        val controller = PlaybackController(engine, onPlaybackEvent = { observed.add(it) }) {}
+        controller.onForeground()
+        controller.onSurfaceReady()
+        controller.pause()
+        controller.play()
+        engine.emit(PlaybackEvent.Error)
+        controller.togglePlayback()
+        assertEquals(
+            listOf(PlaybackEvent.UserPaused, PlaybackEvent.UserResumed, PlaybackEvent.Error,
+                PlaybackEvent.UserResumed, PlaybackEvent.Opening),
+            observed
+        )
+    }
+
+    @Test
     fun releaseIsIdempotentAndPreventsLatePlayback() {
         val engine = FakeEngine()
         val controller = start(engine)

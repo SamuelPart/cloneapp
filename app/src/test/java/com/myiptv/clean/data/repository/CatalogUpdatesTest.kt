@@ -21,8 +21,9 @@ class CatalogUpdatesTest {
         val bundled = asset.readText()
         val parsed = parseRemoteCatalog(bundled)
         assertNotNull(parsed)
-        assertEquals(2, parsed!!.items.size)
-        assertEquals(13, parsed.sources.size)
+        // The owner edits this real list over time (and may intentionally leave it empty).
+        // Do not hard-code their current title or source counts in a baseline test.
+        assertEquals(bundled, updateStoredCatalog(null, bundled)!!.content)
         assertTrue(updateStoredCatalog(null, bundled)!!.pending.isEmpty())
         assertTrue(updateStoredCatalog(StoredCatalog(bundled), bundled)!!.pending.isEmpty())
     }

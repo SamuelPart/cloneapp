@@ -1,5 +1,7 @@
 package com.myiptv.clean.ui.compose
 
+import android.net.Uri
+import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +46,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.produceState
@@ -56,6 +60,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +85,7 @@ import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 import com.myiptv.clean.data.repository.loadPlaylistMetadata
+import com.myiptv.clean.notifications.CatalogNotificationTarget
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
@@ -123,7 +131,10 @@ private val sidebarDestinations = listOf(
 )
 
 @Composable
-fun IptvApp() {
+internal fun IptvApp(
+    notificationTarget: CatalogNotificationTarget? = null,
+    onNotificationHandled: (Long) -> Unit = {}
+) {
     val context = LocalContext.current
     val appContext = context.applicationContext
     val navController = rememberNavController()
@@ -131,7 +142,11 @@ fun IptvApp() {
     val currentRoute = backStackEntry?.destination?.route ?: IptvRoute.HOME
     val isPlayer = currentRoute == IptvRoute.PLAYER
     val isDetail = currentRoute == IptvRoute.CHANNEL_DETAIL || currentRoute == IptvRoute.MEDIA_DETAIL
-    val showChrome = !isPlayer && !isDetail
+    var tvLiveFullscreen by remember { mutableStateOf(false) }
+    var tvChannelRequest by remember { mutableStateOf<TvChannelRequest?>(null) }
+    var tvChannelRequestSequence by remember { mutableLongStateOf(0L) }
+    val tvChannelKeys = remember { TvChannelKeys() }
+    val showChrome = !isPlayer && !isDetail && !(currentRoute == IptvRoute.CHANNELS && tvLiveFullscreen)
     val uiMode = LocalConfiguration.current.uiMode
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     val favoritesViewModel: FavoritesViewModel = viewModel()
@@ -154,9 +169,27 @@ fun IptvApp() {
         }
     }
     LaunchedEffect(playlist.items) { favoritesViewModel.canonicalize(playlist) }
+    LaunchedEffect(notificationTarget, playlist.loaded) {
+        val target = notificationTarget ?: return@LaunchedEffect
+        // On a cold start the atomic remote cache may still be loading. Wait for it so the
+        // destination can resolve the exact M3U title, including a series with new episodes.
+        if (!playlist.loaded) return@LaunchedEffect
+        navController.navigate(IptvRoute.media(Uri.encode(target.mediaId))) { launchSingleTop = true }
+        onNotificationHandled(target.sequence)
+    }
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+            .onPreviewKeyEvent { event ->
+                val code = event.nativeKeyEvent.keyCode
+                val step = tvChannelKeys.onStep
+                if (currentRoute == IptvRoute.CHANNELS && step != null && event.type == KeyEventType.KeyDown &&
+                    (code == AndroidKeyEvent.KEYCODE_CHANNEL_UP || code == AndroidKeyEvent.KEYCODE_CHANNEL_DOWN)
+                ) {
+                    if (event.nativeKeyEvent.repeatCount == 0) step(if (code == AndroidKeyEvent.KEYCODE_CHANNEL_UP) 1 else -1)
+                    true
+                } else false
+            }
     ) {
         val isTvLayout = isTelevision || (!isPlayer && maxWidth >= 840.dp)
         val compactSidebar = maxWidth < 600.dp
@@ -186,6 +219,17 @@ fun IptvApp() {
                     isTv = if (isPlayer) isTelevision else isTvLayout,
                     favoritesViewModel = favoritesViewModel,
                     playlist = playlist,
+                    tvLiveFullscreen = tvLiveFullscreen,
+                    onTvLiveFullscreenChange = { tvLiveFullscreen = it },
+                    tvChannelKeys = tvChannelKeys,
+                    tvChannelRequest = tvChannelRequest,
+                    onTvChannelRequestHandled = { tvChannelRequest = null },
+                    onOpenTvChannel = { id ->
+                        tvChannelRequestSequence++
+                        tvChannelRequest = TvChannelRequest(id, tvChannelRequestSequence)
+                        navigateTopLevel(navController, IptvRoute.CHANNELS)
+                        tvLiveFullscreen = true
+                    },
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
                 if (showChrome && !isTvLayout) {
@@ -213,12 +257,23 @@ private fun IptvNavigationGraph(
     isTv: Boolean,
     favoritesViewModel: FavoritesViewModel,
     playlist: MediaPlaylist,
+    tvLiveFullscreen: Boolean,
+    onTvLiveFullscreenChange: (Boolean) -> Unit,
+    tvChannelKeys: TvChannelKeys,
+    tvChannelRequest: TvChannelRequest?,
+    onTvChannelRequestHandled: () -> Unit,
+    onOpenTvChannel: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currentIsTv = rememberUpdatedState(isTv)
     val currentPlaylist = rememberUpdatedState(playlist)
+    val currentTvLiveFullscreen = rememberUpdatedState(tvLiveFullscreen)
+    val currentOnTvLiveFullscreenChange = rememberUpdatedState(onTvLiveFullscreenChange)
+    val currentTvChannelRequest = rememberUpdatedState(tvChannelRequest)
+    val currentOnTvChannelRequestHandled = rememberUpdatedState(onTvChannelRequestHandled)
+    val currentOnOpenTvChannel = rememberUpdatedState(onOpenTvChannel)
     // The graph itself must not be rebuilt when metadata or screen dimensions change.
-    val graphBuilder: NavGraphBuilder.() -> Unit = remember(navController, favoritesViewModel) {
+    val graphBuilder: NavGraphBuilder.() -> Unit = remember(navController, favoritesViewModel, tvChannelKeys) {
         {
             composable(IptvRoute.HOME) {
                 HomeScreen(
@@ -235,7 +290,15 @@ private fun IptvNavigationGraph(
                 )
             }
             composable(IptvRoute.CHANNELS) {
-                ChannelsScreen(currentIsTv.value, onOpenChannel = { navController.navigate(IptvRoute.channel(it)) })
+                ChannelsScreen(
+                    isTv = currentIsTv.value,
+                    onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
+                    fullscreen = currentTvLiveFullscreen.value,
+                    onFullscreenChange = { currentOnTvLiveFullscreenChange.value(it) },
+                    channelKeys = tvChannelKeys,
+                    requestedChannel = currentTvChannelRequest.value,
+                    onRequestHandled = { currentOnTvChannelRequestHandled.value() }
+                )
             }
             composable(IptvRoute.MOVIES) {
                 BrowseMediaScreen(
@@ -311,7 +374,10 @@ private fun IptvNavigationGraph(
                     channelId = entry.arguments?.getString("id").orEmpty(),
                     isTv = currentIsTv.value,
                     onBack = { navController.popBackStack() },
-                    onPlay = { navController.navigate(IptvRoute.player(it)) },
+                    onPlay = {
+                        if (currentIsTv.value) currentOnOpenTvChannel.value(it)
+                        else navController.navigate(IptvRoute.player(it))
+                    },
                     isFavorite = { it in currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds) },
                     onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
                 )
