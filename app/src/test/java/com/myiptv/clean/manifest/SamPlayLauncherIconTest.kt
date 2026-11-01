@@ -4,9 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
-import java.awt.image.BufferedImage
 import java.io.File
-import javax.imageio.ImageIO
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -31,8 +29,29 @@ class SamPlayLauncherIconTest {
         isNamespaceAware = true
     }.newDocumentBuilder().parse(File(mainDirectory, path)).documentElement
 
-    private fun image(path: String): BufferedImage = ImageIO.read(File(resources, path))
-        ?: error("No se puede leer el PNG: $path")
+    private class DecodedImage(val width: Int, val height: Int, private val pixels: IntArray) {
+        fun getRGB(x: Int, y: Int): Int = pixels[y * width + x]
+    }
+
+    private fun image(path: String): DecodedImage {
+        // Android's Kotlin test compilation excludes java.desktop, but local unit tests run on the
+        // Gradle JDK. Load ImageIO at runtime to keep its color/alpha checks without Android imports.
+        val imageIo = try {
+            Class.forName("javax.imageio.ImageIO")
+        } catch (error: ClassNotFoundException) {
+            throw IllegalStateException("Las pruebas de iconos requieren un JDK con el módulo java.desktop", error)
+        }
+        val bufferedImage = Class.forName("java.awt.image.BufferedImage")
+        val bitmap = imageIo.getMethod("read", File::class.java).invoke(null, File(resources, path))
+            ?: error("No se puede leer el PNG: $path")
+        val width = bufferedImage.getMethod("getWidth").invoke(bitmap) as Int
+        val height = bufferedImage.getMethod("getHeight").invoke(bitmap) as Int
+        val pixels = IntArray(width * height)
+        val integer = Int::class.javaPrimitiveType
+        bufferedImage.getMethod("getRGB", integer, integer, integer, integer, IntArray::class.java, integer, integer)
+            .invoke(bitmap, 0, 0, width, height, pixels, 0, width)
+        return DecodedImage(width, height, pixels)
+    }
 
     private fun brightness(pixel: Int): Int = maxOf(
         (pixel shr 16) and 0xff,
