@@ -14,6 +14,8 @@ Usa únicamente emisiones y enlaces para los que tengas autorización. La app no
 
 ## Interfaz y reproductor
 
+El icono de SamPlay muestra el leoncito de cristal blanco sobre negro: es adaptable en Android 8 o superior y tiene versiones para dispositivos anteriores. El inicio de Android TV utiliza un banner de 320 × 180 con la mascota y el nombre. La pantalla de bienvenida muestra la misma mascota como imagen estática, sin cambiar su fondo.
+
 SamPlay usa el mismo estilo negro con tarjetas panorámicas, carrusel y filas horizontales en móvil y TV. En móvil, los destacados se apilan en vertical; la barra inferior y el menú superior dan acceso a las secciones. En TV se conserva el menú lateral izquierdo y el foco para el mando. «Tendencias esta semana» y «Documentales» usan datos reales de TMDb. Kids y Anime requieren TMDb; Kids no sustituye la supervisión parental.
 
 Los canales y vídeos directos utilizan **LibVLC 3.6.4**, integrado en SamPlay; no hace falta instalar la aplicación VLC aparte. Se conservan los campos `userAgent` y `referrer` de los canales cuando el proveedor los facilita. El motor ofrece mayor compatibilidad con formatos de audio, pero el sonido sigue dependiendo de la señal y del dispositivo: no puede garantizarse en todos los canales. Si una señal ofrece varias pistas, usa **Audio** para seleccionar una; si no hay ninguna disponible, se indicará en pantalla.
