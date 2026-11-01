@@ -21,20 +21,75 @@ class LionWelcomeTimelineTest {
         )
         assertEquals(12_000L, LionWelcomeTimeline.durationMs)
         assertEquals(LionExpression.HALF_CLOSED, LionWelcomeTimeline.expressionAt(-1L))
-        assertEquals(1_000L, LionWelcomeTimeline.millisUntilNextFrame(-1L))
 
         LionWelcomeTimeline.expressions.forEachIndexed { index, expression ->
             val start = index * 1_000L
             assertEquals(expression, LionWelcomeTimeline.expressionAt(start))
             assertEquals(expression, LionWelcomeTimeline.expressionAt(start + 999L))
-            assertEquals(1_000L, LionWelcomeTimeline.millisUntilNextFrame(start))
-            assertEquals(1L, LionWelcomeTimeline.millisUntilNextFrame(start + 999L))
             assertFalse(LionWelcomeTimeline.isFinished(start + 999L))
         }
         assertEquals(LionExpression.SQUEEZED, LionWelcomeTimeline.expressionAt(12_000L))
         assertTrue(LionWelcomeTimeline.isFinished(12_000L))
         assertTrue(LionWelcomeTimeline.isFinished(Long.MAX_VALUE))
-        assertEquals(0L, LionWelcomeTimeline.millisUntilNextFrame(12_000L))
+    }
+
+    @Test fun eachChangeClosesThenReopensTheEyesWithoutAddingTime() {
+        val epsilon = 0.0001f
+        assertEquals(1f, LionWelcomeTimeline.eyeScaleAt(-1L), epsilon)
+        assertEquals(1f, LionWelcomeTimeline.eyeScaleAt(0L), epsilon)
+        for (index in 1 until LionWelcomeTimeline.expressions.size) {
+            val boundary = index * LionWelcomeTimeline.FRAME_DURATION_MS
+            val before = LionWelcomeTimeline.eyeScaleAt(boundary - 40L)
+            val almostClosed = LionWelcomeTimeline.eyeScaleAt(boundary - 20L)
+            val closed = LionWelcomeTimeline.eyeScaleAt(boundary)
+            val reopening = LionWelcomeTimeline.eyeScaleAt(boundary + 50L)
+
+            assertEquals(1f, LionWelcomeTimeline.eyeScaleAt(boundary - 80L), epsilon)
+            assertTrue("Los ojos se cierran progresivamente", before in 0.08f..1f && almostClosed < before)
+            assertEquals(LionWelcomeTimeline.MIN_EYE_SCALE, closed, epsilon)
+            assertTrue("Los ojos se vuelven a abrir", reopening > closed && reopening < 1f)
+            assertEquals(1f, LionWelcomeTimeline.eyeScaleAt(boundary + 100L), epsilon)
+            assertEquals(LionWelcomeTimeline.expressions[index - 1], LionWelcomeTimeline.expressionAt(boundary - 1L))
+            assertEquals(LionWelcomeTimeline.expressions[index], LionWelcomeTimeline.expressionAt(boundary))
+        }
+        assertEquals(1f, LionWelcomeTimeline.eyeScaleAt(11_999L), epsilon)
+        assertEquals(1f, LionWelcomeTimeline.eyeScaleAt(12_000L), epsilon)
+        assertEquals(12_000L, LionWelcomeTimeline.durationMs)
+    }
+
+    @Test fun renderingSleepsBetweenBlinksAndStopsAtTheOriginalDeadline() {
+        assertEquals(920L, LionWelcomeTimeline.millisUntilVisualUpdate(-1L))
+        assertEquals(920L, LionWelcomeTimeline.millisUntilVisualUpdate(0L))
+        assertEquals(1L, LionWelcomeTimeline.millisUntilVisualUpdate(919L))
+        assertEquals(0L, LionWelcomeTimeline.millisUntilVisualUpdate(920L))
+        assertEquals(0L, LionWelcomeTimeline.millisUntilVisualUpdate(999L))
+        assertEquals(0L, LionWelcomeTimeline.millisUntilVisualUpdate(1_000L))
+        assertEquals(0L, LionWelcomeTimeline.millisUntilVisualUpdate(1_099L))
+        assertEquals(820L, LionWelcomeTimeline.millisUntilVisualUpdate(1_100L))
+        assertEquals(900L, LionWelcomeTimeline.millisUntilVisualUpdate(11_100L))
+        assertEquals(1L, LionWelcomeTimeline.millisUntilVisualUpdate(11_999L))
+        assertEquals(0L, LionWelcomeTimeline.millisUntilVisualUpdate(12_000L))
+        for (index in 1 until LionWelcomeTimeline.expressions.size) {
+            val boundary = index * LionWelcomeTimeline.FRAME_DURATION_MS
+            assertEquals(1L, LionWelcomeTimeline.millisUntilVisualUpdate(boundary - 81L))
+            assertEquals(0L, LionWelcomeTimeline.millisUntilVisualUpdate(boundary - 80L))
+            assertEquals(0L, LionWelcomeTimeline.millisUntilVisualUpdate(boundary + 99L))
+            assertTrue(LionWelcomeTimeline.millisUntilVisualUpdate(boundary + 100L) > 0L)
+        }
+    }
+
+    @Test fun pausingDuringABlinkResumesTheSameEyePose() {
+        val clock = LionVisibleClock()
+        clock.resume(1_000L)
+        clock.pause(1_970L)
+        val pausedElapsed = clock.elapsedAt(20_000L)
+        assertEquals(970L, pausedElapsed)
+        val pausedScale = LionWelcomeTimeline.eyeScaleAt(pausedElapsed)
+        assertEquals(pausedScale, LionWelcomeTimeline.eyeScaleAt(clock.elapsedAt(30_000L)), 0.0001f)
+        clock.resume(30_000L)
+        assertEquals(LionWelcomeTimeline.MIN_EYE_SCALE, LionWelcomeTimeline.eyeScaleAt(clock.elapsedAt(30_030L)), 0.0001f)
+        assertEquals(LionExpression.WORRIED, LionWelcomeTimeline.expressionAt(clock.elapsedAt(30_030L)))
+        assertEquals(1f, LionWelcomeTimeline.eyeScaleAt(clock.elapsedAt(30_130L)), 0.0001f)
     }
 
     @Test fun timerTapAndRemoteConfirmCanOpenContentOnlyOnce() {

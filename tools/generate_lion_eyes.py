@@ -18,6 +18,15 @@ BASE_IMAGE = ROOT / "app/src/main/res/drawable-nodpi/samplay_lion_animation_base
 FONT = ROOT / "app/src/main/res/font/inter_black.ttf"
 EYE_COLOR = "#FF0A0A0A"
 
+# Keep the preview's timing and vertical pivot in sync with LionWelcomeTimeline.kt
+# and WelcomeActivity.kt. Each blink is included in the existing 12 seconds.
+FRAME_DURATION_MS = 1000
+BLINK_CLOSE_MS = 80
+BLINK_OPEN_MS = 100
+MIN_EYE_SCALE = 0.08
+EYE_PIVOT = 247 / 512
+PREVIEW_STEP_MS = 20
+
 
 def line(x1, y1, x2, y2, width=8):
     return ("line", x1, y1, x2, y2, width)
@@ -183,6 +192,33 @@ def draw_preview_mark(draw, mark, scale):
         draw.ellipse((math.floor(x-radius), math.floor(y-radius), math.ceil(x+radius), math.ceil(y+radius)), fill=fill)
 
 
+def preview_eye_pose(elapsed_ms):
+    """Match the app's expression and smoothly closing/reopening eye scale."""
+    elapsed_ms = max(0, min(elapsed_ms, len(FRAMES) * FRAME_DURATION_MS - 1))
+    index, phase = divmod(elapsed_ms, FRAME_DURATION_MS)
+
+    def smooth(progress):
+        return progress * progress * (3 - 2 * progress)
+
+    if index > 0 and phase < BLINK_OPEN_MS:
+        closed = 1 - smooth(phase / BLINK_OPEN_MS)
+    elif index < len(FRAMES) - 1 and phase >= FRAME_DURATION_MS - BLINK_CLOSE_MS:
+        closed = smooth((phase - (FRAME_DURATION_MS - BLINK_CLOSE_MS)) / BLINK_CLOSE_MS)
+    else:
+        closed = 0
+    return index, 1 - closed * (1 - MIN_EYE_SCALE)
+
+
+def preview_frame_times():
+    """Sample active blinks at 50 fps and hold still images between them."""
+    times = [0]
+    for index in range(1, len(FRAMES)):
+        boundary = index * FRAME_DURATION_MS
+        times.extend(range(boundary - BLINK_CLOSE_MS, boundary + BLINK_OPEN_MS, PREVIEW_STEP_MS))
+        times.append(boundary + BLINK_OPEN_MS)
+    return times
+
+
 def write_preview(path: Path):
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -191,24 +227,44 @@ def write_preview(path: Path):
 
     # A phone-shaped visual reference; the app lays out the same artwork responsively.
     canvas_width, canvas_height, lion_size = 720, 1000, 530
+    left, top = (canvas_width - lion_size) // 2, 155
     base = Image.open(BASE_IMAGE).convert("RGBA").resize((lion_size, lion_size), Image.Resampling.LANCZOS)
     font = ImageFont.truetype(str(FONT), 52)
-    images = []
+    canvas = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 255))
+    canvas.alpha_composite(base, (left, top))
+    draw = ImageDraw.Draw(canvas)
+    word_width = draw.textlength("Sam", font=font) + draw.textlength("Play", font=font)
+    start_x = (canvas_width - word_width) / 2
+    draw.text((start_x, 716), "Sam", font=font, fill="white")
+    draw.text((start_x + draw.textlength("Sam", font=font), 716), "Play", font=font, fill=(84, 195, 242))
+
+    eyes = []
     for _, marks in FRAMES:
-        image = Image.new("RGBA", (canvas_width, canvas_height), (0, 0, 0, 255))
-        lion = base.copy()
-        draw = ImageDraw.Draw(lion)
+        layer = Image.new("RGBA", (lion_size, lion_size))
+        draw = ImageDraw.Draw(layer)
         for mark in marks:
             draw_preview_mark(draw, mark, lion_size / 512)
-        image.alpha_composite(lion, ((canvas_width-lion_size)//2, 155))
-        draw = ImageDraw.Draw(image)
-        word_width = draw.textlength("Sam", font=font) + draw.textlength("Play", font=font)
-        start_x = (canvas_width-word_width) / 2
-        draw.text((start_x, 716), "Sam", font=font, fill="white")
-        draw.text((start_x + draw.textlength("Sam", font=font), 716), "Play", font=font, fill=(84, 195, 242))
-        images.append(image.convert("RGB").quantize(colors=192, method=Image.Quantize.MEDIANCUT))
+        eyes.append(layer)
+
+    times = preview_frame_times()
+    total_ms = len(FRAMES) * FRAME_DURATION_MS
+    durations = [next_time - time for time, next_time in zip(times, times[1:] + [total_ms])]
+    images = []
+    palette = None
+    for time in times:
+        index, eye_scale = preview_eye_pose(time)
+        image = canvas.copy()
+        height = max(1, round(lion_size * eye_scale))
+        layer = eyes[index] if height == lion_size else eyes[index].resize((lion_size, height), Image.Resampling.LANCZOS)
+        y_offset = round(lion_size * EYE_PIVOT * (1 - eye_scale))
+        image.alpha_composite(layer, (left, top + y_offset))
+        rgb = image.convert("RGB")
+        if palette is None:
+            palette = rgb.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
+        images.append(rgb.quantize(palette=palette, dither=Image.Dither.NONE))
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    images[0].save(path, save_all=True, append_images=images[1:], duration=1000, loop=0, disposal=2)
+    images[0].save(path, save_all=True, append_images=images[1:], duration=durations, loop=0, disposal=1, optimize=True)
 
 
 def main():

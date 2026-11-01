@@ -23,15 +23,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -107,6 +111,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
     var savedElapsedMs by rememberSaveable { mutableLongStateOf(0L) }
     val clock = remember { LionVisibleClock(savedElapsedMs) }
     var expression by remember { mutableStateOf(LionWelcomeTimeline.expressionAt(savedElapsedMs)) }
+    var eyeScale by remember { mutableFloatStateOf(LionWelcomeTimeline.eyeScaleAt(savedElapsedMs)) }
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -119,7 +124,9 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
                         break
                     }
                     expression = LionWelcomeTimeline.expressionAt(elapsed)
-                    delay(LionWelcomeTimeline.millisUntilNextFrame(elapsed))
+                    eyeScale = LionWelcomeTimeline.eyeScaleAt(elapsed)
+                    val waitMs = LionWelcomeTimeline.millisUntilVisualUpdate(elapsed)
+                    if (waitMs > 0L) delay(waitMs) else withFrameNanos { }
                 }
             } finally {
                 val now = SystemClock.elapsedRealtime()
@@ -140,7 +147,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            AnimatedLion(expression = expression, size = lionSize, onContinue = onContinue)
+            AnimatedLion(expression = expression, eyeScale = eyeScale, size = lionSize, onContinue = onContinue)
             Spacer(Modifier.height(8.dp))
             TvBrandLogo(Modifier.width(170.dp).height(56.dp))
         }
@@ -148,7 +155,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
 }
 
 @Composable
-private fun AnimatedLion(expression: LionExpression, size: Dp, onContinue: () -> Unit) {
+private fun AnimatedLion(expression: LionExpression, eyeScale: Float, size: Dp, onContinue: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val skipLabel = stringResource(R.string.welcome_skip_animation)
     Box(
@@ -168,7 +175,11 @@ private fun AnimatedLion(expression: LionExpression, size: Dp, onContinue: () ->
         Image(
             painter = painterResource(expression.eyeDrawable()),
             contentDescription = null,
-            modifier = Modifier.matchParentSize(),
+            modifier = Modifier.matchParentSize().graphicsLayer {
+                scaleY = eyeScale
+                // The overlays use a 512 x 512 viewport; pivot at the center of the eyes.
+                transformOrigin = TransformOrigin(0.5f, 247f / 512f)
+            },
         )
     }
 }

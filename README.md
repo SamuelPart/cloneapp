@@ -14,7 +14,7 @@ Usa únicamente emisiones y enlaces para los que tengas autorización. La app no
 
 ## Interfaz y reproductor
 
-El icono de SamPlay muestra el leoncito de cristal blanco sobre negro: es adaptable en Android 8 o superior y tiene versiones para dispositivos anteriores. El inicio de Android TV utiliza un banner de 320 × 180 con la mascota y el nombre. En la bienvenida, la mascota muestra 12 expresiones de ojos, una por segundo, con SamPlay debajo y el mismo fondo de antes. Al terminar se abre el contenido; también se puede entrar antes tocando la mascota o pulsando OK en el mando. Si la app pasa a segundo plano, la animación se pausa y continúa al regresar.
+El icono de SamPlay muestra el leoncito de cristal blanco sobre negro: es adaptable en Android 8 o superior y tiene versiones para dispositivos anteriores. El inicio de Android TV utiliza un banner de 320 × 180 con la mascota y el nombre. En la bienvenida, la mascota muestra 12 expresiones de ojos, una por segundo, con un parpadeo breve entre ellas, SamPlay debajo y el mismo fondo de antes. Al terminar se abre el contenido; también se puede entrar antes tocando la mascota o pulsando OK en el mando. Si la app pasa a segundo plano, la animación se pausa y continúa al regresar.
 
 SamPlay usa el mismo estilo negro con tarjetas panorámicas, carrusel y filas horizontales en móvil y TV. En móvil, los destacados se apilan en vertical; la barra inferior y el menú superior dan acceso a las secciones. En TV se conserva el menú lateral izquierdo y el foco para el mando. «Tendencias esta semana» y «Documentales» usan datos reales de TMDb. Kids y Anime requieren TMDb; Kids no sustituye la supervisión parental.
 
