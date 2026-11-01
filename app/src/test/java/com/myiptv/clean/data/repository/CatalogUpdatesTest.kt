@@ -38,6 +38,22 @@ class CatalogUpdatesTest {
         assertEquals(updated.pending, updateStoredCatalog(updated, after)!!.pending)
     }
 
+    @Test fun movieWithoutOptionalTmdbIdIsPublishedWithoutLosingPreviousTitles() {
+        val original = catalog(movie("Película anterior"))
+        val updated = catalog(
+            movie("Película anterior"),
+            "#EXTINF:-1 tvg-logo=\"\" group-title=\"Peliculas\",Nueva sin ID TMDb\nhttps://video.example/new.mp4",
+            "#EXTINF:-1 group-title=\"Peliculas\" tmdb-match-id=\"123\",Nueva con ID TMDb\nhttps://video.example/other.mp4",
+        )
+        val saved = updateStoredCatalog(StoredCatalog(original), updated)!!
+        val parsed = parseRemoteCatalog(saved.content)!!
+        assertEquals(listOf("Película anterior", "Nueva sin ID TMDb", "Nueva con ID TMDb"), parsed.items.map { it.title })
+        assertEquals(listOf("Nueva sin ID TMDb", "Nueva con ID TMDb"), saved.pending.map { it.title })
+        val withoutId = parsed.items.single { it.title == "Nueva sin ID TMDb" }
+        assertNull(withoutId.tmdbId)
+        assertEquals("https://video.example/new.mp4", parsed.source(withoutId.id)?.url)
+    }
+
     @Test fun newEpisodesAreGroupedWithoutTreatingChangedUrlsAsNew() {
         val before = catalog(episode(1), episode(2))
         val after = catalog(episode(1, url = "https://video.example/watch/replaced"), episode(2), episode(3), episode(4))

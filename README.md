@@ -72,7 +72,7 @@ https://nupload.my/watch/60SsUrowOEw2cDkHmN3M0iIojHFkXJ8oFYM3jz37kz7IctGTs
 https://nupload.my/watch/o3xAJQ7kz7MBPKokvwmPuBO9MmRijQgxxIUPl0zF0WoUmE
 ```
 
-En series, repite el mismo nombre antes de `Temporada N` y numera cada `Capítulo N`: la app agrupa las temporadas bajo una sola serie. También acepta `Episodio N`, espacios en blanco y enlaces de Markdown. Un `tvg-logo` vacío no genera una imagen ficticia. Con una clave TMDb válida, la app busca los títulos M3U en segundo plano y agrega fichas e imágenes sin cambiar sus enlaces. Si hay una identificación válida, también consulta los episodios de cada temporada; los que no tienen enlace se muestran sin botón de reproducción.
+En series, repite el mismo nombre antes de `Temporada N` y numera cada `Capítulo N`: la app agrupa las temporadas bajo una sola serie. También acepta `Episodio N`, espacios en blanco y enlaces de Markdown. Un `tvg-logo` vacío no genera una imagen ficticia. En cambio, si no conoces el ID de TMDb, **omite el atributo completo** `tmdb-match-id` o `tmdb-id`: no lo dejes como `tmdb-match-id=""` ni `tmdb-id=""`, porque la versión instalada considera inválida esa entrada y conserva la lista anterior. Con una clave TMDb válida, la app busca los títulos M3U en segundo plano y agrega fichas e imágenes sin cambiar sus enlaces. Si hay una identificación válida, también consulta los episodios de cada temporada; los que no tienen enlace se muestran sin botón de reproducción.
 
 El formato anterior más explícito también sigue funcionando, por ejemplo:
 
