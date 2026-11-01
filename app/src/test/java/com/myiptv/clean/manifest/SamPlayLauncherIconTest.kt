@@ -107,16 +107,12 @@ class SamPlayLauncherIconTest {
         }
     }
 
-    @Test fun welcomeLogoKeepsTheExistingScreenBackground() {
-        val layout = xml("res/layout/activity_welcome.xml")
-        assertEquals("@color/background", layout.getAttributeNS(androidNamespace, "background"))
-        val logo = layout.getElementsByTagName("ImageView").item(0) as Element
-        assertEquals("@drawable/samplay_lion_glass", logo.getAttributeNS(androidNamespace, "src"))
-        val picture = image("drawable-nodpi/samplay_lion_glass.png")
-        assertEquals(512, picture.width)
-        assertEquals(512, picture.height)
-        assertEquals("El logo no debe cubrir el fondo de la pantalla", 0, picture.getRGB(0, 0) ushr 24)
-        assertTrue("La mascota debe permanecer visible", brightness(picture.getRGB(256, 256)) > 120)
+    @Test fun animatedWelcomeMascotHasTransparentBackground() {
+        val picture = image("drawable-nodpi/samplay_lion_animation_base.png")
+        assertEquals(768, picture.width)
+        assertEquals(768, picture.height)
+        assertEquals("La mascota no debe cubrir el fondo de la pantalla", 0, picture.getRGB(0, 0) ushr 24)
+        assertTrue("La mascota debe permanecer visible", brightness(picture.getRGB(384, 384)) > 120)
     }
 
     @Test fun tvBannerHasBlackBackgroundAndVisibleWhiteArtwork() {
