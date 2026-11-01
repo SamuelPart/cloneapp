@@ -3,7 +3,7 @@
     <string name="app_name">SamPlay</string>
     <string name="welcome_lion_description">Mascota de SamPlay</string>
     <string name="welcome_skip_animation">Entrar a SamPlay</string>
-    <string name="app_version">Versión 1.0.0</string>
+    <string name="app_version">Versión %1$s</string>
     <string name="loading">Preparando la aplicación…</string>
     <string name="home">Inicio</string>
     <string name="channels">Canales</string>

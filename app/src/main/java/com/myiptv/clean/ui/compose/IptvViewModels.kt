@@ -1,8 +1,10 @@
 package com.myiptv.clean.ui.compose
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
@@ -254,18 +256,17 @@ class MoviesViewModel : ViewModel() {
     }
 }
 
-class FavoritesViewModel : ViewModel() {
-    var savedIds by mutableStateOf(emptySet<String>())
+class FavoritesViewModel(application: Application) : AndroidViewModel(application) {
+    private val favorites = FavoritesCollection(PreferencesFavoritesStore(application))
+    var savedIds by mutableStateOf(favorites.savedIds)
         private set
 
     fun toggle(id: String, playlist: MediaPlaylist) {
-        val aliases = playlist.mediaAliases(id)
-        savedIds = if (savedIds.any { it in aliases }) savedIds - aliases
-        else savedIds + playlist.canonicalMediaId(id)
+        savedIds = favorites.toggle(id, playlist)
     }
 
     fun canonicalize(playlist: MediaPlaylist) {
-        savedIds = savedIds.mapTo(mutableSetOf(), playlist::canonicalMediaId)
+        savedIds = favorites.canonicalize(playlist)
     }
 }
 

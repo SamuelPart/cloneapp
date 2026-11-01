@@ -86,6 +86,8 @@ import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 import com.myiptv.clean.data.repository.loadPlaylistMetadata
 import com.myiptv.clean.notifications.CatalogNotificationTarget
+import com.myiptv.clean.update.AppUpdateManager
+import com.myiptv.clean.update.AppUpdateSyncScheduler
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
@@ -133,7 +135,9 @@ private val sidebarDestinations = listOf(
 @Composable
 internal fun IptvApp(
     notificationTarget: CatalogNotificationTarget? = null,
-    onNotificationHandled: (Long) -> Unit = {}
+    onNotificationHandled: (Long) -> Unit = {},
+    updateRequest: Long? = null,
+    onUpdateRequestHandled: (Long) -> Unit = {},
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
@@ -167,6 +171,19 @@ internal fun IptvApp(
                 delay(MediaPlaylistRepository.REFRESH_INTERVAL_MS)
             }
         }
+    }
+    LaunchedEffect(appContext, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                AppUpdateManager.check(appContext)
+                delay(AppUpdateSyncScheduler.CHECK_INTERVAL_MS)
+            }
+        }
+    }
+    LaunchedEffect(updateRequest) {
+        val request = updateRequest ?: return@LaunchedEffect
+        navigateTopLevel(navController, IptvRoute.SETTINGS)
+        onUpdateRequestHandled(request)
     }
     LaunchedEffect(playlist.items) { favoritesViewModel.canonicalize(playlist) }
     LaunchedEffect(notificationTarget, playlist.loaded) {

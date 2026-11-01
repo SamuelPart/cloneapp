@@ -32,6 +32,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.notifications.CatalogNotifications
+import com.myiptv.clean.update.AppUpdateManager
 import kotlinx.coroutines.launch
 
 private const val PREFERENCES = "samplay_catalog_notifications"
@@ -43,7 +44,10 @@ internal fun RequestCatalogNotificationsOnce() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) scope.launch { MediaPlaylistRepository.publishPending(context) }
+        if (granted) scope.launch {
+            MediaPlaylistRepository.publishPending(context)
+            AppUpdateManager.check(context.applicationContext)
+        }
     }
     LaunchedEffect(context) {
         val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
@@ -64,13 +68,19 @@ internal fun CatalogNotificationSettings() {
     var enabled by remember { mutableStateOf(CatalogNotifications.isEnabled(context)) }
     val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         enabled = CatalogNotifications.isEnabled(context)
-        if (granted) scope.launch { MediaPlaylistRepository.publishPending(context) }
+        if (granted) scope.launch {
+            MediaPlaylistRepository.publishPending(context)
+            AppUpdateManager.check(context.applicationContext)
+        }
     }
     DisposableEffect(context, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 enabled = CatalogNotifications.isEnabled(context)
-                if (enabled) scope.launch { MediaPlaylistRepository.publishPending(context) }
+                if (enabled) scope.launch {
+                    MediaPlaylistRepository.publishPending(context)
+                    AppUpdateManager.check(context.applicationContext)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
