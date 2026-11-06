@@ -14,15 +14,27 @@ def tmdbApiKey = localProperties.getProperty('tmdb.api.key', System.getenv('TMDB
 
 android {
     namespace 'com.myiptv.clean'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.myiptv.clean'
         minSdk 21
         targetSdk 34
-        versionCode 4
-        versionName '1.2.1'
+        versionCode 5
+        versionName '1.2.2'
         buildConfigField 'String', 'TMDB_API_KEY', '"' + tmdbApiKey + '"'
+    }
+
+    // Keep the existing GitHub updater only in its APK; Play updates through Google Play.
+    flavorDimensions += 'distribution'
+    productFlavors {
+        github {
+            dimension 'distribution'
+        }
+        play {
+            dimension 'distribution'
+            targetSdk 36
+        }
     }
 
     compileOptions {

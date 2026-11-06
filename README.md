@@ -38,13 +38,35 @@ LibVLC añade bibliotecas nativas para varias arquitecturas, por lo que puede au
 
 Las imágenes de las fichas aparecen suavemente al cargar y mantienen un fondo de reserva si fallan. La tipografía [Inter](https://github.com/rsms/inter/tree/66647c0bbbe41a850d79d9c76fb13add3378940f) se distribuye bajo SIL Open Font License 1.1; la licencia está en `app/src/main/assets/licenses/Inter-OFL.txt`.
 
+## Distribuciones GitHub y Google Play
+
+SamPlay tiene dos variantes para conservar ambas formas de distribución:
+
+| Variante | Formato habitual | SDK mínimo | SDK de destino | Actualizaciones de la app |
+| --- | --- | --- | --- | --- |
+| `githubRelease` | APK firmado | 21 | 34 | Release de GitHub con el instalador de SamPlay descrito abajo |
+| `playRelease` | AAB firmado | 21 | 36 | Google Play; sin descargador/instalador de APK de GitHub |
+
+Ambas comparten `applicationId` (`com.myiptv.clean`), catálogo, favoritos y la mayor parte de la interfaz. La compilación usa SDK 36; el **mínimo** sigue siendo Android 5.0 (API 21), distinto del SDK de destino. La configuración actual usa `versionCode 5` y `versionName 1.2.2`; antes de publicar confirma en Play Console que el código no haya sido utilizado y auméntalo si fuera necesario. No se ha generado ni firmado automáticamente ningún AAB ni APK.
+
+Para generar el AAB de Play en Android Studio:
+
+1. Trae los últimos cambios de la rama `arena/2b6cd77d-cloneapp`, sincroniza Gradle y permite instalar Android SDK Platform 36 si Studio lo solicita. Usa JDK 17 y una versión de Android Studio compatible con AGP 8.10, como Meerkat Feature Drop o posterior.
+2. Elige **Build → Generate Signed Bundle / APK → Android App Bundle**, selecciona la **misma clave de carga** que usaste antes y, en las variantes, marca **`playRelease`**, no `githubRelease`. Guarda la clave fuera del repositorio y no compartas la contraseña.
+3. Sube el AAB recién generado al borrador de prueba interna, retirando el AAB anterior si sigue seleccionado. Comprueba en Play Console que indique paquete `com.myiptv.clean`, versión `5 (1.2.2)`, mínimo 21 y destino 36. Revisa el manifiesto combinado de `playRelease`: no debe contener `REQUEST_INSTALL_PACKAGES`, `AppUpdateSyncJob` ni `AppUpdateFileProvider`; el trabajo del catálogo debe conservarse.
+4. Prueba en móvil y TV, especialmente Android 15/16, barras del sistema, mando y reproducción a pantalla completa. Play puede realizar comprobaciones adicionales y estas instrucciones no garantizan su aceptación.
+
+Para GitHub, elige **APK → `githubRelease`**, fírmalo con el mismo certificado que la instalación que deseas actualizar y sigue las instrucciones de publicación de abajo. Android solo puede actualizar una instalación conservando sus datos si los certificados son compatibles y el nuevo código de versión es mayor. Play App Signing puede usar un certificado de distribución distinto de la clave de carga; el APK `debug` también suele tener otra firma. **No desinstales una instalación con favoritos sin protegerlos o usar otro dispositivo/perfil de prueba.**
+
+La lista M3U y sus notificaciones siguen actualizándose en línea en ambas variantes, independientemente del mecanismo que actualiza la aplicación. El `release` no activa ofuscación: la advertencia de desofuscación no requiere habilitar R8 para resolver el error de destino. Los símbolos nativos son útiles para diagnosticar fallos, pero una biblioteca precompilada puede no incluirlos. Como LibVLC incluye código nativo, comprueba también la [compatibilidad de páginas de 16 KB](https://developer.android.com/guide/practices/page-sizes) del AAB final.
+
 ## Actualizaciones de la aplicación desde GitHub
 
-El código y los recursos incluidos en un APK no cambian solo por subir un commit. SamPlay puede consultar una nueva versión publicada, pero Android debe instalarla; con el mismo identificador y la misma firma se instala **sobre** la aplicación anterior, sin desinstalarla y conservando los datos guardados. Los favoritos de versiones anteriores que solo estaban en memoria no se pueden recuperar tras cerrar esa versión. Para activar este mecanismo hay que instalar una vez la versión que lo incorpora.
+Esta sección solo se aplica a la variante **`github`**. El código y los recursos incluidos en un APK no cambian solo por subir un commit. SamPlay puede consultar una nueva versión publicada, pero Android debe instalarla; con el mismo identificador y la misma firma se instala **sobre** la aplicación anterior, sin desinstalarla y conservando los datos guardados. Los favoritos de versiones anteriores que solo estaban en memoria no se pueden recuperar tras cerrar esa versión. Para activar este mecanismo hay que instalar una vez la versión que lo incorpora.
 
 - SamPlay consulta la última **release pública** de `SamuelPart/cloneapp` al abrir la app, aproximadamente cada 12 horas mientras está abierta y mediante un trabajo periódico en segundo plano. Android puede retrasar ese trabajo por batería, red o una detención forzada. Si hay una versión nueva, muestra el estado en **Ajustes → Actualizaciones de SamPlay** y, cuando los permisos lo permiten, una notificación que abre esa sección.
 - El usuario decide cuándo descargar e instalar. SamPlay limita la descarga a HTTPS y servidores de GitHub, verifica el tamaño y SHA-256 publicado por GitHub, y comprueba que el APK tenga el mismo paquete y certificado de firma que la app instalada y el número de versión esperado. Después, el instalador de Android realiza sus propias comprobaciones y pide confirmación. En Android 8 o superior puede ser necesario permitir instalaciones desde SamPlay; algunos dispositivos TV pueden no ofrecer un instalador compatible.
-- Para publicar una versión futura: aumenta `versionCode` y `versionName` en `app/build.gradle`, genera un **APK universal** firmado con la misma clave de la instalación anterior y publícalo en una release estable de este repositorio. Usa una etiqueta sencilla, por ejemplo `v1.2.2`, y nombra el archivo con el formato `SamPlay-<versionCode>-<versionName>.apk`; para ese ejemplo, `SamPlay-5-1.2.2.apk`. La release debe contener un único APK con ese formato y GitHub debe mostrar su digest `sha256` en la API. En Android Studio se puede usar **Build → Generate Signed Bundle / APK → APK** y después adjuntar el archivo en **GitHub → Releases**. El proyecto no configura una clave de firma release ni publica el APK automáticamente; conserva la clave fuera de Git y nunca la subas al repositorio.
+- Para publicar una versión futura: aumenta `versionCode` y `versionName` en `app/build.gradle`, genera un **APK universal** firmado con la misma clave de la instalación anterior y publícalo en una release estable de este repositorio. Usa una etiqueta sencilla, por ejemplo `v1.2.2`, y nombra el archivo con el formato `SamPlay-<versionCode>-<versionName>.apk`; para ese ejemplo, `SamPlay-5-1.2.2.apk`. La release debe contener un único APK con ese formato y GitHub debe mostrar su digest `sha256` en la API. En Android Studio se puede usar **Build → Generate Signed Bundle / APK → APK → `githubRelease`** y después adjuntar el archivo en **GitHub → Releases**. El proyecto no configura una clave de firma release ni publica el APK automáticamente; conserva la clave fuera de Git y nunca la subas al repositorio.
 - Si no existe una release, no tiene un APK compatible o GitHub no responde, la app lo indica; no inventa una actualización. Una descarga interrumpida o que no supere las verificaciones no se instala. Las notificaciones dependen de los permisos y ajustes de Android. Subir código a la rama por sí solo no publica un APK firmado.
 - Este mecanismo es para la distribución por APK desde GitHub, no sustituye las actualizaciones de Google Play. Los cambios arbitrarios de código, pantallas o reproductor requieren una nueva versión del APK; el catálogo M3U sigue teniendo su propia actualización en línea, descrita a continuación.
 
@@ -139,10 +161,10 @@ La API escucha solo en `127.0.0.1:8765` y ofrece `/catalog`, `/health` y `/play?
 
 1. Selecciona **Get from VCS** o **File → New → Project from Version Control** y clona `https://github.com/SamuelPart/cloneapp.git`.
 2. Abre la carpeta raíz, donde están `settings.gradle` y `gradlew`.
-3. Usa JDK 17 o 21 y permite que Android Studio sincronice Gradle. Se requiere Android SDK 34.
-4. Selecciona un dispositivo o emulador con Android 5.0 o posterior y pulsa **Run**.
+3. Selecciona la rama `arena/2b6cd77d-cloneapp`, usa JDK 17 y permite que Android Studio sincronice Gradle. Se requiere Android SDK 36 y una versión de Studio compatible con AGP 8.10.
+4. Selecciona la variante `githubDebug` o `playDebug`, un dispositivo o emulador con Android 5.0 o posterior y pulsa **Run**.
 
-También puedes ejecutar `./gradlew :app:assembleDebug` desde la raíz. Se necesita conexión a Internet para obtener dependencias y consultar las fuentes de datos. Para las pruebas opcionales del bot web, instala Node.js 18 o posterior y ejecuta `npm ci` seguido de `npm run test:web-bot`; Node no es necesario para compilar Android.
+También puedes ejecutar `./gradlew :app:assembleGithubDebug` o `./gradlew :app:assemblePlayDebug` desde la raíz; `:app:testGithubDebugUnitTest` y `:app:testPlayDebugUnitTest` ejecutan las pruebas de cada variante. Se necesita conexión a Internet para obtener dependencias y consultar las fuentes de datos. Para las pruebas opcionales del bot web, instala Node.js 18 o posterior y ejecuta `npm ci` seguido de `npm run test:web-bot`; Node no es necesario para compilar Android.
 
 ## Estructura
 
@@ -150,6 +172,8 @@ También puedes ejecutar `./gradlew :app:assembleDebug` desde la raíz. Se neces
 - `app/src/main/assets/samplay_embed_bot.js`: bot local de reproducción y cierre de capas de anuncios reconocibles.
 - `app/src/main/assets/samplay_frame_adguard.js`: filtro local para capas publicitarias en páginas y iframes compatibles.
 - `app/src/main/java/com/myiptv/clean/notifications`: búsqueda periódica y avisos de novedades.
+- `app/src/github`: actualizador de APK para la distribución GitHub y su manifiesto.
+- `app/src/play`: sustituciones de Play y eliminación preventiva del permiso de instalación.
 - `app/src/main/res/raw/samplay_notification.wav`: sonido original, regenerable con `tools/generate_notification_sound.py`.
 - `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación y ViewModels.
 - `app/src/main/java/com/myiptv/clean/ui/player`: interacción táctil y con mando del reproductor directo.

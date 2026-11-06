@@ -172,11 +172,14 @@ internal fun IptvApp(
             }
         }
     }
-    LaunchedEffect(appContext, lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (isActive) {
-                AppUpdateManager.check(appContext)
-                delay(AppUpdateSyncScheduler.CHECK_INTERVAL_MS)
+    // Play does not start a release-checking coroutine or contact the GitHub updater.
+    if (AppUpdateSyncScheduler.ENABLED) {
+        LaunchedEffect(appContext, lifecycleOwner) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    AppUpdateManager.check(appContext)
+                    delay(AppUpdateSyncScheduler.CHECK_INTERVAL_MS)
+                }
             }
         }
     }
@@ -212,7 +215,12 @@ internal fun IptvApp(
         val compactSidebar = maxWidth < 600.dp
         // Keep one NavHost at the same composition location as the window rotates. Replacing the
         // graph here would dispose VLC/WebView and restart playback on a landscape phone.
-        Row(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        // Android 15+ enforces edge-to-edge for the Play target. Keep the same black background,
+        // but protect browsing controls; full-screen playback still occupies the entire window.
+        Row(modifier = Modifier.fillMaxSize().background(Color.Black).safeAreaWhenEnforced(
+            isTelevision = isTelevision,
+            immersive = isPlayer || (currentRoute == IptvRoute.CHANNELS && tvLiveFullscreen)
+        )) {
             if (showChrome && isTvLayout) {
                 TvSidebar(
                     currentRoute = currentRoute,

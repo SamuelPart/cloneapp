@@ -17,6 +17,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 internal object AppUpdateSyncScheduler {
+    const val ENABLED = true
     private const val JOB_ID = 0x53414E
     const val CHECK_INTERVAL_MS = 12L * 60 * 60 * 1_000
 

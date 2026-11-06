@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -331,7 +332,9 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, fu
                         fullscreen.set(false)
                     } else fullscreen.set(true)
                 },
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier.align(Alignment.TopCenter).safeAreaWhenEnforced(
+                    isTv, fullscreen.active, WindowInsetsSides.Horizontal + WindowInsetsSides.Top
+                )
             )
         }
 
@@ -355,7 +358,9 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, fu
                 val timeline = PlaybackState(isPlaying = state.isPlaying, isBuffering = false, isSeekable = true,
                     timeMs = state.timeMs, durationMs = state.durationMs, ended = state.ended)
                 Column(
-                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    modifier = Modifier.align(Alignment.BottomCenter).safeAreaWhenEnforced(
+                        isTv, fullscreen.active, WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
+                    ).fillMaxWidth()
                         .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.93f))))
                         .padding(start = if (isTv) 32.dp else 16.dp, end = if (isTv) 32.dp else 16.dp,
                             top = if (compactHeight) 8.dp else 24.dp, bottom = if (compactHeight) 8.dp else 18.dp)
@@ -366,7 +371,9 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, fu
         }
 
         if (loading && error == null) {
-            CircularProgressIndicator(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp).size(26.dp), color = TvAccent, strokeWidth = 3.dp)
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.BottomCenter)
+                .safeAreaWhenEnforced(isTv, fullscreen.active, WindowInsetsSides.Bottom)
+                .padding(bottom = 24.dp).size(26.dp), color = TvAccent, strokeWidth = 3.dp)
         }
         val message = error ?: notice ?: when {
             state.needsGesture -> "El proveedor necesita un toque: pulsa Play en su reproductor."
@@ -374,7 +381,9 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, fu
             else -> null
         }
         if (message != null) {
-            Surface(modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 16.dp, vertical = 18.dp),
+            Surface(modifier = Modifier.align(Alignment.BottomCenter)
+                .safeAreaWhenEnforced(isTv, fullscreen.active, WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                .padding(horizontal = 16.dp, vertical = 18.dp),
                 color = Color(0xEE17191E), contentColor = Color.White, shape = MaterialTheme.shapes.medium) {
                 Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {

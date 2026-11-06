@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -338,7 +339,9 @@ internal fun VlcPlayerScreen(
             VlcPlayerHeader(title, isLiveChannel, isTv, fullscreen, onBack, {
                 showControls()
                 fullscreen.set(!fullscreen.active)
-            }, Modifier.align(Alignment.TopCenter))
+            }, Modifier.align(Alignment.TopCenter).safeAreaWhenEnforced(
+                isTv, fullscreen.active, WindowInsetsSides.Horizontal + WindowInsetsSides.Top
+            ))
             Row(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalArrangement = Arrangement.spacedBy(sizes.spacing.dp),
@@ -381,7 +384,9 @@ internal fun VlcPlayerScreen(
                     binding?.controller?.refreshAudioTracks()
                     audioDialogOpen = true
                 },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier.align(Alignment.BottomCenter).safeAreaWhenEnforced(
+                    isTv, fullscreen.active, WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom
+                )
             )
         }
     }
