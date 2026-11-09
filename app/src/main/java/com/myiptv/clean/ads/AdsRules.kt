@@ -1,5 +1,6 @@
 package com.myiptv.clean.ads
 
+import com.myiptv.clean.navigation.SettingsRoutes
 import java.util.Calendar
 import java.util.GregorianCalendar
 
@@ -50,7 +51,8 @@ internal object AdsRules {
     /** Only known browsing routes may open UMP; unknown/future player routes fail closed. */
     fun canPresentConsent(isTvDevice: Boolean, route: String, notificationPending: Boolean): Boolean =
         !isTvDevice && !notificationPending && route in setOf(
-            "home", "movies", "series", "anime", "search", "favorites", "downloads", "history", "settings"
+            "home", "movies", "series", "anime", "search", "favorites", "downloads", "history",
+            SettingsRoutes.SETTINGS, SettingsRoutes.COINS
         )
 
     fun isAdFree(untilMs: Long, nowMs: Long): Boolean = untilMs > 0L && nowMs < untilMs
@@ -58,8 +60,8 @@ internal object AdsRules {
     /** Only non-playing, non-Kids destinations may preload rewarded creatives. */
     fun canPreloadRewards(isTv: Boolean, isKidsDetail: Boolean, route: String): Boolean =
         !isTv && !isKidsDetail && route in setOf(
-            "home", "movies", "series", "anime", "favorites", "search", "downloads", "history", "settings",
-            "channel/{id}", "media/{id}?kids={kids}",
+            "home", "movies", "series", "anime", "favorites", "search", "downloads", "history",
+            SettingsRoutes.SETTINGS, SettingsRoutes.COINS, "channel/{id}", "media/{id}?kids={kids}",
         )
 
     /** A missing/blocked ad is always a direct path to playback, never a reason to wait. */

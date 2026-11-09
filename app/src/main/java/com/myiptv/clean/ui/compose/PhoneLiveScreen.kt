@@ -1,6 +1,7 @@
 package com.myiptv.clean.ui.compose
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -53,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -242,9 +244,14 @@ internal fun PhoneLiveScreen(
         }
     }
 
+    val orientation = LocalConfiguration.current.orientation
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // On short landscape windows reserve room for the list instead of making the preview huge.
-        val previewHeight = (maxWidth * (9f / 16f)).coerceAtMost((maxHeight * 0.42f).coerceAtLeast(88.dp))
+        val portrait = when (orientation) {
+            Configuration.ORIENTATION_PORTRAIT -> true
+            Configuration.ORIENTATION_LANDSCAPE -> false
+            else -> maxHeight >= maxWidth
+        }
+        val previewHeight = phoneLivePreviewHeightDp(maxWidth.value, maxHeight.value, portrait, searchOpen).dp
         Column(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier.fillMaxWidth()

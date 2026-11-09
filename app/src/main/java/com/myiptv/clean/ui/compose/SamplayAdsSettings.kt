@@ -94,9 +94,31 @@ internal fun AdAudienceDialog(ads: AdsController, canPrompt: Boolean) {
     )
 }
 
-/** Local balance, voluntary rewards, passes and UMP privacy options for phones/tablets. */
+/** Keep advertising privacy in the main settings page, independent of the coin wallet. */
 @Composable
-internal fun AdPrivacyAndRewardsSettings(isTv: Boolean) {
+internal fun AdPrivacySettings() {
+    val context = LocalContext.current
+    val activity = context.adActivity() ?: return
+    if (context.isTelevisionDevice()) return
+    val ads = (context.applicationContext as CleanIPTVApp).ads
+    var message by remember { mutableStateOf("") }
+    if (ads.privacyOptionsRequired && ads.audience == AdAudience.ADULT) {
+        TvInfoPanel {
+            Text("Privacidad de anuncios", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)
+            Text("Puedes revisar tus opciones de privacidad para los anuncios.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
+            TvActionButton("Opciones de privacidad", onClick = {
+                ads.showPrivacyOptions(activity) { success ->
+                    message = if (success) "Opciones actualizadas." else "No se pudieron abrir las opciones de privacidad."
+                }
+            })
+            if (message.isNotBlank()) Text(message, color = TvMuted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/** Local balance, voluntary rewards and passes, shown only on the coins subpage. */
+@Composable
+internal fun SamplayCoinSettings() {
     val context = LocalContext.current
     val activity = context.adActivity() ?: return
     if (context.isTelevisionDevice()) return // A wide phone layout is not an Android TV device.
@@ -107,18 +129,6 @@ internal fun AdPrivacyAndRewardsSettings(isTv: Boolean) {
     var message by remember { mutableStateOf("") }
     var rewardDialog by remember { mutableStateOf<RewardFormat?>(null) }
     var passDialog by remember { mutableStateOf<PassChoice?>(null) }
-
-    if (ads.privacyOptionsRequired && ads.audience == AdAudience.ADULT) {
-        TvInfoPanel {
-            Text("Privacidad de anuncios", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)
-            Text("Puedes revisar tus opciones de privacidad para los anuncios.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
-            TvActionButton("Opciones de privacidad", onClick = {
-                ads.showPrivacyOptions(activity) { success ->
-                    message = if (success) "Opciones actualizadas." else "No se pudieron abrir las opciones de privacidad."
-                }
-            })
-        }
-    }
 
     TvInfoPanel {
         Text("Monedas SamPlay: ${wallet.balance}", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)

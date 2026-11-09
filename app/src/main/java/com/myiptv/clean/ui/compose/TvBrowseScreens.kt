@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
@@ -271,7 +272,7 @@ internal fun TvLibraryScreen(downloads: Boolean, isTv: Boolean) {
 }
 
 @Composable
-internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean) {
+internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean, onOpenCoins: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val syncStatus by MediaPlaylistRepository.syncStatus.collectAsState()
@@ -282,6 +283,13 @@ internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean) {
             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (!context.isTelevisionDevice()) {
+                TvInfoPanel {
+                    TvSectionLabel("Monedas SamPlay")
+                    Text("Consulta tu saldo, recompensas y canjes en su propia pantalla.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
+                    TvActionButton("Abrir Monedas SamPlay", onClick = onOpenCoins, icon = Icons.Filled.ArrowForward)
+                }
+            }
             TvInfoPanel {
                 TvSectionLabel("Fuentes")
                 TvSourceRow(Icons.Filled.Key, "Metadatos TMDb", if (TmdbRepository.isConfigured) "Hay una API Key local configurada." else "Falta la API Key local. Añádela en local.properties o en TMDB_API_KEY.")
@@ -304,7 +312,7 @@ internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean) {
                 TvSectionLabel("Actualizaciones de SamPlay")
                 AppUpdateSettings()
             }
-            AdPrivacyAndRewardsSettings(isTv)
+            AdPrivacySettings()
             TvInfoPanel {
                 TvSectionLabel("Privacidad y atribución")
                 Text("La clave TMDb se lee desde local.properties o la variable de entorno TMDB_API_KEY; no está incluida en Git.", color = TvMuted, style = MaterialTheme.typography.bodySmall)

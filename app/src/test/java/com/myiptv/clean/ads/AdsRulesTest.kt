@@ -42,13 +42,13 @@ class AdsRulesTest {
             assertFalse(AdsRules.canPlaceBanner(true, false, route))
             assertFalse(AdsRules.canPlaceBanner(false, true, route))
         }
-        listOf("home", "channels", "kids", "anime", "settings", "player/{id}", "media/{id}", "channel/{id}").forEach {
+        listOf("home", "channels", "kids", "anime", "settings", "settings/coins", "player/{id}", "media/{id}", "channel/{id}").forEach {
             assertFalse(AdsRules.canPlaceBanner(false, false, it))
         }
         assertTrue(AdsRules.canPlaceNativeOnHome(false, false))
         assertFalse(AdsRules.canPlaceNativeOnHome(true, false))
         assertFalse(AdsRules.canPlaceNativeOnHome(false, true))
-        listOf("home", "movies", "series", "anime", "search", "favorites", "downloads", "history", "settings").forEach {
+        listOf("home", "movies", "series", "anime", "search", "favorites", "downloads", "history", "settings", "settings/coins").forEach {
             assertTrue(AdsRules.canPresentConsent(false, it, false))
             assertFalse(AdsRules.canPresentConsent(true, it, false))
             assertFalse(AdsRules.canPresentConsent(false, it, true))
@@ -70,7 +70,7 @@ class AdsRulesTest {
     }
 
     @Test fun rewardPreloadsAreBlockedOnTvKidsLiveAndPlayback() {
-        val safe = listOf("home", "movies", "series", "anime", "favorites", "search", "downloads", "history", "settings", "channel/{id}", "media/{id}?kids={kids}")
+        val safe = listOf("home", "movies", "series", "anime", "favorites", "search", "downloads", "history", "settings", "settings/coins", "channel/{id}", "media/{id}?kids={kids}")
         safe.forEach { route ->
             assertTrue(AdsRules.canPreloadRewards(false, false, route))
             assertFalse(AdsRules.canPreloadRewards(true, false, route))

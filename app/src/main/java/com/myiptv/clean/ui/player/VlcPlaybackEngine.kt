@@ -12,7 +12,8 @@ internal class VlcPlaybackEngine(
     context: Context,
     private val sourceUrl: String,
     private val userAgent: String?,
-    private val referrer: String?
+    private val referrer: String?,
+    private val useVideoLayoutBounds: Boolean = false
 ) : PlaybackEngine {
     private val libVlc = run {
         // LibVLC 3.x calls System.exit if loading a native library fails. Preflight the same
@@ -59,6 +60,11 @@ internal class VlcPlaybackEngine(
     }
 
     override fun attach() {
+        if (useVideoLayoutBounds) {
+            // In a portrait phone, the preview itself is landscape. Without this LibVLC
+            // uses the phone orientation, swaps the surface dimensions and shrinks video.
+            player.setUseOrientationFromBounds(true)
+        }
         player.attachViews(checkNotNull(videoLayout), null, true, false)
     }
 

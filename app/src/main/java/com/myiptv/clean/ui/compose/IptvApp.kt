@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Theaters
@@ -94,6 +93,7 @@ import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.data.repository.TmdbRepository
 import com.myiptv.clean.data.repository.loadPlaylistMetadata
 import com.myiptv.clean.notifications.CatalogNotificationTarget
+import com.myiptv.clean.navigation.SettingsRoutes
 import com.myiptv.clean.update.AppUpdateManager
 import com.myiptv.clean.update.AppUpdateSyncScheduler
 import kotlinx.coroutines.awaitCancellation
@@ -115,7 +115,8 @@ private object IptvRoute {
     const val SEARCH = "search"
     const val DOWNLOADS = "downloads"
     const val HISTORY = "history"
-    const val SETTINGS = "settings"
+    const val SETTINGS = SettingsRoutes.SETTINGS
+    const val SETTINGS_COINS = SettingsRoutes.COINS
     const val CHANNEL_DETAIL = "channel/{id}"
     const val MEDIA_DETAIL = "media/{id}?kids={kids}"
     const val PLAYER = "player/{id}"
@@ -515,7 +516,14 @@ private fun IptvNavigationGraph(
                 HistoryScreen(currentIsTv.value)
             }
             composable(IptvRoute.SETTINGS) {
-                SettingsScreen(currentIsTv.value, currentPlaylist.value)
+                SettingsScreen(
+                    isTv = currentIsTv.value,
+                    playlist = currentPlaylist.value,
+                    onOpenCoins = { navController.navigate(IptvRoute.SETTINGS_COINS) { launchSingleTop = true } }
+                )
+            }
+            composable(IptvRoute.SETTINGS_COINS) {
+                SamplayCoinsScreen(isTv = currentIsTv.value, onBack = { navController.popBackStack() })
             }
             composable(
                 route = IptvRoute.CHANNEL_DETAIL,
@@ -692,6 +700,7 @@ private fun FocusableHeaderAction(icon: ImageVector, description: String, onClic
 @Composable
 private fun TvSidebar(currentRoute: String, compact: Boolean, onNavigate: (String) -> Unit) {
     val initialFocus = remember { FocusRequester() }
+    val selectedRoute = SettingsRoutes.topLevel(currentRoute)
     Column(
         modifier = Modifier
             .width(if (compact) 136.dp else 180.dp)
@@ -707,9 +716,9 @@ private fun TvSidebar(currentRoute: String, compact: Boolean, onNavigate: (Strin
             sidebarDestinations.forEach { destination ->
                 SidebarItem(
                     destination = destination,
-                    selected = currentRoute == destination.route,
+                    selected = selectedRoute == destination.route,
                     onClick = { onNavigate(destination.route) },
-                    modifier = if (currentRoute == destination.route) Modifier.focusRequester(initialFocus) else Modifier
+                    modifier = if (selectedRoute == destination.route) Modifier.focusRequester(initialFocus) else Modifier
                 )
             }
         }
@@ -753,10 +762,7 @@ private fun SidebarItem(destination: AppDestination, selected: Boolean, onClick:
 
 @Composable
 private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
-    if (currentRoute == IptvRoute.CHANNELS) {
-        PhoneLiveBottomBar(onNavigate)
-        return
-    }
+    val selectedRoute = SettingsRoutes.topLevel(currentRoute)
     val destinations = listOf(
         AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
         AppDestination(IptvRoute.CHANNELS, "En vivo", Icons.Filled.LiveTv),
@@ -770,12 +776,13 @@ private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         destinations.forEach { destination ->
-            val selected = currentRoute == destination.route
+            val selected = selectedRoute == destination.route
             var focused by remember { androidx.compose.runtime.mutableStateOf(false) }
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .semantics { this.selected = selected }
                     .onFocusChanged { focused = it.isFocused }
                     .clip(RoundedCornerShape(14.dp))
                     .background(if (selected || focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent)
@@ -787,33 +794,6 @@ private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
                 Icon(destination.icon, contentDescription = destination.label, tint = if (selected || focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
                 Spacer(Modifier.height(3.dp))
                 Text(destination.label, color = if (selected || focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PhoneLiveBottomBar(onNavigate: (String) -> Unit) {
-    val destinations = listOf(
-        AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
-        AppDestination(IptvRoute.CHANNELS, "Canales", Icons.Filled.LiveTv),
-        AppDestination(IptvRoute.SETTINGS, "Ajustes", Icons.Filled.PersonOutline)
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth().height(58.dp).background(Color(0xFF101012)),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        destinations.forEach { destination ->
-            val active = destination.route == IptvRoute.CHANNELS
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight()
-                    .semantics { selected = active }
-                    .clickable { onNavigate(destination.route) },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(destination.icon, contentDescription = destination.label,
-                    tint = if (active) PhoneChannelAccent else Color.White.copy(alpha = 0.5f),
-                    modifier = Modifier.size(25.dp))
             }
         }
     }

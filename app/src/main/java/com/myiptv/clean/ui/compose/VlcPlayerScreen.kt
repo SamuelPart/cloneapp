@@ -127,6 +127,7 @@ internal fun VlcPlayerScreen(
     val previousPreview = remember { mutableStateOf(tvPreview) }
     val screenFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
+    val useVideoLayoutBounds = usePhoneLiveVideoBounds(isTv, phoneLiveActions != null)
 
     fun showControls() {
         controlsVisible = true
@@ -158,12 +159,12 @@ internal fun VlcPlayerScreen(
         showControls()
     }
 
-    DisposableEffect(sourceUrl, userAgent, referrer, lifecycleOwner, generation, playbackKey) {
+    DisposableEffect(sourceUrl, userAgent, referrer, lifecycleOwner, generation, playbackKey, useVideoLayoutBounds) {
         var engine: VlcPlaybackEngine? = null
         var controller: PlaybackController? = null
         var observer: LifecycleEventObserver? = null
         try {
-            val newEngine = VlcPlaybackEngine(context, sourceUrl, userAgent, referrer)
+            val newEngine = VlcPlaybackEngine(context, sourceUrl, userAgent, referrer, useVideoLayoutBounds)
             engine = newEngine
             // Keep the callback associated with this exact channel/attempt; stale VLC events must
             // never mark the next channel as failed after a rapid manual change.
