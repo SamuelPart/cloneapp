@@ -46,10 +46,10 @@ import com.myiptv.clean.R
 
 /** Top-edge banner with a fixed, non-clickable buffer above the app's controls. */
 @Composable
-internal fun SamplayBanner(ads: AdsController) {
+internal fun SamplayBanner(ads: AdsController, section: AdSection) {
     // Reserve the slot before the network responds, preventing delayed ad loads from
     // shifting buttons under the user's finger. It never exists for minors or ad-free time.
-    if (ads.audience != AdAudience.ADULT || ads.isAdFree) return
+    if (ads.audience != AdAudience.ADULT || ads.isAdFree || ads.isSectionAdFree(section)) return
     val context = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val width = maxWidth.value.toInt()
@@ -113,7 +113,7 @@ private fun BannerAdView(ads: AdsController, adSize: AdSize, width: Int) {
 /** A visibly labelled native ad in the home feed. No ad occupies space when loading fails. */
 @Composable
 internal fun SamplayNativeAd(ads: AdsController) {
-    if (!ads.canShowAds) return
+    if (!ads.canShowAdsIn(AdSection.HOME)) return
     val context = LocalContext.current
     var nativeAd by remember(context) { mutableStateOf<NativeAd?>(null) }
     var loading by remember(context) { mutableStateOf(true) }
@@ -122,7 +122,7 @@ internal fun SamplayNativeAd(ads: AdsController) {
         try {
             val loader = AdLoader.Builder(context, AdUnits.native)
                 .forNativeAd { ad ->
-                    if (disposed || !ads.canShowAds) ad.destroy()
+                    if (disposed || !ads.canShowAdsIn(AdSection.HOME)) ad.destroy()
                     else {
                         loading = false
                         nativeAd?.destroy()

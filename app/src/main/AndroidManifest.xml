@@ -24,7 +24,7 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.CleanIPTV">
 
-        <!-- Required by Google Mobile Ads; ad units are selected by build type in code. -->
+        <!-- Required by Google Mobile Ads; the same production units are used in both build types. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-8124327134735952~1021355393" />

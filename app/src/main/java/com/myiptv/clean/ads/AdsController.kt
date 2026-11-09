@@ -24,6 +24,7 @@ import com.google.android.ump.ConsentForm
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
+import com.myiptv.clean.CleanIPTVApp
 import com.myiptv.clean.ui.compose.isTelevisionDevice
 import java.lang.ref.WeakReference
 
@@ -35,6 +36,7 @@ internal class AdsController(private val app: Application) {
     private val prefs = app.getSharedPreferences("samplay_ads", Context.MODE_PRIVATE)
     private val main = Handler(Looper.getMainLooper())
     private val isTv = app.isTelevisionDevice()
+    private val coins get() = (app as CleanIPTVApp).coins
     private val consent by lazy { UserMessagingPlatform.getConsentInformation(app) }
     private var resumedActivity: WeakReference<Activity>? = null
     private var resumedOnWelcome = false
@@ -83,11 +85,20 @@ internal class AdsController(private val app: Application) {
             audience = audience,
             consentAllowsRequests = consentAllowsRequests && !consentUiActive,
             sdkReady = sdkReady,
-            adFreeUntilMs = adFreeUntilMs,
+            // Preserve the old 30-minute reward until it expires when users update.
+            adFreeUntilMs = maxOf(adFreeUntilMs, coins.state.appAdFreeUntil),
             nowMs = System.currentTimeMillis(),
         )
 
-    val isAdFree: Boolean get() = AdsRules.isAdFree(adFreeUntilMs, System.currentTimeMillis())
+    val isAdFree: Boolean get() = AdsRules.isAdFree(adFreeUntilMs, System.currentTimeMillis()) || coins.isAppAdFree()
+
+    fun isSectionAdFree(section: AdSection): Boolean = coins.isSectionAdFree(section)
+    fun canShowAdsIn(section: AdSection): Boolean = canShowAds && !isSectionAdFree(section)
+
+    /** Drop cached creatives after a purchase; they must not appear under a new pass. */
+    fun onPassPurchased() {
+        invalidatePreloadedAds()
+    }
 
     /** Called on the first resume of a launcher/notification start and subsequent resumes. */
     fun onActivityResumed(activity: Activity, newLaunch: Boolean = false, isWelcome: Boolean = false) {
@@ -324,7 +335,7 @@ internal class AdsController(private val app: Application) {
     private fun loadAppOpenIfAppropriate() {
         // Never spend bandwidth preloading an app-open ad during browsing or playback.
         val now = System.currentTimeMillis()
-        if (!resumedOnWelcome || !canShowAds || fullscreenShowing || openLoading || openAd != null ||
+        if (!resumedOnWelcome || !canShowAdsIn(AdSection.HOME) || fullscreenShowing || openLoading || openAd != null ||
             !AdsRules.canShowAppOpen(
                 prefs.getBoolean(KEY_HAS_USED_APP, false), now, prefs.getLong(KEY_LAST_OPEN, 0L), now,
             )
@@ -336,7 +347,7 @@ internal class AdsController(private val app: Application) {
                 override fun onAdLoaded(ad: AppOpenAd) {
                     if (requestGeneration != generation) return
                     openLoading = false
-                    if (canShowAds && resumedOnWelcome) {
+                    if (canShowAdsIn(AdSection.HOME) && resumedOnWelcome) {
                         openAd = ad
                         openLoadedAt = System.currentTimeMillis()
                     }
@@ -357,7 +368,7 @@ internal class AdsController(private val app: Application) {
     fun showAppOpenOnWelcome(activity: Activity, onFinished: () -> Unit): Boolean {
         val now = System.currentTimeMillis()
         val ad = openAd ?: return false
-        if (!resumedOnWelcome || resumedActivity?.get() !== activity || !canShowAds || fullscreenShowing ||
+        if (!resumedOnWelcome || resumedActivity?.get() !== activity || !canShowAdsIn(AdSection.HOME) || fullscreenShowing ||
             activity.isFinishing || activity.isDestroyed || !AdsRules.canShowAppOpen(
                 prefs.getBoolean(KEY_HAS_USED_APP, false), openLoadedAt,
                 prefs.getLong(KEY_LAST_OPEN, 0L), now,
@@ -391,16 +402,16 @@ internal class AdsController(private val app: Application) {
         }
     }
 
-    /** Load only while the user is on the optional reward screen. No automatic fullscreen ads. */
+    /** Preload on eligible browsing/detail screens, never during playback or Kids. */
     fun loadRewards() {
         refreshAdFreeExpiry()
         if (!canShowAds || fullscreenShowing) return
         val now = System.currentTimeMillis()
-        if (rewardedAd != null && (now < rewardedLoadedAt || now - rewardedLoadedAt >= AdsRules.APP_OPEN_MAX_AGE_MS)) {
+        if (rewardedAd != null && !AdsRules.isRewardFresh(rewardedLoadedAt, now)) {
             rewardedAd = null
             rewardedAvailable = false
         }
-        if (rewardedInterstitialAd != null && (now < rewardedInterstitialLoadedAt || now - rewardedInterstitialLoadedAt >= AdsRules.APP_OPEN_MAX_AGE_MS)) {
+        if (rewardedInterstitialAd != null && !AdsRules.isRewardFresh(rewardedInterstitialLoadedAt, now)) {
             rewardedInterstitialAd = null
             rewardedInterstitialAvailable = false
         }
@@ -467,11 +478,14 @@ internal class AdsController(private val app: Application) {
         rewardsLoading = rewardedLoading || rewardedInterstitialLoading
     }
 
-    fun showRewarded(activity: Activity, interstitial: Boolean): Boolean {
-        if (!canShowAds || fullscreenShowing || activity.isFinishing || activity.isDestroyed) return false
-        val now = System.currentTimeMillis()
-        val loadedAt = if (interstitial) rewardedInterstitialLoadedAt else rewardedLoadedAt
-        if (loadedAt <= 0L || now < loadedAt || now - loadedAt >= AdsRules.APP_OPEN_MAX_AGE_MS) {
+    fun hasFreshReward(interstitial: Boolean, nowMs: Long = System.currentTimeMillis()): Boolean =
+        if (interstitial) rewardedInterstitialAd != null && AdsRules.isRewardFresh(rewardedInterstitialLoadedAt, nowMs)
+        else rewardedAd != null && AdsRules.isRewardFresh(rewardedLoadedAt, nowMs)
+
+    /** Only explicit user consent calls this; the SDK's reward callback is the sole credit source. */
+    fun showRewarded(activity: Activity, interstitial: Boolean, onFinished: () -> Unit): Boolean {
+        if (!canShowAds || fullscreenShowing || resumedActivity?.get() !== activity || activity.isFinishing || activity.isDestroyed) return false
+        if (!hasFreshReward(interstitial)) {
             loadRewards()
             return false
         }
@@ -486,46 +500,46 @@ internal class AdsController(private val app: Application) {
             rewardedAvailable = false
         }
         fullscreenShowing = true
-        var earned = false
-        val callback = object : FullScreenContentCallback() {
-            override fun onAdDismissedFullScreenContent() {
+        val rewardGate = RewardCallbackGate()
+        var finished = false
+        fun finishOnce() {
+            if (!finished) {
+                finished = true
                 fullscreenShowing = false
-                // Do not start another full-screen ad or affect playback.
+                onFinished()
             }
+        }
+        fun creditOnce() {
+            // Some mediated networks may deliver this callback after dismissal.
+            rewardGate.onEarned { coins.creditCompletedAd() }
+        }
+        val callback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() = finishOnce()
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                fullscreenShowing = false
+                rewardGate.onFailedToShow()
                 Log.d(TAG, "Reward ad could not be shown: ${error.code}")
+                finishOnce()
             }
         }
         return try {
             if (interstitialAd != null) {
                 interstitialAd.fullScreenContentCallback = callback
-                interstitialAd.show(activity) {
-                    if (!earned) { earned = true; grantReward() }
-                }
+                interstitialAd.show(activity) { creditOnce() }
             } else {
                 standardAd!!.fullScreenContentCallback = callback
-                standardAd.show(activity) {
-                    if (!earned) { earned = true; grantReward() }
-                }
+                standardAd.show(activity) { creditOnce() }
             }
             true
         } catch (error: RuntimeException) {
+            rewardGate.onFailedToShow()
             fullscreenShowing = false
             Log.w(TAG, "Reward ad could not be shown", error)
             false
         }
     }
 
-    private fun grantReward() {
-        // The SDK calls this only after a completed, eligible rewarded impression.
-        adFreeUntilMs = AdsRules.rewardExpiry(System.currentTimeMillis())
-        prefs.edit().putLong(KEY_AD_FREE_UNTIL, adFreeUntilMs).apply()
-        invalidatePreloadedAds()
-    }
-
     fun refreshAdFreeExpiry() {
-        if (adFreeUntilMs > 0L && !isAdFree) {
+        if (adFreeUntilMs > 0L && !AdsRules.isAdFree(adFreeUntilMs, System.currentTimeMillis())) {
             adFreeUntilMs = 0L
             prefs.edit().remove(KEY_AD_FREE_UNTIL).apply()
             loadAppOpenIfAppropriate()

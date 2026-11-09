@@ -7,9 +7,9 @@ import java.util.GregorianCalendar
 internal enum class AdAudience { UNKNOWN, ADULT, UNDER_AGE }
 
 internal object AdsRules {
-    const val REWARD_DURATION_MS = 30 * 60 * 1000L
     const val APP_OPEN_COOLDOWN_MS = 60 * 60 * 1000L
     const val APP_OPEN_MAX_AGE_MS = 4 * 60 * 60 * 1000L
+    const val REWARDED_MAX_AGE_MS = 60 * 60 * 1000L
 
     /** Returns null for malformed or future dates; all three fields start out blank. */
     fun audienceForBirthDate(day: Int, month: Int, year: Int, today: Calendar): AdAudience? {
@@ -55,10 +55,20 @@ internal object AdsRules {
 
     fun isAdFree(untilMs: Long, nowMs: Long): Boolean = untilMs > 0L && nowMs < untilMs
 
-    /** Reward from one completed ad is exactly 30 minutes; never grant it when an ad is skipped. */
-    fun rewardExpiry(nowMs: Long): Long = if (nowMs > Long.MAX_VALUE - REWARD_DURATION_MS) {
-        Long.MAX_VALUE
-    } else nowMs + REWARD_DURATION_MS
+    /** Only non-playing, non-Kids destinations may preload rewarded creatives. */
+    fun canPreloadRewards(isTv: Boolean, isKidsDetail: Boolean, route: String): Boolean =
+        !isTv && !isKidsDetail && route in setOf(
+            "home", "movies", "series", "anime", "favorites", "search", "downloads", "history", "settings",
+            "channel/{id}", "media/{id}?kids={kids}",
+        )
+
+    /** A missing/blocked ad is always a direct path to playback, never a reason to wait. */
+    fun canOfferReward(isTv: Boolean, isKids: Boolean, hasActivity: Boolean, hasPass: Boolean, canShowAds: Boolean, hasFreshAd: Boolean): Boolean =
+        !isTv && !isKids && hasActivity && !hasPass && canShowAds && hasFreshAd
+
+    /** Both rewarded formats expire after one hour; app-open has a separate four-hour limit. */
+    fun isRewardFresh(loadedAtMs: Long, nowMs: Long): Boolean =
+        loadedAtMs > 0L && nowMs >= loadedAtMs && nowMs - loadedAtMs < REWARDED_MAX_AGE_MS
 
     fun canShowAppOpen(hasUsedApp: Boolean, loadedAtMs: Long, lastShownAtMs: Long, nowMs: Long): Boolean {
         if (!hasUsedApp || loadedAtMs <= 0L || nowMs < loadedAtMs || nowMs - loadedAtMs >= APP_OPEN_MAX_AGE_MS) return false

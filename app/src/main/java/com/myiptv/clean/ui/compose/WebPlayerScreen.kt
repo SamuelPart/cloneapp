@@ -132,6 +132,12 @@ internal fun WebPlayerScreen(sourceUrl: String, title: String, isTv: Boolean, fu
         return
     }
 
+    PlaybackCoinTimer(
+        active = inForeground && !loading && error == null && state.controllable && state.isPlaying && !state.ended,
+        isTv = isTv,
+        webPositionMs = state.timeMs,
+    )
+
     fun showControls() {
         controlsVisible = true
         interaction++

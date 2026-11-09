@@ -73,6 +73,7 @@ class IptvActivity : AppCompatActivity() {
         super.onResume()
         val directLaunch = intent?.getBooleanExtra(EXTRA_FROM_WELCOME, false) != true
         ads.onActivityResumed(this, newLaunch = firstResume && directLaunch)
+        if (!isTelevisionDevice()) (application as CleanIPTVApp).coins.recordOpen()
         firstResume = false
     }
 

@@ -102,7 +102,7 @@ fun MediaDetailScreen(
     playlist: MediaPlaylist,
     onBack: () -> Unit,
     onOpenMedia: (String) -> Unit,
-    onPlay: (String) -> Unit,
+    onPlay: (String, MediaKind, Boolean) -> Unit,
     isFavorite: (String) -> Boolean,
     onToggleFavorite: (String) -> Unit
 ) {
@@ -223,7 +223,7 @@ fun MediaDetailScreen(
             hasPlayback = hasPlayback,
             favorite = isFavorite(item.id),
             onBack = onBack,
-            onPlay = { onPlay(item.id) },
+            onPlay = { onPlay(item.id, item.kind, com.myiptv.clean.ads.isKidsGenre(item.genres)) },
             onToggleFavorite = { onToggleFavorite(item.id) }
         )
 
@@ -272,7 +272,7 @@ fun MediaDetailScreen(
                             TvEpisodeRow(
                                 episode = episode,
                                 hasSource = resolvePlaybackSource(playlist.source(sourceId), legacySource?.let { PlaylistSource(it.url, it.type) }) != null,
-                                onPlay = { onPlay(sourceId) }
+                                onPlay = { onPlay(sourceId, item.kind, com.myiptv.clean.ads.isKidsGenre(item.genres)) }
                             )
                         }
                         Text(episodeNotice, color = TvMuted, style = MaterialTheme.typography.labelSmall)

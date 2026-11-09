@@ -176,6 +176,11 @@ internal fun VlcPlayerScreen(
         }
     }
 
+    PlaybackCoinTimer(
+        active = binding != null && state.isPlaying && !state.isBuffering && !state.ended && state.error == null,
+        isTv = isTv,
+    )
+
     DisposableEffect(view, state.isPlaying) {
         val previous = view.keepScreenOn
         view.keepScreenOn = state.isPlaying

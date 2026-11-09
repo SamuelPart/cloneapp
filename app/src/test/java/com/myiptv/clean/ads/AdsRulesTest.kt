@@ -58,12 +58,10 @@ class AdsRulesTest {
         }
     }
 
-    @Test fun adUnitsAreSeparatedBetweenDebugAndRelease() {
+    @Test fun productionUnitsAreUsedForBothBuilds() {
         val debug = adUnitsForBuild(true)
         val release = adUnitsForBuild(false)
-        listOf(debug.banner, debug.appOpen, debug.rewardedInterstitial, debug.native, debug.rewarded).forEach {
-            assertTrue(it.startsWith("ca-app-pub-3940256099942544/"))
-        }
+        assertEquals(release, debug)
         assertEquals("ca-app-pub-8124327134735952/9929993078", release.banner)
         assertEquals("ca-app-pub-8124327134735952/3632003026", release.appOpen)
         assertEquals("ca-app-pub-8124327134735952/1706733175", release.rewardedInterstitial)
@@ -71,12 +69,35 @@ class AdsRulesTest {
         assertEquals("ca-app-pub-8124327134735952/5286885530", release.rewarded)
     }
 
-    @Test fun rewardExpiresAfterThirtyMinutesAndCannotOverflow() {
-        val expiry = AdsRules.rewardExpiry(10_000)
-        assertEquals(1_810_000, expiry)
-        assertTrue(AdsRules.isAdFree(expiry, expiry - 1))
-        assertFalse(AdsRules.isAdFree(expiry, expiry))
-        assertEquals(Long.MAX_VALUE, AdsRules.rewardExpiry(Long.MAX_VALUE - 1))
+    @Test fun rewardPreloadsAreBlockedOnTvKidsLiveAndPlayback() {
+        val safe = listOf("home", "movies", "series", "anime", "favorites", "search", "downloads", "history", "settings", "channel/{id}", "media/{id}?kids={kids}")
+        safe.forEach { route ->
+            assertTrue(AdsRules.canPreloadRewards(false, false, route))
+            assertFalse(AdsRules.canPreloadRewards(true, false, route))
+            assertFalse(AdsRules.canPreloadRewards(false, true, route))
+        }
+        listOf("kids", "channels", "player/{id}", "future-player").forEach {
+            assertFalse(AdsRules.canPreloadRewards(false, false, it))
+        }
+    }
+
+    @Test fun offerOnlyWhenMobileAdultContentHasAnAvailableAdAndNoPass() {
+        assertTrue(AdsRules.canOfferReward(false, false, true, false, true, true))
+        assertFalse(AdsRules.canOfferReward(true, false, true, false, true, true))
+        assertFalse(AdsRules.canOfferReward(false, true, true, false, true, true))
+        assertFalse(AdsRules.canOfferReward(false, false, false, false, true, true))
+        assertFalse(AdsRules.canOfferReward(false, false, true, true, true, true))
+        assertFalse(AdsRules.canOfferReward(false, false, true, false, false, true))
+        assertFalse(AdsRules.canOfferReward(false, false, true, false, true, false))
+    }
+
+    @Test fun rewardedFormatsExpireAfterOneHour() {
+        val loaded = 10_000L
+        assertFalse(AdsRules.isRewardFresh(0, loaded))
+        assertFalse(AdsRules.isRewardFresh(loaded, loaded - 1))
+        assertTrue(AdsRules.isRewardFresh(loaded, loaded + AdsRules.REWARDED_MAX_AGE_MS - 1))
+        assertFalse(AdsRules.isRewardFresh(loaded, loaded + AdsRules.REWARDED_MAX_AGE_MS))
+        assertEquals(4 * 60 * 60 * 1000L, AdsRules.APP_OPEN_MAX_AGE_MS)
     }
 
     @Test fun appOpenRequiresPreviousUseFreshAdAndCooldown() {

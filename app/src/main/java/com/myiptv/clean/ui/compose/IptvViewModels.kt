@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myiptv.clean.CleanIPTVApp
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.TmdbRepository
@@ -258,15 +259,25 @@ class MoviesViewModel : ViewModel() {
 
 class FavoritesViewModel(application: Application) : AndroidViewModel(application) {
     private val favorites = FavoritesCollection(PreferencesFavoritesStore(application))
+    private val coins = if (application.isTelevisionDevice()) null else (application as CleanIPTVApp).coins
     var savedIds by mutableStateOf(favorites.savedIds)
         private set
 
+    init {
+        // Favorites already present before this update must not become "new" by re-adding them.
+        coins?.rememberFavorites(savedIds)
+    }
+
     fun toggle(id: String, playlist: MediaPlaylist) {
+        val aliases = playlist.mediaAliases(id) + playlist.canonicalMediaId(id)
+        val alreadySaved = savedIds.any { it in aliases }
         savedIds = favorites.toggle(id, playlist)
+        if (!alreadySaved && savedIds.any { it in aliases }) coins?.recordNewFavorite(aliases)
     }
 
     fun canonicalize(playlist: MediaPlaylist) {
         savedIds = favorites.canonicalize(playlist)
+        coins?.rememberFavorites(playlist.expandedMediaIds(savedIds))
     }
 }
 

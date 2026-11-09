@@ -47,7 +47,7 @@ SamPlay tiene dos variantes para conservar ambas formas de distribución:
 | `githubRelease` | APK firmado | 21 | 34 | Release de GitHub con el instalador de SamPlay descrito abajo |
 | `playRelease` | AAB firmado | 21 | 36 | Google Play; sin descargador/instalador de APK de GitHub |
 
-Ambas comparten `applicationId` (`com.myiptv.clean`), catálogo, favoritos y la mayor parte de la interfaz. La compilación usa SDK 36; el **mínimo** sigue siendo Android 5.0 (API 21), distinto del SDK de destino. La configuración actual usa `versionCode 6` y `versionName 1.2.3`; antes de publicar confirma en Play Console que el código no haya sido utilizado y auméntalo si fuera necesario. No se ha generado ni firmado automáticamente ningún AAB ni APK.
+Ambas comparten `applicationId` (`com.myiptv.clean`), catálogo, favoritos y la mayor parte de la interfaz. La compilación usa SDK 36; el **mínimo** sigue siendo Android 5.0 (API 21), distinto del SDK de destino. La configuración actual usa `versionCode 8` y `versionName 1.2.5`; antes de publicar confirma en Play Console que el código no haya sido utilizado y auméntalo si fuera necesario. No se ha generado ni firmado automáticamente ningún AAB ni APK.
 
 Para generar el AAB de Play en Android Studio:
 
