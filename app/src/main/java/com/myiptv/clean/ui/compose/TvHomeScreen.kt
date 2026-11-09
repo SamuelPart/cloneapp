@@ -186,6 +186,15 @@ fun TvHomeScreen(
                 }
             }
 
+            if (!isTv) {
+                item(key = "samplay-native-ad") {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    if (com.myiptv.clean.ads.AdsRules.canPlaceNativeOnHome(context.isTelevisionDevice(), isTv)) {
+                        com.myiptv.clean.ads.SamplayNativeAd((context.applicationContext as com.myiptv.clean.CleanIPTVApp).ads)
+                    }
+                }
+            }
+
             item(key = "continue") {
                 Column(modifier = Modifier.fillMaxWidth().padding(top = 15.dp)) {
                     TvShelfHeading("Continuar viendo")

@@ -81,6 +81,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.myiptv.clean.CleanIPTVApp
+import com.myiptv.clean.ads.SamplayBanner
+import com.myiptv.clean.ads.AdsRules
 import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.data.repository.TmdbRepository
@@ -88,6 +91,7 @@ import com.myiptv.clean.data.repository.loadPlaylistMetadata
 import com.myiptv.clean.notifications.CatalogNotificationTarget
 import com.myiptv.clean.update.AppUpdateManager
 import com.myiptv.clean.update.AppUpdateSyncScheduler
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
@@ -141,6 +145,7 @@ internal fun IptvApp(
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
+    val ads = (appContext as CleanIPTVApp).ads
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: IptvRoute.HOME
@@ -156,6 +161,31 @@ internal fun IptvApp(
     val favoritesViewModel: FavoritesViewModel = viewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
     RequestCatalogNotificationsOnce()
+    // The reward expires while the app is open even if the user never changes screens.
+    LaunchedEffect(ads.adFreeUntilMs) {
+        while (ads.isAdFree) {
+            val remaining = ads.adFreeUntilMs - System.currentTimeMillis()
+            delay(remaining.coerceIn(1L, 30_000L))
+        }
+        ads.refreshAdFreeExpiry()
+    }
+    // If a consent update finishes while video/live/Kids is active, defer its form
+    // and SDK initialization until a safe browsing screen is resumed.
+    val canPresentAdConsent = AdsRules.canPresentConsent(
+        isTvDevice = isTelevision,
+        route = currentRoute,
+        notificationPending = notificationTarget != null,
+    )
+    LaunchedEffect(ads, lifecycleOwner, canPresentAdConsent) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            ads.setContentAllowsConsentUi(canPresentAdConsent)
+            try { awaitCancellation() } finally { ads.setContentAllowsConsentUi(false) }
+        }
+    }
+    AdAudienceDialog(
+        ads = ads,
+        canPrompt = !isTelevision && currentRoute == IptvRoute.HOME && notificationTarget == null && updateRequest == null,
+    )
     val playlist by produceState(initialValue = MediaPlaylist.Loading, key1 = appContext) {
         MediaPlaylistRepository.observe(appContext).collectLatest { local ->
             value = local // Videos remain available while TMDb requests run in the background.
@@ -229,6 +259,10 @@ internal fun IptvApp(
                 )
             }
             Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                // Top-edge placement avoids sandwiching an ad between content and the menu.
+                if (AdsRules.canPlaceBanner(isTelevision, isTvLayout, currentRoute)) {
+                    SamplayBanner(ads)
+                }
                 if (showChrome) {
                     AppTopBar(
                         onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },

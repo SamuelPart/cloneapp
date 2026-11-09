@@ -304,6 +304,7 @@ internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean) {
                 TvSectionLabel("Actualizaciones de SamPlay")
                 AppUpdateSettings()
             }
+            AdPrivacyAndRewardsSettings(isTv)
             TvInfoPanel {
                 TvSectionLabel("Privacidad y atribución")
                 Text("La clave TMDb se lee desde local.properties o la variable de entorno TMDB_API_KEY; no está incluida en Git.", color = TvMuted, style = MaterialTheme.typography.bodySmall)

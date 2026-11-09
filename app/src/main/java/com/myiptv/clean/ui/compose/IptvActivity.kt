@@ -12,6 +12,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.myiptv.clean.R
+import com.myiptv.clean.CleanIPTVApp
 import com.myiptv.clean.notifications.CatalogNotificationRequests
 import com.myiptv.clean.notifications.CatalogNotificationTarget
 import com.myiptv.clean.notifications.CatalogSyncScheduler
@@ -24,10 +25,13 @@ class IptvActivity : AppCompatActivity() {
     private var notificationTarget by mutableStateOf<CatalogNotificationTarget?>(null)
     private var updateRequest by mutableStateOf<Long?>(null)
     private var updateRequestSequence = 0L
+    private val ads get() = (application as CleanIPTVApp).ads
+    private var firstResume = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         receiveIntent(intent)
+        ads.markAppUsed()
         CatalogSyncScheduler.schedule(applicationContext)
         AppUpdateSyncScheduler.schedule(applicationContext)
         val background = ContextCompat.getColor(this, R.color.background)
@@ -65,10 +69,26 @@ class IptvActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        val directLaunch = intent?.getBooleanExtra(EXTRA_FROM_WELCOME, false) != true
+        ads.onActivityResumed(this, newLaunch = firstResume && directLaunch)
+        firstResume = false
+    }
+
+    override fun onPause() {
+        ads.onActivityPaused(this)
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         receiveIntent(intent)
+    }
+
+    companion object {
+        const val EXTRA_FROM_WELCOME = "com.myiptv.clean.FROM_WELCOME"
     }
 
     private fun receiveIntent(intent: Intent?) {

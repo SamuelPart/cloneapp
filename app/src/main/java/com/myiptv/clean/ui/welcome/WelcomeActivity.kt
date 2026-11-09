@@ -49,17 +49,23 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.myiptv.clean.R
+import com.myiptv.clean.CleanIPTVApp
 import com.myiptv.clean.ui.compose.CleanIPTVTheme
 import com.myiptv.clean.ui.compose.IptvActivity
 import com.myiptv.clean.ui.compose.TvBrandLogo
 import com.myiptv.clean.ui.compose.isTelevisionDevice
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class WelcomeActivity : AppCompatActivity() {
     private var isTelevision = false
     private val navigationGate = WelcomeNavigationGate()
+    private val ads get() = (application as CleanIPTVApp).ads
+    private var firstResume = true
+    private var pendingAfterAd = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,16 +83,35 @@ class WelcomeActivity : AppCompatActivity() {
         }
         setContent {
             CleanIPTVTheme {
-                WelcomeScreen(onContinue = ::openContent)
+                WelcomeScreen(
+                    onContinue = { openContent(allowAppOpen = false) },
+                    onTimeout = { openContent(allowAppOpen = true) },
+                )
             }
         }
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                if (pendingAfterAd) navigateWhenResumed()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ads.onActivityResumed(this, newLaunch = firstResume, isWelcome = true)
+        firstResume = false
+    }
+
+    override fun onPause() {
+        ads.onActivityPaused(this)
+        super.onPause()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean = when (
         welcomeKeyResult(isTelevision, event.keyCode, event.action, event.isCanceled)
     ) {
         WelcomeKeyResult.OPEN_CONTENT -> {
-            openContent()
+            openContent(allowAppOpen = false)
             true
         }
         WelcomeKeyResult.CONSUME -> true
@@ -94,20 +119,37 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     /** The timer and a tap/remote OK can finish together; open the content only once. */
-    private fun openContent() {
-        if (isFinishing || isDestroyed || !navigationGate.tryOpen()) return
-        startActivity(Intent(this, IptvActivity::class.java))
+    private fun openContent(allowAppOpen: Boolean) {
+        if (isFinishing || isDestroyed || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
+            !navigationGate.tryOpen()
+        ) return
+        // A tap/OK must enter immediately; only the automatic splash timeout may show
+        // an already-loaded ad. Never wait for a download or show it on Android TV.
+        if (!allowAppOpen || isTelevision || !ads.showAppOpenOnWelcome(this, ::navigateWhenResumed)) {
+            navigateWhenResumed()
+        }
+    }
+
+    private fun navigateWhenResumed() {
+        if (isFinishing || isDestroyed) return
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            pendingAfterAd = true
+            return
+        }
+        pendingAfterAd = false
+        startActivity(Intent(this, IptvActivity::class.java).putExtra(IptvActivity.EXTRA_FROM_WELCOME, true))
         finish()
     }
+
 }
 
 @Composable
-private fun WelcomeScreen(onContinue: () -> Unit) {
+private fun WelcomeScreen(onContinue: () -> Unit, onTimeout: () -> Unit) {
     val context = LocalContext.current
     val uiMode = LocalConfiguration.current.uiMode
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val currentOnContinue by rememberUpdatedState(onContinue)
+    val currentOnTimeout by rememberUpdatedState(onTimeout)
     var savedElapsedMs by rememberSaveable { mutableLongStateOf(0L) }
     val clock = remember { LionVisibleClock(savedElapsedMs) }
     var expression by remember { mutableStateOf(LionWelcomeTimeline.expressionAt(savedElapsedMs)) }
@@ -120,7 +162,7 @@ private fun WelcomeScreen(onContinue: () -> Unit) {
                 while (true) {
                     val elapsed = clock.elapsedAt(SystemClock.elapsedRealtime())
                     if (LionWelcomeTimeline.isFinished(elapsed)) {
-                        currentOnContinue()
+                        currentOnTimeout()
                         break
                     }
                     expression = LionWelcomeTimeline.expressionAt(elapsed)

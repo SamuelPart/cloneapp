@@ -20,8 +20,8 @@ android {
         applicationId 'com.myiptv.clean'
         minSdk 21
         targetSdk 34
-        versionCode 6
-        versionName '1.2.3'
+        versionCode 7
+        versionName '1.2.4'
         buildConfigField 'String', 'TMDB_API_KEY', '"' + tmdbApiKey + '"'
     }
 
@@ -81,6 +81,12 @@ dependencies {
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
     implementation 'com.google.code.gson:gson:2.10.1'
+
+    // Last Google Mobile Ads release compatible with Android 5.0 (API 21).
+    // Google deprecated 23.x and plans to sunset it on 2027-06-30; plan its replacement.
+    implementation 'com.google.android.gms:play-services-ads:23.6.0'
+    // UMP 3.x still supports API 21. Collect privacy choices before initializing ads.
+    implementation 'com.google.android.ump:user-messaging-platform:3.2.0'
 
     // VLC's native engine handles direct channels and videos on phones and Android TV.
     implementation 'org.videolan.android:libvlc-all:3.6.4'

@@ -19,4 +19,5 @@
     <string name="play">Reproducir</string>
     <string name="add_favorite">Agregar a favoritos</string>
     <string name="remove_favorite">Eliminar de favoritos</string>
+    <string name="ad_attribution">Anuncio</string>
 </resources>

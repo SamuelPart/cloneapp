@@ -24,6 +24,15 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.CleanIPTV">
 
+        <!-- Required by Google Mobile Ads; ad units are selected by build type in code. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8124327134735952~1021355393" />
+        <!-- Avoid early measurement before the app has resolved privacy choices. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+            android:value="true" />
+
         <activity
             android:name=".ui.welcome.WelcomeActivity"
             android:exported="true"
