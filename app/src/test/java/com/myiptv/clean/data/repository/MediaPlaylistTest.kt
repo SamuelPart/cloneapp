@@ -237,6 +237,35 @@ class MediaPlaylistTest {
     }
 
     @Test
+    fun distinctMediaIdsKeepSameTitleAndTmdbMatchAsSeparateSources() {
+        val text = """
+            #EXTM3U
+            #EXTINF:-1 group-title="Peliculas" tmdb-match-id="42" media-id="opcion-1",Mismo título (1998)
+            https://media.example/first.mp4
+            #EXTINF:-1 group-title="Peliculas" tmdb-match-id="42" media-id="opcion-2",Mismo título (1998)
+            https://media.example/second.mp4
+            #EXTINF:-1 group-title="Peliculas" tmdb-match-id="42" media-id="opcion-3",Mismo título (1998)
+            https://media.example/third.mp4
+        """.trimIndent()
+        val catalog = parseRemoteCatalog(text) ?: error("El catálogo debe ser válido")
+        val ids = catalog.items.map { it.id }
+        val urls = listOf(
+            "https://media.example/first.mp4",
+            "https://media.example/second.mp4",
+            "https://media.example/third.mp4"
+        )
+        assertEquals(3, ids.distinct().size)
+        assertTrue(catalog.items.all { it.title == "Mismo título (1998)" && it.tmdbId == 42L })
+        assertEquals(urls, ids.map { catalog.source(it)?.url })
+        assertTrue(ids.all { catalog.source(it)?.type == MediaPlaybackType.DIRECT })
+
+        val remote = catalog.items.first().copy(id = "tmdb_movie_42", title = "Título de TMDb")
+        assertEquals(ids, mergeMediaCatalog(catalog.items, listOf(remote)).map { it.id })
+        assertEquals(ids, parseRemoteCatalog(text.replace("second.mp4", "replacement.mp4"))!!.items.map { it.id })
+        assertEquals(ids, updateStoredCatalog(StoredCatalog("#EXTM3U\n"), text)!!.pending.map { it.mediaId })
+    }
+
+    @Test
     fun conflictingTmdbIdentifiersAndNumbersAreRejected() {
         val catalog = MediaPlaylistParser.parse(
             """
