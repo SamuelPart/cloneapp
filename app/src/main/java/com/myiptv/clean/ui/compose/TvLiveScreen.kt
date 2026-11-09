@@ -80,7 +80,7 @@ internal data class TvChannelRequest(val id: String, val sequence: Long)
 private data class ChannelSourceKey(val id: String, val url: String, val userAgent: String?, val referrer: String?)
 
 @Suppress("DEPRECATION")
-private fun isDefinitelyOffline(context: Context): Boolean = try {
+internal fun isDefinitelyOffline(context: Context): Boolean = try {
     val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
     if (manager == null) false else manager.activeNetworkInfo?.isConnected != true
 } catch (_: SecurityException) {

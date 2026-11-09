@@ -20,7 +20,11 @@ object IptvOrgRepository {
     private const val BASE_URL = "https://iptv-org.github.io/"
     private const val CACHE_DURATION_MS = 30 * 60 * 1000L
     private val colors = listOf(0xFF4E86B9L, 0xFF8B62C2L, 0xFF3B9B83L, 0xFFCC7651L, 0xFFBD5272L)
+    private val countryCodePattern = Regex("[A-Za-z]{2}")
+    private val qualityPattern = Regex("\\d{3,4}[pi]", RegexOption.IGNORE_CASE)
     private val refreshMutex = Mutex()
+    private val logoMutex = Mutex()
+    @Volatile private var logoCache: Map<ChannelLogoKey, String>? = null
 
     private val api: IptvOrgApi by lazy {
         Retrofit.Builder()
@@ -83,6 +87,21 @@ object IptvOrgRepository {
 
     fun cachedChannels(): List<LiveChannel> = channelCache
 
+    /** Artwork is optional and loaded separately, so it can never hold up a channel or stream. */
+    internal suspend fun channelLogos(): Map<ChannelLogoKey, String> {
+        logoCache?.let { return it }
+        logoMutex.lock()
+        try {
+            logoCache?.let { return it }
+            val records = api.logos()
+            val logos = withContext(Dispatchers.Default) { selectChannelLogos(records) }
+            logoCache = logos
+            return logos
+        } finally {
+            logoMutex.unlock()
+        }
+    }
+
     private fun IptvOrgStream.toLiveChannel(channelsById: Map<String, IptvOrgChannel>): LiveChannel? {
         val channelId = channel?.takeIf(String::isNotBlank)
         val metadata = channelId?.let { channelsById[it] }
@@ -110,7 +129,10 @@ object IptvOrgRepository {
             accent = accent,
             epgId = channelId,
             userAgent = userAgent.safeHeaderValue(),
-            referrer = referrer.safeHttpUrl()
+            referrer = referrer.safeHttpUrl(),
+            countryCode = metadata?.country?.trim()?.takeIf(countryCodePattern::matches),
+            feedId = feed?.trim()?.takeIf(String::isNotBlank),
+            quality = quality?.trim()?.takeIf(qualityPattern::matches)
         )
     }
 

@@ -109,7 +109,8 @@ internal fun VlcPlayerScreen(
     onPreviewActivate: () -> Unit = {},
     playbackKey: Any? = null,
     onPlaybackEvent: (PlaybackEvent) -> Unit = {},
-    onChannelStep: ((Int) -> Unit)? = null
+    onChannelStep: ((Int) -> Unit)? = null,
+    phoneLiveActions: PhoneLivePlayerActions? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -118,8 +119,9 @@ internal fun VlcPlayerScreen(
     var state by remember(sourceUrl, userAgent, referrer, playbackKey) { mutableStateOf(PlaybackState()) }
     var initializationError by remember(sourceUrl, userAgent, referrer, playbackKey) { mutableStateOf<String?>(null) }
     var generation by remember(sourceUrl, userAgent, referrer, playbackKey) { mutableIntStateOf(0) }
-    var controlsVisible by remember(sourceUrl, playbackKey) { mutableStateOf(!tvPreview) }
+    var controlsVisible by remember(sourceUrl, playbackKey) { mutableStateOf(!tvPreview && phoneLiveActions == null) }
     var audioDialogOpen by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
+    var muteMessage by remember(sourceUrl, playbackKey) { mutableStateOf<String?>(null) }
     var interaction by remember(sourceUrl, playbackKey) { mutableIntStateOf(0) }
     var previewFocused by remember { mutableStateOf(false) }
     val previousPreview = remember { mutableStateOf(tvPreview) }
@@ -138,6 +140,22 @@ internal fun VlcPlayerScreen(
             binding = null
             generation++
         } else binding?.controller?.togglePlayback()
+    }
+    fun togglePhoneMute() {
+        val actions = phoneLiveActions ?: return
+        val next = !actions.muted
+        val current = binding
+        // Queue a choice while the audio output is opening; apply it when Playing arrives.
+        if (current == null || !state.isPlaying || state.isBuffering) {
+            actions.onMutedChange(next)
+            muteMessage = null
+        } else if (runCatching { current.engine.setMuted(next) }.getOrDefault(false)) {
+            actions.onMutedChange(next)
+            muteMessage = null
+        } else {
+            muteMessage = "No se pudo cambiar el sonido de esta señal."
+        }
+        showControls()
     }
 
     DisposableEffect(sourceUrl, userAgent, referrer, lifecycleOwner, generation, playbackKey) {
@@ -180,6 +198,19 @@ internal fun VlcPlayerScreen(
         active = binding != null && state.isPlaying && !state.isBuffering && !state.ended && state.error == null,
         isTv = isTv,
     )
+
+    LaunchedEffect(binding, phoneLiveActions?.muted, state.isPlaying, state.isBuffering) {
+        val current = binding
+        val actions = phoneLiveActions
+        if (current != null && actions != null && state.isPlaying && !state.isBuffering) {
+            if (runCatching { current.engine.setMuted(actions.muted) }.getOrDefault(false)) {
+                muteMessage = null
+            } else {
+                muteMessage = "No se pudo cambiar el sonido de esta señal."
+                showControls()
+            }
+        }
+    }
 
     DisposableEffect(view, state.isPlaying) {
         val previous = view.keepScreenOn
@@ -226,6 +257,18 @@ internal fun VlcPlayerScreen(
             }
         } else if (isTv && isLiveChannel) {
             showControls()
+        }
+    }
+    val phonePreview = phoneLiveActions != null && !fullscreen.active
+    LaunchedEffect(phonePreview, phoneLiveActions != null) {
+        if (phoneLiveActions != null) {
+            if (phonePreview) {
+                controlsVisible = state.error != null || state.ended
+                audioDialogOpen = false
+            } else {
+                // Entering fullscreen is an interaction; the usual controls can then auto-hide.
+                showControls()
+            }
         }
     }
     LaunchedEffect(isTv, tvPreview, controlsVisible, audioDialogOpen, binding) {
@@ -327,6 +370,9 @@ internal fun VlcPlayerScreen(
             }
         )
 
+        if (phonePreview && !controlsVisible && state.isBuffering && state.error == null) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(28.dp), color = Color.White, strokeWidth = 2.dp)
+        }
         if (tvPreview) {
             Column(
                 modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
@@ -340,6 +386,21 @@ internal fun VlcPlayerScreen(
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
+        } else if (controlsVisible && phonePreview && phoneLiveActions != null) {
+            PhoneLivePlayerControls(
+                state = state,
+                actions = phoneLiveActions.copy(
+                    onToggleFavorite = { showControls(); phoneLiveActions.onToggleFavorite() },
+                    onShare = { showControls(); phoneLiveActions.onShare() },
+                    onOpenDetail = { showControls(); phoneLiveActions.onOpenDetail() }
+                ),
+                canFullscreen = fullscreen.available,
+                muteMessage = muteMessage,
+                onTogglePlayback = ::togglePlayback,
+                onToggleMute = ::togglePhoneMute,
+                onFullscreen = { showControls(); fullscreen.set(true) },
+                modifier = Modifier.matchParentSize()
+            )
         } else if (controlsVisible) {
             VlcPlayerHeader(title, isLiveChannel, isTv, fullscreen, onBack, {
                 showControls()

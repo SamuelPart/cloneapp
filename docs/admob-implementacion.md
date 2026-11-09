@@ -2,7 +2,7 @@
 
 ## Configuración
 
-- Se conservan Android 5.0 / API 21 y los sabores `play` y `github`. La versión de la aplicación es **8 (1.2.5)**.
+- Se conservan Android 5.0 / API 21 y los sabores `play` y `github`. La versión de la aplicación es **9 (1.2.6)**.
 - Google Mobile Ads **23.6.0** y UMP **3.2.0** se eligieron por compatibilidad con API 21. Google declaró obsoleta la rama 23.x y anunció su retirada para el **30 de junio de 2027**. Hay que planificar su sustitución sin subir el mínimo de Android sin una decisión explícita.
 - Por decisión del propietario, **Debug y Release usan los mismos IDs reales de SamPlay**. Antes de probar, registrar el teléfono como dispositivo de prueba en **AdMob → Configuración → Dispositivos de prueba → Añadir dispositivo de prueba**, usando el ID de publicidad del teléfono. También se puede evaluar el modo de prueba para una versión de la app si está disponible en la cuenta. Esperar a que la configuración se propague (puede tardar hasta 24 horas) y comprobar la etiqueta «Test Ad» / «Test Mode» antes de interactuar. **No pulsar anuncios reales propios.** Si se usa mediación, cada red externa necesita su propia configuración de prueba. Emuladores Android se reconocen como dispositivos de prueba de Google, pero no sustituyen un teléfono físico.
 - La app no solicita anuncios desde su código en Android TV. La comprobación de edad móvil es neutral y opcional; si se omite o indica menos de 18 años, no se inician UMP ni solicitudes de anuncios desde la aplicación. Solo se guarda la categoría, no la fecha de nacimiento. Esta categoría corresponde a la instalación y no distingue entre las personas que comparten el dispositivo.
@@ -10,7 +10,7 @@
 - UMP actualiza el consentimiento en lanzamientos aptos y muestra el formulario solo en navegación segura, no durante bienvenida, Kids o reproducción. En Ajustes se ofrecen opciones de privacidad cuando corresponda. Si no puede solicitar anuncios, la app sigue funcionando.
 - Inicio: anuncio de apertura solo en bienvenida, después de uso previo, al terminar la animación y solo si ya está cargado. Tocar el león o pulsar OK entra sin esperar. Límite local de una muestra por hora. Un pase de Inicio o de toda la app lo desactiva.
 - Banner: parte superior de películas, series, búsqueda y favoritos, con espacio y separación de controles. No en reproductor, canales en directo, Kids ni fichas. Nativo: bloque identificado en el inicio móvil con AdChoices. Cada ubicación respeta el pase de su sección o el pase general.
-- Antes de reproducir películas, episodios y canales aptos en móvil, si hay un anuncio recompensado previamente cargado, se ofrece de forma explícita y voluntaria. El usuario puede reproducir gratis sin verlo. Si no hay anuncio, falla o caducó, la reproducción continúa sin esperar. El anuncio no se muestra durante el vídeo ni la señal. Los dos formatos recompensados se descartan después de **una hora**; app-open mantiene su límite de cuatro horas.
+- Antes de reproducir películas, episodios y canales aptos desde sus fichas en móvil, si hay un anuncio recompensado previamente cargado, se ofrece de forma explícita y voluntaria. El usuario puede reproducir gratis sin verlo. Si no hay anuncio, falla o caducó, la reproducción continúa sin esperar. La vista previa y el cambio de canales desde la lista empiezan directamente, sin invitación ni anuncios que interrumpan la señal. Los dos formatos recompensados se descartan después de **una hora**; app-open mantiene su límite de cuatro horas.
 
 ## Monedas y canjes
 

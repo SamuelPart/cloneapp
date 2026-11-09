@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Theaters
@@ -65,6 +66,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -155,15 +158,19 @@ internal fun IptvApp(
     val currentRoute = backStackEntry?.destination?.route ?: IptvRoute.HOME
     val isPlayer = currentRoute == IptvRoute.PLAYER
     val isDetail = currentRoute == IptvRoute.CHANNEL_DETAIL || currentRoute == IptvRoute.MEDIA_DETAIL
-    var tvLiveFullscreen by remember { mutableStateOf(false) }
+    var liveFullscreen by remember { mutableStateOf(false) }
+    var phoneChannelSearchOpen by remember { mutableStateOf(false) }
     var tvChannelRequest by remember { mutableStateOf<TvChannelRequest?>(null) }
     var tvChannelRequestSequence by remember { mutableLongStateOf(0L) }
     val tvChannelKeys = remember { TvChannelKeys() }
-    val showChrome = !isPlayer && !isDetail && !(currentRoute == IptvRoute.CHANNELS && tvLiveFullscreen)
+    val showChrome = !isPlayer && !isDetail && !(currentRoute == IptvRoute.CHANNELS && liveFullscreen)
     val uiMode = LocalConfiguration.current.uiMode
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     val favoritesViewModel: FavoritesViewModel = viewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(currentRoute) {
+        if (currentRoute != IptvRoute.CHANNELS) phoneChannelSearchOpen = false
+    }
     RequestCatalogNotificationsOnce()
     // Refresh expiry even if the user remains on the same screen for 24 hours.
     LaunchedEffect(ads, coins, lifecycleOwner) {
@@ -255,7 +262,12 @@ internal fun IptvApp(
                 } else false
             }
     ) {
-        val isTvLayout = isTelevision || (!isPlayer && maxWidth >= 840.dp)
+        val isTvLayout = useTvContentLayout(
+            isTvDevice = isTelevision,
+            isPlayer = isPlayer,
+            isChannelDestination = currentRoute == IptvRoute.CHANNELS || currentRoute == IptvRoute.CHANNEL_DETAIL,
+            widthDp = maxWidth.value
+        )
         val compactSidebar = maxWidth < 600.dp
         // Keep one NavHost at the same composition location as the window rotates. Replacing the
         // graph here would dispose VLC/WebView and restart playback on a landscape phone.
@@ -263,7 +275,7 @@ internal fun IptvApp(
         // but protect browsing controls; full-screen playback still occupies the entire window.
         Row(modifier = Modifier.fillMaxSize().background(Color.Black).safeAreaWhenEnforced(
             isTelevision = isTelevision,
-            immersive = isPlayer || (currentRoute == IptvRoute.CHANNELS && tvLiveFullscreen)
+            immersive = isPlayer || (currentRoute == IptvRoute.CHANNELS && liveFullscreen)
         )) {
             if (showChrome && isTvLayout) {
                 TvSidebar(
@@ -279,7 +291,10 @@ internal fun IptvApp(
                 }
                 if (showChrome) {
                     AppTopBar(
-                        onSearch = { navigateTopLevel(navController, IptvRoute.SEARCH) },
+                        onSearch = {
+                            if (!isTvLayout && currentRoute == IptvRoute.CHANNELS) phoneChannelSearchOpen = !phoneChannelSearchOpen
+                            else navigateTopLevel(navController, IptvRoute.SEARCH)
+                        },
                         onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
                         onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                         onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
@@ -292,8 +307,10 @@ internal fun IptvApp(
                     isTv = if (isPlayer) isTelevision else isTvLayout,
                     favoritesViewModel = favoritesViewModel,
                     playlist = playlist,
-                    tvLiveFullscreen = tvLiveFullscreen,
-                    onTvLiveFullscreenChange = { tvLiveFullscreen = it },
+                    liveFullscreen = liveFullscreen,
+                    onLiveFullscreenChange = { liveFullscreen = it },
+                    phoneChannelSearchOpen = phoneChannelSearchOpen,
+                    onClosePhoneChannelSearch = { phoneChannelSearchOpen = false },
                     tvChannelKeys = tvChannelKeys,
                     tvChannelRequest = tvChannelRequest,
                     onTvChannelRequestHandled = { tvChannelRequest = null },
@@ -301,7 +318,7 @@ internal fun IptvApp(
                         tvChannelRequestSequence++
                         tvChannelRequest = TvChannelRequest(id, tvChannelRequestSequence)
                         navigateTopLevel(navController, IptvRoute.CHANNELS)
-                        tvLiveFullscreen = true
+                        liveFullscreen = true
                     },
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
@@ -330,8 +347,10 @@ private fun IptvNavigationGraph(
     isTv: Boolean,
     favoritesViewModel: FavoritesViewModel,
     playlist: MediaPlaylist,
-    tvLiveFullscreen: Boolean,
-    onTvLiveFullscreenChange: (Boolean) -> Unit,
+    liveFullscreen: Boolean,
+    onLiveFullscreenChange: (Boolean) -> Unit,
+    phoneChannelSearchOpen: Boolean,
+    onClosePhoneChannelSearch: () -> Unit,
     tvChannelKeys: TvChannelKeys,
     tvChannelRequest: TvChannelRequest?,
     onTvChannelRequestHandled: () -> Unit,
@@ -340,8 +359,10 @@ private fun IptvNavigationGraph(
 ) {
     val currentIsTv = rememberUpdatedState(isTv)
     val currentPlaylist = rememberUpdatedState(playlist)
-    val currentTvLiveFullscreen = rememberUpdatedState(tvLiveFullscreen)
-    val currentOnTvLiveFullscreenChange = rememberUpdatedState(onTvLiveFullscreenChange)
+    val currentLiveFullscreen = rememberUpdatedState(liveFullscreen)
+    val currentOnLiveFullscreenChange = rememberUpdatedState(onLiveFullscreenChange)
+    val currentPhoneChannelSearchOpen = rememberUpdatedState(phoneChannelSearchOpen)
+    val currentOnClosePhoneChannelSearch = rememberUpdatedState(onClosePhoneChannelSearch)
     val currentTvChannelRequest = rememberUpdatedState(tvChannelRequest)
     val currentOnTvChannelRequestHandled = rememberUpdatedState(onTvChannelRequestHandled)
     val currentOnOpenTvChannel = rememberUpdatedState(onOpenTvChannel)
@@ -415,13 +436,19 @@ private fun IptvNavigationGraph(
             }
             composable(IptvRoute.CHANNELS) {
                 ChannelsScreen(
-                    isTv = currentIsTv.value,
+                    // The outgoing entry can overlap another destination during navigation; use
+                    // the device type, not the other destination's width-based layout, for VLC.
+                    isTv = context.isTelevisionDevice(),
                     onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
-                    fullscreen = currentTvLiveFullscreen.value,
-                    onFullscreenChange = { currentOnTvLiveFullscreenChange.value(it) },
+                    fullscreen = currentLiveFullscreen.value,
+                    onFullscreenChange = { currentOnLiveFullscreenChange.value(it) },
                     channelKeys = tvChannelKeys,
                     requestedChannel = currentTvChannelRequest.value,
-                    onRequestHandled = { currentOnTvChannelRequestHandled.value() }
+                    onRequestHandled = { currentOnTvChannelRequestHandled.value() },
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) },
+                    phoneSearchOpen = currentPhoneChannelSearchOpen.value,
+                    onClosePhoneSearch = { currentOnClosePhoneChannelSearch.value() }
                 )
             }
             composable(IptvRoute.MOVIES) {
@@ -726,6 +753,10 @@ private fun SidebarItem(destination: AppDestination, selected: Boolean, onClick:
 
 @Composable
 private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
+    if (currentRoute == IptvRoute.CHANNELS) {
+        PhoneLiveBottomBar(onNavigate)
+        return
+    }
     val destinations = listOf(
         AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
         AppDestination(IptvRoute.CHANNELS, "En vivo", Icons.Filled.LiveTv),
@@ -756,6 +787,33 @@ private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
                 Icon(destination.icon, contentDescription = destination.label, tint = if (selected || focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
                 Spacer(Modifier.height(3.dp))
                 Text(destination.label, color = if (selected || focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhoneLiveBottomBar(onNavigate: (String) -> Unit) {
+    val destinations = listOf(
+        AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
+        AppDestination(IptvRoute.CHANNELS, "Canales", Icons.Filled.LiveTv),
+        AppDestination(IptvRoute.SETTINGS, "Ajustes", Icons.Filled.PersonOutline)
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().height(58.dp).background(Color(0xFF101012)),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        destinations.forEach { destination ->
+            val active = destination.route == IptvRoute.CHANNELS
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight()
+                    .semantics { selected = active }
+                    .clickable { onNavigate(destination.route) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(destination.icon, contentDescription = destination.label,
+                    tint = if (active) PhoneChannelAccent else Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(25.dp))
             }
         }
     }

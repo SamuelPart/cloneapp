@@ -43,10 +43,14 @@ internal fun ChannelsScreen(
     channelKeys: TvChannelKeys,
     requestedChannel: TvChannelRequest?,
     onRequestHandled: () -> Unit,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+    phoneSearchOpen: Boolean,
+    onClosePhoneSearch: () -> Unit,
     viewModel: ChannelsViewModel = viewModel()
 ) {
     if (isTv) TvLiveScreen(viewModel, fullscreen, onFullscreenChange, channelKeys, requestedChannel, onRequestHandled, onOpenChannel)
-    else TvChannelsScreen(viewModel, onOpenChannel, isTv = false)
+    else PhoneLiveScreen(viewModel, favorites, onToggleFavorite, onOpenChannel, phoneSearchOpen, onClosePhoneSearch, onFullscreenChange)
 }
 
 @Composable

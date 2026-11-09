@@ -28,6 +28,10 @@ internal class VlcPlaybackEngine(
     }
 
     var videoLayout: VLCVideoLayout? = null
+    private val audioMute = PlayerVolumeMute({ player.volume }, { player.setVolume(it) })
+
+    /** Returns false if LibVLC has not initialized its audio output or rejected the change. */
+    fun setMuted(muted: Boolean): Boolean = audioMute.setMuted(muted)
 
     override fun setListener(listener: ((PlaybackEvent) -> Unit)?) {
         if (listener == null) {
