@@ -53,7 +53,9 @@ data class LiveChannel(
     // Optional metadata from the channel provider; absent values are never inferred.
     val countryCode: String? = null,
     val feedId: String? = null,
-    val quality: String? = null
+    val quality: String? = null,
+    // Preserve every provider-supplied category for the conservative ad-safety check.
+    val sourceCategories: List<String> = emptyList()
 )
 
 data class ContentCategory(

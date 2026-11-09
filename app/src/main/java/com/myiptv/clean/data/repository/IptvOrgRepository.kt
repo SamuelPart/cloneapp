@@ -116,6 +116,7 @@ object IptvOrgRepository {
         val letters = displayName.split(Regex("\\s+")).take(2)
             .mapNotNull { it.firstOrNull()?.uppercaseChar()?.toString() }
             .joinToString("").ifBlank { "TV" }
+        val sourceCategories = sourceChannelCategories(metadata?.categories)
         val category = metadata?.categories.orEmpty().firstOrNull()?.takeIf(String::isNotBlank)
             ?.replaceFirstChar(Char::uppercase) ?: "General"
         val accent = colors[displayName.hashCode().ushr(1) % colors.size]
@@ -132,7 +133,8 @@ object IptvOrgRepository {
             referrer = referrer.safeHttpUrl(),
             countryCode = metadata?.country?.trim()?.takeIf(countryCodePattern::matches),
             feedId = feed?.trim()?.takeIf(String::isNotBlank),
-            quality = quality?.trim()?.takeIf(qualityPattern::matches)
+            quality = quality?.trim()?.takeIf(qualityPattern::matches),
+            sourceCategories = sourceCategories
         )
     }
 

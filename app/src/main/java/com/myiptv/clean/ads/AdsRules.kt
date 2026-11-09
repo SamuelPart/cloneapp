@@ -61,8 +61,16 @@ internal object AdsRules {
     fun canPreloadRewards(isTv: Boolean, isKidsDetail: Boolean, route: String): Boolean =
         !isTv && !isKidsDetail && route in setOf(
             "home", "movies", "series", "anime", "favorites", "search", "downloads", "history",
-            SettingsRoutes.SETTINGS, SettingsRoutes.COINS, "channel/{id}", "media/{id}?kids={kids}",
+            SettingsRoutes.SETTINGS, SettingsRoutes.COINS, "channel/{id}",
         )
+
+    /** Media detail preloads only after metadata identifies a non-Kids genre. */
+    fun canPreloadMediaReward(isTv: Boolean, fromKids: Boolean, genres: List<String>): Boolean =
+        !isTv && !fromKids && canOfferMediaAds(genres)
+
+    /** Only preload silently for a classified, non-Kids phone preview; never show over the stream. */
+    fun canPreloadPhoneLiveReward(isTv: Boolean, isFullscreen: Boolean, categories: List<String>): Boolean =
+        !isTv && !isFullscreen && canOfferLiveChannelAds(categories)
 
     /** A missing/blocked ad is always a direct path to playback, never a reason to wait. */
     fun canOfferReward(isTv: Boolean, isKids: Boolean, hasActivity: Boolean, hasPass: Boolean, canShowAds: Boolean, hasFreshAd: Boolean): Boolean =

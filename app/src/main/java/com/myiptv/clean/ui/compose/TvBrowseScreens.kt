@@ -285,7 +285,10 @@ internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean, onOpenCoin
         ) {
             if (!context.isTelevisionDevice()) {
                 TvInfoPanel {
-                    TvSectionLabel("Monedas SamPlay")
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SamplayCoinIcon(Modifier.size(30.dp))
+                        TvSectionLabel("Monedas SamPlay")
+                    }
                     Text("Consulta tu saldo, recompensas y canjes en su propia pantalla.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
                     TvActionButton("Abrir Monedas SamPlay", onClick = onOpenCoins, icon = Icons.Filled.ArrowForward)
                 }

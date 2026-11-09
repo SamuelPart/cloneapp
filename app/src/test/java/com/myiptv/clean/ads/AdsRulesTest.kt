@@ -70,15 +70,35 @@ class AdsRulesTest {
     }
 
     @Test fun rewardPreloadsAreBlockedOnTvKidsLiveAndPlayback() {
-        val safe = listOf("home", "movies", "series", "anime", "favorites", "search", "downloads", "history", "settings", "settings/coins", "channel/{id}", "media/{id}?kids={kids}")
+        val safe = listOf("home", "movies", "series", "anime", "favorites", "search", "downloads", "history", "settings", "settings/coins", "channel/{id}")
         safe.forEach { route ->
             assertTrue(AdsRules.canPreloadRewards(false, false, route))
             assertFalse(AdsRules.canPreloadRewards(true, false, route))
             assertFalse(AdsRules.canPreloadRewards(false, true, route))
         }
-        listOf("kids", "channels", "player/{id}", "future-player").forEach {
+        listOf("kids", "channels", "media/{id}?kids={kids}", "player/{id}", "future-player").forEach {
             assertFalse(AdsRules.canPreloadRewards(false, false, it))
         }
+    }
+
+    @Test fun mediaDetailOnlyPreloadsWithKnownNonKidsGenres() {
+        assertTrue(AdsRules.canPreloadMediaReward(false, false, listOf("Drama", "Acción")))
+        assertFalse(AdsRules.canPreloadMediaReward(true, false, listOf("Drama")))
+        assertFalse(AdsRules.canPreloadMediaReward(false, true, listOf("Drama")))
+        assertFalse(AdsRules.canPreloadMediaReward(false, false, emptyList()))
+        assertFalse(AdsRules.canPreloadMediaReward(false, false, listOf("N/A")))
+        assertFalse(AdsRules.canPreloadMediaReward(false, false, listOf("Drama", "Family")))
+        assertFalse(AdsRules.canPreloadMediaReward(false, false, listOf("Drama", "Unknown")))
+    }
+
+    @Test fun phonePreviewMayOnlyPreloadForAClassifiedNonKidsChannel() {
+        assertTrue(AdsRules.canPreloadPhoneLiveReward(false, false, listOf("news")))
+        assertFalse(AdsRules.canPreloadPhoneLiveReward(true, false, listOf("news")))
+        assertFalse(AdsRules.canPreloadPhoneLiveReward(false, true, listOf("news")))
+        assertFalse(AdsRules.canPreloadPhoneLiveReward(false, false, emptyList()))
+        assertFalse(AdsRules.canPreloadPhoneLiveReward(false, false, listOf("Sin categoría")))
+        assertFalse(AdsRules.canPreloadPhoneLiveReward(false, false, listOf("news", "kids")))
+        assertFalse(AdsRules.canPreloadPhoneLiveReward(false, false, listOf("Infantiles / Familia")))
     }
 
     @Test fun offerOnlyWhenMobileAdultContentHasAnAvailableAdAndNoPass() {

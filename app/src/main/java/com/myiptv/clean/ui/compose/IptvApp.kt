@@ -88,6 +88,12 @@ import com.myiptv.clean.CleanIPTVApp
 import com.myiptv.clean.ads.SamplayBanner
 import com.myiptv.clean.ads.AdsRules
 import com.myiptv.clean.ads.AdSection
+import com.myiptv.clean.ads.CoinPurchaseStatus
+import com.myiptv.clean.ads.CoinRules
+import com.myiptv.clean.ads.PendingRewardDecision
+import com.myiptv.clean.ads.canOfferLiveChannelAds
+import com.myiptv.clean.ads.pendingRewardDecision
+import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.MediaPlaylistRepository
 import com.myiptv.clean.data.repository.TmdbRepository
@@ -127,6 +133,17 @@ private object IptvRoute {
 }
 
 private data class AppDestination(val route: String, val label: String, val icon: ImageVector)
+
+private class PendingRewardPlayback(
+    val offer: PlaybackRewardOffer,
+    val origin: NavBackStackEntry,
+    val isStillCurrent: () -> Boolean,
+    val canAdvertise: () -> Boolean,
+    val pauseForAd: () -> (() -> Unit),
+    val proceed: () -> Unit,
+)
+
+private data class DeferredRewardPlayback(val request: PendingRewardPlayback, val spendCoins: Boolean)
 
 private val sidebarDestinations = listOf(
     AppDestination(IptvRoute.CHANNELS, "TV", Icons.Filled.LiveTv),
@@ -183,8 +200,16 @@ internal fun IptvApp(
             }
         }
     }
-    val isKidsDetail = currentRoute == IptvRoute.MEDIA_DETAIL && backStackEntry?.arguments?.getBoolean("kids") == true
-    // Cache only before playback, so accepting an offer never makes the user wait for a network load.
+    val isKidsDetail = when (currentRoute) {
+        IptvRoute.MEDIA_DETAIL -> backStackEntry?.arguments?.getBoolean("kids") == true
+        // Include every provider category; missing metadata is treated conservatively too.
+        IptvRoute.CHANNEL_DETAIL -> {
+            val channel = ChannelCatalogRepository.cachedChannel(backStackEntry?.arguments?.getString("id").orEmpty())
+            channel == null || !canOfferLiveChannelAds(channel.sourceCategories)
+        }
+        else -> false
+    }
+    // Cache before playback, so accepting an offer never makes the user wait for a network load.
     val canPreloadRewards = AdsRules.canPreloadRewards(isTelevision, isKidsDetail, currentRoute)
     LaunchedEffect(ads, lifecycleOwner, canPreloadRewards, ads.canShowAds, ads.fullscreenShowing, currentRoute) {
         if (canPreloadRewards && ads.canShowAds && !ads.fullscreenShowing) {
@@ -373,51 +398,115 @@ private fun IptvNavigationGraph(
     val coins = app.coins
     val activity = context.adActivity()
     val lifecycleOwner = LocalLifecycleOwner.current
-    var pendingOffer by remember { mutableStateOf<PlaybackRewardOffer?>(null) }
-    var offerOrigin by remember { mutableStateOf<NavBackStackEntry?>(null) }
+    var pendingOffer by remember { mutableStateOf<PendingRewardPlayback?>(null) }
     var waitingForReward by remember { mutableStateOf(false) }
-    var deferredPlayback by remember { mutableStateOf<Pair<PlaybackRewardOffer, NavBackStackEntry>?>(null) }
+    var deferredPlayback by remember { mutableStateOf<DeferredRewardPlayback?>(null) }
+    val currentEntry by navController.currentBackStackEntryAsState()
 
-    fun play(offer: PlaybackRewardOffer) {
-        if (pendingOffer != offer) return
-        val origin = offerOrigin
+    fun finish(request: PendingRewardPlayback, spendCoins: Boolean = false) {
+        if (pendingOffer !== request) return // A callback from an older impression must do nothing.
         pendingOffer = null
-        offerOrigin = null
         waitingForReward = false
-        if (origin != null) deferredPlayback = offer to origin
+        deferredPlayback = DeferredRewardPlayback(request, spendCoins)
     }
-    // Fullscreen SDK callbacks can arrive before the hosting activity has resumed.
-    // Wait for a safe lifecycle state, and do not override a newer notification's destination.
-    LaunchedEffect(deferredPlayback, lifecycleOwner) {
-        val target = deferredPlayback ?: return@LaunchedEffect
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            if (navController.currentBackStackEntry === target.second) {
-                navController.navigate(IptvRoute.player(target.first.id))
-            }
-            deferredPlayback = null
-        }
+    fun cancel(request: PendingRewardPlayback) {
+        if (pendingOffer !== request) return
+        pendingOffer = null
+        waitingForReward = false
     }
-
-    fun requestPlayback(id: String, section: AdSection, kids: Boolean) {
-        val channel = section == AdSection.CHANNELS
-        val free = if (channel) coins.isChannelOfferFree(id) else coins.isSectionAdFree(section)
+    fun decision(request: PendingRewardPlayback): PendingRewardDecision {
+        val offer = request.offer
+        val pass = if (offer.isChannel) coins.isChannelOfferFree(offer.id) else coins.isSectionAdFree(offer.section)
         val mayOffer = AdsRules.canOfferReward(
-            isTv = currentIsTv.value || context.isTelevisionDevice(),
-            isKids = kids,
+            // A wide phone/tablet may use the TV layout without being an Android TV device.
+            isTv = context.isTelevisionDevice(),
+            isKids = !request.canAdvertise(),
             hasActivity = activity != null,
-            hasPass = free,
-            canShowAds = ads.canShowAdsIn(section),
+            hasPass = pass,
+            canShowAds = ads.canShowAdsIn(offer.section) && !ads.fullscreenShowing,
             hasFreshAd = ads.hasFreshReward(false) || ads.hasFreshReward(true),
         )
-        if (mayOffer) {
-            offerOrigin = navController.currentBackStackEntry
-            pendingOffer = PlaybackRewardOffer(id, section, channel)
-        } else {
-            // No ad, no consent, a protected audience or a pass: never delay or block playback.
-            navController.navigate(IptvRoute.player(id))
+        return pendingRewardDecision(
+            sameOrigin = navController.currentBackStackEntry === request.origin,
+            sameContent = request.isStillCurrent(),
+            eligibleForOffer = mayOffer,
+        )
+    }
+    // SDK callbacks can arrive before the activity resumes. A new destination/channel wins.
+    LaunchedEffect(deferredPlayback, lifecycleOwner) {
+        val deferred = deferredPlayback ?: return@LaunchedEffect
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            deferredPlayback = null
+            val target = deferred.request
+            if (navController.currentBackStackEntry === target.origin && target.isStillCurrent()) {
+                // Charge only when this exact playback can actually continue, and only if the
+                // invitation remains eligible. Changed consent/passes/metadata continue for free.
+                if (deferred.spendCoins && decision(target) == PendingRewardDecision.AVAILABLE) {
+                    val offer = target.offer
+                    coins.buyPlaybackPass(offer.section, if (offer.isChannel) offer.id else null)
+                }
+                target.proceed()
+            }
         }
     }
+    val requestOnScreen = pendingOffer
+    val requestDecision = if (requestOnScreen == null || waitingForReward) null
+    else if (currentEntry !== requestOnScreen.origin) PendingRewardDecision.CANCEL
+    else decision(requestOnScreen)
+    LaunchedEffect(requestOnScreen, requestDecision, waitingForReward) {
+        if (requestOnScreen != null && !waitingForReward) {
+            when (requestDecision) {
+                PendingRewardDecision.CANCEL -> cancel(requestOnScreen)
+                PendingRewardDecision.CONTINUE_FREE -> finish(requestOnScreen)
+                else -> Unit
+            }
+        }
+    }
+
+    fun requestOffer(
+        offer: PlaybackRewardOffer,
+        isStillCurrent: () -> Boolean,
+        canAdvertise: () -> Boolean,
+        pauseForAd: () -> (() -> Unit),
+        proceed: () -> Unit,
+    ) {
+        // Ignore double taps while an earlier request or its lifecycle continuation is pending.
+        if (pendingOffer != null || deferredPlayback != null) return
+        val origin = navController.currentBackStackEntry
+        if (origin == null) {
+            if (isStillCurrent()) proceed()
+            return
+        }
+        val request = PendingRewardPlayback(offer, origin, isStillCurrent, canAdvertise, pauseForAd, proceed)
+        when (decision(request)) {
+            PendingRewardDecision.CANCEL -> Unit
+            PendingRewardDecision.CONTINUE_FREE -> proceed()
+            PendingRewardDecision.AVAILABLE -> pendingOffer = request
+        }
+    }
+    fun requestPlayback(id: String, section: AdSection, kids: Boolean, canStillAdvertise: () -> Boolean) {
+        requestOffer(
+            offer = PlaybackRewardOffer(id, section, section == AdSection.CHANNELS),
+            isStillCurrent = { true },
+            canAdvertise = {
+                !kids && canStillAdvertise() && (section != AdSection.CHANNELS ||
+                    ChannelCatalogRepository.cachedChannel(id)?.sourceCategories?.let(::canOfferLiveChannelAds) == true)
+            },
+            pauseForAd = { {} },
+            proceed = { navController.navigate(IptvRoute.player(id)) },
+        )
+    }
+    fun requestPhoneFullscreen(request: PhoneLiveFullscreenRequest) {
+        requestOffer(
+            offer = PlaybackRewardOffer(request.channelId, AdSection.CHANNELS, isChannel = true),
+            isStillCurrent = request.isStillCurrent,
+            canAdvertise = request.canAdvertise,
+            pauseForAd = request.pauseForAd,
+            proceed = request.enterFullscreen,
+        )
+    }
     val currentRequestPlayback = rememberUpdatedState(::requestPlayback)
+    val currentRequestPhoneFullscreen = rememberUpdatedState(::requestPhoneFullscreen)
     // The graph itself must not be rebuilt when metadata or screen dimensions change.
     val graphBuilder: NavGraphBuilder.() -> Unit = remember(navController, favoritesViewModel, tvChannelKeys) {
         {
@@ -449,7 +538,8 @@ private fun IptvNavigationGraph(
                     favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
                     onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) },
                     phoneSearchOpen = currentPhoneChannelSearchOpen.value,
-                    onClosePhoneSearch = { currentOnClosePhoneChannelSearch.value() }
+                    onClosePhoneSearch = { currentOnClosePhoneChannelSearch.value() },
+                    onRequestPhoneFullscreen = { currentRequestPhoneFullscreen.value(it) },
                 )
             }
             composable(IptvRoute.MOVIES) {
@@ -535,7 +625,7 @@ private fun IptvNavigationGraph(
                     onBack = { navController.popBackStack() },
                     onPlay = {
                         if (currentIsTv.value) currentOnOpenTvChannel.value(it)
-                        else currentRequestPlayback.value(it, AdSection.CHANNELS, false)
+                        else currentRequestPlayback.value(it, AdSection.CHANNELS, false) { true }
                     },
                     isFavorite = { it in currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds) },
                     onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
@@ -553,11 +643,12 @@ private fun IptvNavigationGraph(
                     mediaId = entry.arguments?.getString("id").orEmpty(),
                     isTv = currentIsTv.value,
                     playlist = currentPlaylist.value,
+                    fromKids = fromKids,
                     onBack = { navController.popBackStack() },
                     onOpenMedia = { navController.navigate(IptvRoute.media(it, kids = fromKids)) },
-                    onPlay = { id, kind, childDirected ->
+                    onPlay = { id, kind, childDirected, canStillAdvertise ->
                         val section = if (kind == MediaKind.MOVIE) AdSection.MOVIES else AdSection.SERIES
-                        currentRequestPlayback.value(id, section, fromKids || childDirected)
+                        currentRequestPlayback.value(id, section, fromKids || childDirected, canStillAdvertise)
                     },
                     isFavorite = { it in currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds) },
                     onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
@@ -577,35 +668,55 @@ private fun IptvNavigationGraph(
         }
     }
     NavHost(navController = navController, startDestination = IptvRoute.HOME, modifier = modifier, builder = graphBuilder)
-    val offer = pendingOffer
-    if (offer != null && !waitingForReward) {
+    val request = pendingOffer
+    if (request != null && requestDecision == PendingRewardDecision.AVAILABLE && !waitingForReward) {
+        val offer = request.offer
         PlaybackRewardOfferDialog(
             offer = offer,
             balance = coins.state.balance,
-            onContinue = { play(offer) },
+            onContinue = { finish(request) },
             onWatch = {
-                if (offerOrigin == null || navController.currentBackStackEntry !== offerOrigin ||
-                    !ads.canShowAdsIn(offer.section) || (offer.isChannel && coins.isChannelOfferFree(offer.id))
-                ) {
-                    play(offer)
-                } else {
-                    val useInterstitial = !ads.hasFreshReward(false) && ads.hasFreshReward(true)
-                    waitingForReward = true
-                    if (activity == null || !ads.showRewarded(activity, useInterstitial) { play(offer) }) {
-                        play(offer)
+                when (decision(request)) {
+                    PendingRewardDecision.CANCEL -> cancel(request)
+                    PendingRewardDecision.CONTINUE_FREE -> finish(request)
+                    PendingRewardDecision.AVAILABLE -> {
+                        val resume = runCatching { request.pauseForAd() }.getOrNull()
+                        if (resume == null) {
+                            finish(request)
+                        } else {
+                            var resumed = false
+                            fun resumeOnce() {
+                                if (!resumed) {
+                                    resumed = true
+                                    runCatching { resume() } // A stale/disposed player must not block continuation.
+                                }
+                            }
+                            val useInterstitial = !ads.hasFreshReward(false) && ads.hasFreshReward(true)
+                            waitingForReward = true
+                            if (activity == null || !ads.showRewarded(activity, useInterstitial) {
+                                    resumeOnce()
+                                    finish(request)
+                                }
+                            ) {
+                                resumeOnce()
+                                finish(request)
+                            }
+                        }
                     }
                 }
             },
             onSpend = {
-                // If the destination changed, the creative expired or a pass became active,
-                // proceed without charging.
-                val hasAd = ads.hasFreshReward(false) || ads.hasFreshReward(true)
-                if (offerOrigin != null && navController.currentBackStackEntry === offerOrigin &&
-                    hasAd && ads.canShowAdsIn(offer.section)
-                ) {
-                    coins.buyPlaybackPass(offer.section, if (offer.isChannel) offer.id else null)
+                when (decision(request)) {
+                    PendingRewardDecision.CANCEL -> { cancel(request); null }
+                    PendingRewardDecision.CONTINUE_FREE -> { finish(request); null }
+                    PendingRewardDecision.AVAILABLE -> {
+                        if (coins.state.balance < CoinRules.PLAYBACK_PRICE) CoinPurchaseStatus.INSUFFICIENT
+                        else {
+                            finish(request, spendCoins = true)
+                            CoinPurchaseStatus.ACTIVATED
+                        }
+                    }
                 }
-                play(offer)
             },
         )
     }

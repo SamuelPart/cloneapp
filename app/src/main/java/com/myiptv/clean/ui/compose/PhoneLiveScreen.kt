@@ -67,6 +67,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.AsyncImage
+import com.myiptv.clean.CleanIPTVApp
+import com.myiptv.clean.ads.AdSection
+import com.myiptv.clean.ads.AdsRules
+import com.myiptv.clean.ads.canOfferLiveChannelAds
 import com.myiptv.clean.data.repository.ChannelLogoKey
 import com.myiptv.clean.data.repository.IptvOrgRepository
 import com.myiptv.clean.data.repository.channelLogoUrl
@@ -90,6 +94,15 @@ private val PhoneListSurface = Color.White.copy(alpha = 0.065f)
 private val PhoneDivider = Color.White.copy(alpha = 0.08f)
 private data class PhoneChannelSource(val id: String, val url: String, val userAgent: String?, val referrer: String?)
 
+/** An offer may outlive a frame or an ad activity; never expand a different/abandoned channel. */
+internal class PhoneLiveFullscreenRequest(
+    val channelId: String,
+    val isStillCurrent: () -> Boolean,
+    val canAdvertise: () -> Boolean,
+    val enterFullscreen: () -> Unit,
+    val pauseForAd: () -> (() -> Unit),
+)
+
 /** Mobile-only live layout: the player stays in the same composition slot when expanded. */
 @Composable
 internal fun PhoneLiveScreen(
@@ -99,9 +112,11 @@ internal fun PhoneLiveScreen(
     onOpenChannelDetail: (String) -> Unit,
     searchOpen: Boolean,
     onCloseSearch: () -> Unit,
-    onFullscreenChange: (Boolean) -> Unit
+    onFullscreenChange: (Boolean) -> Unit,
+    onRequestFullscreen: (PhoneLiveFullscreenRequest) -> Unit,
 ) {
     val context = LocalContext.current
+    val ads = (context.applicationContext as CleanIPTVApp).ads
     val lifecycleOwner = LocalLifecycleOwner.current
     val allChannels = viewModel.channels
     val catalog = remember(allChannels) { PhoneChannelCatalog(allChannels) }
@@ -170,6 +185,18 @@ internal fun PhoneLiveScreen(
     val current = allChannels.firstOrNull { it.id == selectedId }
     val source = current?.let { PhoneChannelSource(it.id, it.streamUrl, it.userAgent, it.referrer) }
     val latestSource = rememberUpdatedState(source)
+    val latestChannels = rememberUpdatedState(allChannels)
+    // Loading is silent and never delays the preview. Unknown/Kids classifications fail closed.
+    val canPreloadLiveReward = AdsRules.canPreloadPhoneLiveReward(
+        isTv = context.isTelevisionDevice(),
+        isFullscreen = playerFullscreen.active,
+        categories = current?.sourceCategories.orEmpty(),
+    ) && ads.canShowAdsIn(AdSection.CHANNELS)
+    LaunchedEffect(ads, lifecycleOwner, source, canPreloadLiveReward, ads.fullscreenShowing) {
+        if (canPreloadLiveReward && !ads.fullscreenShowing) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { ads.loadRewards() }
+        }
+    }
     val currentAttempt = attempt
     var evidence by remember(source, attempt) { mutableStateOf(LivePlaybackEvidence()) }
     var checkMessage by remember(source, attempt) { mutableStateOf("Comprobando señal…") }
@@ -182,10 +209,11 @@ internal fun PhoneLiveScreen(
             failedIds = failedIds - source.id
         }
     }
-    LaunchedEffect(source, currentAttempt, lifecycleOwner, evidence.failed, evidence.pausedByUser, exhausted, visibleRows) {
+    LaunchedEffect(source, currentAttempt, lifecycleOwner, evidence.failed, evidence.pausedByUser, exhausted, visibleRows, ads.fullscreenShowing) {
         val channel = current ?: return@LaunchedEffect
-        if (exhausted) return@LaunchedEffect
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+        if (exhausted || ads.fullscreenShowing) return@LaunchedEffect
+        // An ad activity or another foreground interruption is not a failed signal.
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             var waitedForNetwork = false
             while (isActive && selectedId == channel.id && latestSource.value == source && attempt == currentAttempt) {
                 if (isDefinitelyOffline(context)) {
@@ -296,6 +324,22 @@ internal fun PhoneLiveScreen(
                             onToggleFavorite = { onToggleFavorite(current.id) },
                             onMutedChange = { muted = it },
                             onOpenDetail = { onOpenChannelDetail(current.id) },
+                            onRequestFullscreen = { pauseForAd ->
+                                onRequestFullscreen(
+                                    PhoneLiveFullscreenRequest(
+                                        channelId = current.id,
+                                        isStillCurrent = {
+                                            selectedId == current.id && latestSource.value == source && !playerFullscreen.active
+                                        },
+                                        canAdvertise = {
+                                            val latest = latestChannels.value.firstOrNull { it.id == current.id }
+                                            latest != null && canOfferLiveChannelAds(latest.sourceCategories)
+                                        },
+                                        enterFullscreen = { playerFullscreen.set(true) },
+                                        pauseForAd = pauseForAd,
+                                    )
+                                )
+                            },
                             onShare = {
                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"

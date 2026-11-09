@@ -127,6 +127,17 @@ class CoinRulesTest {
         assertEquals(CoinPurchaseStatus.INSUFFICIENT, CoinRules.buyPlaybackPass(channel.state, AdSection.MOVIES, null, 1_001).status)
     }
 
+    @Test fun insufficientPlaybackBalanceNeverChangesTheWalletOrCreatesAPass() {
+        val original = CoinState(balance = 9)
+        listOf(AdSection.MOVIES, AdSection.SERIES, AdSection.CHANNELS).forEach { section ->
+            val result = CoinRules.buyPlaybackPass(original, section, if (section == AdSection.CHANNELS) "live" else null, 1_000)
+            assertEquals(CoinPurchaseStatus.INSUFFICIENT, result.status)
+            assertEquals(original, result.state)
+        }
+        assertEquals(original, CoinRules.buySectionPass(original, AdSection.CHANNELS, 1_000).state)
+        assertEquals(original, CoinRules.buyAppPass(original, 1_000).state)
+    }
+
     @Test fun passesAreNotChargedWhenAnOverlappingPassAlreadyApplies() {
         val app = CoinRules.buyAppPass(CoinState(balance = 200), 1_000).state
         val section = CoinRules.buySectionPass(app, AdSection.CHANNELS, 1_001)
@@ -139,7 +150,12 @@ class CoinRulesTest {
     }
 
     @Test fun childrenAndFamilyGenresRemainProtected() {
-        listOf("Kids", "Niños", "Familia", "Family").forEach { assertTrue(isKidsGenre(listOf("Drama", it))) }
-        assertFalse(isKidsGenre(listOf("Drama", "Action")))
+        listOf("Kids", "Niños", "Familia", "Family", "Infantiles / Familia", "TV para niñas").forEach {
+            assertTrue(isKidsGenre(listOf("Drama", it)))
+        }
+        assertFalse(isKidsGenre(listOf("Drama", "Action", "Familyman")))
+        assertTrue(canOfferLiveChannelAds(listOf("News", "Sports")))
+        assertFalse(canOfferLiveChannelAds(emptyList()))
+        assertFalse(canOfferLiveChannelAds(listOf("General", "Kids")))
     }
 }

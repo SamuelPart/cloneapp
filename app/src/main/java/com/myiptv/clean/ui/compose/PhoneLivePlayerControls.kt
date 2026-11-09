@@ -52,7 +52,8 @@ internal data class PhoneLivePlayerActions(
     val onToggleFavorite: () -> Unit,
     val onMutedChange: (Boolean) -> Unit,
     val onShare: () -> Unit,
-    val onOpenDetail: () -> Unit
+    val onOpenDetail: () -> Unit,
+    val onRequestFullscreen: (pauseForAd: () -> (() -> Unit)) -> Unit,
 )
 
 @Composable

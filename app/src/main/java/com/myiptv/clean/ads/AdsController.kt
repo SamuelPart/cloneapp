@@ -402,7 +402,7 @@ internal class AdsController(private val app: Application) {
         }
     }
 
-    /** Preload on eligible browsing/detail screens, never during playback or Kids. */
+    /** Preload on eligible browsing/detail screens or a safe phone preview, never in Kids/TV. */
     fun loadRewards() {
         refreshAdFreeExpiry()
         if (!canShowAds || fullscreenShowing) return

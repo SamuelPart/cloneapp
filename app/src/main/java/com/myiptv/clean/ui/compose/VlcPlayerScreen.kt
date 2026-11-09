@@ -174,19 +174,24 @@ internal fun VlcPlayerScreen(
             initializationError = null
             val newObserver = LifecycleEventObserver { _, event ->
                 when (event) {
-                    Lifecycle.Event.ON_START -> newController.onForeground()
+                    // A phone-live stream must not keep playing beneath a rewarded ad activity,
+                    // even when that activity only pauses (rather than stops) its host.
+                    Lifecycle.Event.ON_RESUME -> if (useVideoLayoutBounds) newController.onForeground()
+                    Lifecycle.Event.ON_PAUSE -> if (useVideoLayoutBounds) newController.onBackground()
+                    Lifecycle.Event.ON_START -> if (!useVideoLayoutBounds) newController.onForeground()
                     Lifecycle.Event.ON_STOP -> newController.onBackground()
                     else -> Unit
                 }
             }
             observer = newObserver
             lifecycleOwner.lifecycle.addObserver(newObserver)
-            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) newController.onForeground()
+            val foregroundState = if (useVideoLayoutBounds) Lifecycle.State.RESUMED else Lifecycle.State.STARTED
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(foregroundState)) newController.onForeground()
         } catch (error: Throwable) {
             if (error !is Exception && error !is LinkageError) throw error
             if (controller != null) controller.release() else engine?.release()
             binding = null
-            initializationError = "No se pudo iniciar VLC en este dispositivo."
+            initializationError = "No se pudo iniciar el reproductor en este dispositivo."
             state = PlaybackState(isPlaying = false, isBuffering = false, error = initializationError)
         }
         onDispose {
@@ -399,7 +404,26 @@ internal fun VlcPlayerScreen(
                 muteMessage = muteMessage,
                 onTogglePlayback = ::togglePlayback,
                 onToggleMute = ::togglePhoneMute,
-                onFullscreen = { showControls(); fullscreen.set(true) },
+                onFullscreen = {
+                    showControls()
+                    phoneLiveActions.onRequestFullscreen {
+                        // The ordinary/free fullscreen path does not stop or recreate the player.
+                        // Only accepting an ad suspends the exact current controller first.
+                        val controller = binding?.controller
+                        val resume: () -> Unit = {
+                            if (controller != null && binding?.controller === controller &&
+                                lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+                            ) controller.onForeground()
+                        }
+                        try {
+                            controller?.onBackground()
+                        } catch (error: Throwable) {
+                            runCatching { resume() }
+                            throw error
+                        }
+                        resume
+                    }
+                },
                 modifier = Modifier.matchParentSize()
             )
         } else if (controlsVisible) {
@@ -494,7 +518,7 @@ private fun VlcPlayerHeader(
         PlayerIconButton(Icons.Filled.ArrowBack, "Volver", if (isTv) 48f else 44f, onClick = onBack)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, color = Color.White, style = if (isTv) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(if (isLiveChannel) "Canal en directo · VLC" else "Reproducción con VLC", color = TvMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            Text(if (isLiveChannel) "Canal en directo" else "Reproducción SamPlay", color = TvMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
         if (!isTv && fullscreen.available) {
             PlayerIconButton(
@@ -576,7 +600,7 @@ private fun VlcBottomControls(
                         Text("EN DIRECTO", color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     }
                 } else {
-                    Text("VLC", color = TvMuted, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text("SamPlay", color = TvMuted, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.weight(1f))
                 PlayerTextButton(Icons.Filled.VolumeUp, "Audio", onAudio)

@@ -39,6 +39,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import com.myiptv.clean.CleanIPTVApp
+import com.myiptv.clean.ads.AdSection
+import com.myiptv.clean.ads.AdsRules
+import com.myiptv.clean.ads.canOfferMediaAds
+import com.myiptv.clean.ads.isKidsGenre
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
 import com.myiptv.clean.data.repository.LocalMediaSources
 import com.myiptv.clean.data.repository.MediaPlaylist
@@ -100,9 +109,10 @@ fun MediaDetailScreen(
     mediaId: String,
     isTv: Boolean,
     playlist: MediaPlaylist,
+    fromKids: Boolean,
     onBack: () -> Unit,
     onOpenMedia: (String) -> Unit,
-    onPlay: (String, MediaKind, Boolean) -> Unit,
+    onPlay: (String, MediaKind, Boolean, () -> Boolean) -> Unit,
     isFavorite: (String) -> Boolean,
     onToggleFavorite: (String) -> Unit
 ) {
@@ -166,6 +176,21 @@ fun MediaDetailScreen(
     }
 
     val context = LocalContext.current
+    val ads = (context.applicationContext as CleanIPTVApp).ads
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val safeMedia = canOfferMediaAds(item.genres)
+    val latestSafeMedia = rememberUpdatedState(safeMedia)
+    val latestMediaId = rememberUpdatedState(item.id)
+    val section = if (item.kind == MediaKind.MOVIE) AdSection.MOVIES else AdSection.SERIES
+    // Do not request ads for child-directed or unclassified media while TMDb is still loading.
+    val canPreloadReward = AdsRules.canPreloadMediaReward(context.isTelevisionDevice(), fromKids, item.genres) &&
+        ads.canShowAdsIn(section)
+    LaunchedEffect(ads, lifecycleOwner, item.id, canPreloadReward, ads.fullscreenShowing) {
+        if (canPreloadReward && !ads.fullscreenShowing) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { ads.loadRewards() }
+        }
+    }
+    val canStillAdvertise: () -> Boolean = { latestMediaId.value == item.id && latestSafeMedia.value }
     val savedSource = remember(item.id, playlist) { LocalMediaSources.get(context, item.id, playlist) }
     val hasPlayback = resolvePlaybackSource(
         catalog = playlist.source(item.id),
@@ -223,7 +248,7 @@ fun MediaDetailScreen(
             hasPlayback = hasPlayback,
             favorite = isFavorite(item.id),
             onBack = onBack,
-            onPlay = { onPlay(item.id, item.kind, com.myiptv.clean.ads.isKidsGenre(item.genres)) },
+            onPlay = { onPlay(item.id, item.kind, isKidsGenre(item.genres), canStillAdvertise) },
             onToggleFavorite = { onToggleFavorite(item.id) }
         )
 
@@ -272,7 +297,7 @@ fun MediaDetailScreen(
                             TvEpisodeRow(
                                 episode = episode,
                                 hasSource = resolvePlaybackSource(playlist.source(sourceId), legacySource?.let { PlaylistSource(it.url, it.type) }) != null,
-                                onPlay = { onPlay(sourceId, item.kind, com.myiptv.clean.ads.isKidsGenre(item.genres)) }
+                                onPlay = { onPlay(sourceId, item.kind, isKidsGenre(item.genres), canStillAdvertise) }
                             )
                         }
                         Text(episodeNotice, color = TvMuted, style = MaterialTheme.typography.labelSmall)

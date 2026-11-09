@@ -348,6 +348,6 @@ internal class PlaybackController(
     }
 
     private companion object {
-        const val PLAYBACK_ERROR = "No se pudo reproducir la fuente con VLC. Comprueba el enlace y su disponibilidad."
+        const val PLAYBACK_ERROR = "No se pudo reproducir la fuente. Comprueba el enlace y su disponibilidad."
     }
 }

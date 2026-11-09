@@ -84,7 +84,8 @@ object TdtChannelsRepository {
                                 streamUrl = line,
                                 accent = accent,
                                 logoUrl = metadata.logoUrl.takeIf(String::isNotBlank),
-                                epgId = metadata.epgId.takeIf(String::isNotBlank)
+                                epgId = metadata.epgId.takeIf(String::isNotBlank),
+                                sourceCategories = sourceChannelCategories(listOf(metadata.category))
                             )
                         )
                     }

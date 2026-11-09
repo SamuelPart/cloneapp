@@ -6,8 +6,11 @@ import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -20,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -129,9 +133,17 @@ internal fun SamplayCoinSettings() {
     var message by remember { mutableStateOf("") }
     var rewardDialog by remember { mutableStateOf<RewardFormat?>(null) }
     var passDialog by remember { mutableStateOf<PassChoice?>(null) }
+    var insufficientPrice by remember { mutableStateOf<Int?>(null) }
 
     TvInfoPanel {
-        Text("Monedas SamPlay: ${wallet.balance}", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SamplayCoinIcon(Modifier.size(44.dp))
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text("Saldo SamPlay", color = TvMuted, style = MaterialTheme.typography.bodySmall)
+                Text("${wallet.balance} monedas", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)
+            }
+        }
         Text("+2 al abrir cada día · +10 por cada 5 días consecutivos · +3 por un favorito nuevo al día.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
         val today = CoinRules.localDay(System.currentTimeMillis())
         val watched = if (wallet.watchDay == today) wallet.watchedMs else 0L
@@ -234,7 +246,10 @@ internal fun SamplayCoinSettings() {
                                 ads.onPassPurchased()
                                 "Pase activado durante 24 horas."
                             }
-                            CoinPurchaseStatus.INSUFFICIENT -> "No tienes suficientes monedas."
+                            CoinPurchaseStatus.INSUFFICIENT -> {
+                                insufficientPrice = price
+                                ""
+                            }
                             CoinPurchaseStatus.ALREADY_ACTIVE -> "Ya tienes un pase activo para esta opción."
                         }
                     }
@@ -242,6 +257,9 @@ internal fun SamplayCoinSettings() {
             },
             dismissButton = { TextButton(onClick = { passDialog = null }) { Text("Cancelar") } },
         )
+    }
+    insufficientPrice?.let { price ->
+        InsufficientCoinsDialog(balance = wallet.balance, price = price) { insufficientPrice = null }
     }
 }
 

@@ -95,6 +95,29 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun adInterruptionStopsLiveAudioAndResumesTheSameEngineOnlyOnce() {
+        val engine = FakeEngine()
+        val observed = mutableListOf<PlaybackEvent>()
+        val controller = PlaybackController(engine, onPlaybackEvent = { observed.add(it) }) {}
+        controller.onForeground()
+        controller.onSurfaceReady()
+        engine.emit(PlaybackEvent.Playing)
+        controller.onBackground() // Immediately before the voluntary ad.
+        controller.onBackground() // The host may also receive ON_PAUSE/ON_STOP.
+        assertEquals(1, engine.stopped)
+        assertEquals(0, engine.releases)
+        assertFalse(engine.playing)
+        engine.emit(PlaybackEvent.Error) // A stale signal cannot trigger a channel change.
+        assertEquals(listOf(PlaybackEvent.Playing), observed)
+        controller.onForeground() // SDK return and lifecycle resumption may both request this.
+        controller.onForeground()
+        assertEquals(2, engine.loaded)
+        assertEquals(2, engine.played)
+        assertEquals(0, engine.releases)
+        assertTrue(engine.playing)
+    }
+
+    @Test
     fun pendingPauseIsAppliedAfterOpeningAndCannotPauseSignalIsHonest() {
         val engine = FakeEngine()
         val controller = start(engine)
@@ -227,6 +250,7 @@ class PlaybackControllerTest {
         val controller = start(engine)
         engine.emit(PlaybackEvent.Error)
         assertNotNull(controller.state.error)
+        assertFalse(controller.state.error.orEmpty().contains("VLC", ignoreCase = true))
         assertFalse(controller.state.isPlaying)
         engine.emit(PlaybackEvent.Playing) // An old callback must not clear an error.
         assertNotNull(controller.state.error)
