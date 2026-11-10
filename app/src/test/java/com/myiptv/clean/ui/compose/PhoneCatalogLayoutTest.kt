@@ -27,7 +27,7 @@ class PhoneCatalogLayoutTest {
             }
         }
         // Other existing layouts, including live playback, keep their previous policy.
-        assertTrue(useSamplayTvLayout(false, "settings", false, false, 840f))
+        assertTrue(useSamplayTvLayout(false, "favorites", false, false, 840f))
         assertFalse(useSamplayTvLayout(false, "channels", false, true, 1200f))
         assertFalse(useSamplayTvLayout(false, "player/{id}", true, false, 1200f))
     }
@@ -43,6 +43,22 @@ class PhoneCatalogLayoutTest {
         listOf("home", "channels", "movies", "favorites", "settings", "player/{id}").forEach { route ->
             assertFalse(usePhoneSearchLayout(isTvDevice = false, route = route))
             assertFalse(usePhoneSearchLayout(isTvDevice = true, route = route))
+        }
+    }
+
+    @Test
+    fun settingsAndCoinsStayMobileAtEveryWidthAndNeverOverrideAndroidTv() {
+        for (width in listOf(240f, 320f, 720f, 840f, 1200f)) {
+            listOf("settings", "settings/coins").forEach { route ->
+                assertTrue(usePhoneSettingsLayout(isTvDevice = false, route = route))
+                assertFalse(usePhoneSettingsLayout(isTvDevice = true, route = route))
+                assertFalse(useSamplayTvLayout(false, route, false, false, width))
+                assertTrue(useSamplayTvLayout(true, route, false, false, width))
+            }
+        }
+        listOf("home", "movies", "channels", "search", "favorites", "player/{id}").forEach { route ->
+            assertFalse(usePhoneSettingsLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneSettingsLayout(isTvDevice = true, route = route))
         }
     }
 

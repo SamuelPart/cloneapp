@@ -20,8 +20,8 @@ android {
         applicationId 'com.myiptv.clean'
         minSdk 21
         targetSdk 34
-        versionCode 13
-        versionName '1.2.10'
+        versionCode 14
+        versionName '1.2.11'
         buildConfigField 'String', 'TMDB_API_KEY', '"' + tmdbApiKey + '"'
     }
 

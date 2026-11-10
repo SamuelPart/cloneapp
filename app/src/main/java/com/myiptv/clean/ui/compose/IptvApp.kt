@@ -56,6 +56,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -184,6 +185,8 @@ internal fun IptvApp(
     val isDetail = currentRoute == IptvRoute.CHANNEL_DETAIL || currentRoute == IptvRoute.MEDIA_DETAIL
     var liveFullscreen by remember { mutableStateOf(false) }
     var phoneChannelSearchOpen by remember { mutableStateOf(false) }
+    var pendingPhoneSettingsUpdate by rememberSaveable { mutableStateOf<Long?>(null) }
+    var phoneSettingsUpdateSequence by rememberSaveable { mutableLongStateOf(0L) }
     var tvChannelRequest by remember { mutableStateOf<TvChannelRequest?>(null) }
     var tvChannelRequestSequence by remember { mutableLongStateOf(0L) }
     val tvChannelKeys = remember { TvChannelKeys() }
@@ -271,12 +274,20 @@ internal fun IptvApp(
     }
     LaunchedEffect(updateRequest) {
         val request = updateRequest ?: return@LaunchedEffect
+        // Phone settings has collapsible sections; keep this event until the update card opens.
+        // Use our own saved sequence: Activity request IDs can restart after rotation.
+        if (!isTelevision) {
+            phoneSettingsUpdateSequence += 1
+            pendingPhoneSettingsUpdate = phoneSettingsUpdateSequence
+        }
         navigateTopLevel(navController, IptvRoute.SETTINGS)
         onUpdateRequestHandled(request)
     }
     LaunchedEffect(playlist.items) { favoritesViewModel.canonicalize(playlist) }
     LaunchedEffect(notificationTarget, playlist.loaded) {
         val target = notificationTarget ?: return@LaunchedEffect
+        // A newer catalog notification supersedes any unfinished update-panel request.
+        pendingPhoneSettingsUpdate = null
         // On a cold start the atomic remote cache may still be loading. Wait for it so the
         // destination can resolve the exact M3U title, including a series with new episodes.
         if (!playlist.loaded) return@LaunchedEffect
@@ -348,8 +359,13 @@ internal fun IptvApp(
                 IptvNavigationGraph(
                     navController = navController,
                     isTv = if (isPlayer) isTelevision else isTvLayout,
+                    isTelevisionDevice = isTelevision,
                     favoritesViewModel = favoritesViewModel,
                     playlist = playlist,
+                    pendingPhoneSettingsUpdate = pendingPhoneSettingsUpdate,
+                    onPhoneSettingsUpdateHandled = { handled ->
+                        pendingPhoneSettingsUpdate = phoneSettingsUpdateAfterHandled(pendingPhoneSettingsUpdate, handled)
+                    },
                     liveFullscreen = liveFullscreen,
                     onLiveFullscreenChange = { liveFullscreen = it },
                     phoneChannelSearchOpen = phoneChannelSearchOpen,
@@ -397,8 +413,11 @@ private fun navigateFromChrome(navController: NavHostController, route: String, 
 private fun IptvNavigationGraph(
     navController: NavHostController,
     isTv: Boolean,
+    isTelevisionDevice: Boolean,
     favoritesViewModel: FavoritesViewModel,
     playlist: MediaPlaylist,
+    pendingPhoneSettingsUpdate: Long?,
+    onPhoneSettingsUpdateHandled: (Long) -> Unit,
     liveFullscreen: Boolean,
     onLiveFullscreenChange: (Boolean) -> Unit,
     phoneChannelSearchOpen: Boolean,
@@ -410,7 +429,10 @@ private fun IptvNavigationGraph(
     modifier: Modifier = Modifier
 ) {
     val currentIsTv = rememberUpdatedState(isTv)
+    val currentIsTelevisionDevice = rememberUpdatedState(isTelevisionDevice)
     val currentPlaylist = rememberUpdatedState(playlist)
+    val currentPhoneSettingsUpdate = rememberUpdatedState(pendingPhoneSettingsUpdate)
+    val currentOnPhoneSettingsUpdateHandled = rememberUpdatedState(onPhoneSettingsUpdateHandled)
     val currentLiveFullscreen = rememberUpdatedState(liveFullscreen)
     val currentOnLiveFullscreenChange = rememberUpdatedState(onLiveFullscreenChange)
     val currentPhoneChannelSearchOpen = rememberUpdatedState(phoneChannelSearchOpen)
@@ -634,15 +656,19 @@ private fun IptvNavigationGraph(
             composable(IptvRoute.HISTORY) {
                 HistoryScreen(currentIsTv.value)
             }
-            composable(IptvRoute.SETTINGS) {
+            composable(IptvRoute.SETTINGS) { entry ->
                 SettingsScreen(
-                    isTv = currentIsTv.value,
+                    // Route transitions may overlap layouts; form factor belongs to the device.
+                    isTv = currentIsTelevisionDevice.value,
                     playlist = currentPlaylist.value,
-                    onOpenCoins = { navController.navigate(IptvRoute.SETTINGS_COINS) { launchSingleTop = true } }
+                    onOpenCoins = { navController.navigate(IptvRoute.SETTINGS_COINS) { launchSingleTop = true } },
+                    // Only the visible entry may consume an update while navigation animates.
+                    openUpdateRequest = phoneSettingsUpdateForEntry(currentPhoneSettingsUpdate.value, entry === currentEntry),
+                    onUpdateRequestHandled = { currentOnPhoneSettingsUpdateHandled.value(it) }
                 )
             }
             composable(IptvRoute.SETTINGS_COINS) {
-                SamplayCoinsScreen(isTv = currentIsTv.value, onBack = { navController.popBackStack() })
+                SamplayCoinsScreen(isTv = currentIsTelevisionDevice.value, onBack = { navController.popBackStack() })
             }
             composable(
                 route = IptvRoute.CHANNEL_DETAIL,

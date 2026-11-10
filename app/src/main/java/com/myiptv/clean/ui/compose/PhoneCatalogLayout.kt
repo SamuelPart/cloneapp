@@ -1,5 +1,7 @@
 package com.myiptv.clean.ui.compose
 
+import com.myiptv.clean.navigation.SettingsRoutes
+
 /** The portrait-style catalog belongs to phones/tablets, never to an Android TV device. */
 internal val PHONE_CATALOG_ROUTES = setOf("home", "movies", "series", "kids", "anime")
 
@@ -10,7 +12,11 @@ internal fun usePhoneCatalogLayout(isTvDevice: Boolean, route: String): Boolean 
 internal fun usePhoneSearchLayout(isTvDevice: Boolean, route: String): Boolean =
     !isTvDevice && route == "search"
 
-/** TV is unchanged; phone catalog and search override the old width-based TV layout. */
+/** Settings and its coin subpage stay touch-oriented even when a phone is wide. */
+internal fun usePhoneSettingsLayout(isTvDevice: Boolean, route: String): Boolean =
+    !isTvDevice && (route == SettingsRoutes.SETTINGS || route == SettingsRoutes.COINS)
+
+/** TV is unchanged; phone catalog, search and settings override width-based TV layout. */
 internal fun useSamplayTvLayout(
     isTvDevice: Boolean,
     route: String,
@@ -18,6 +24,7 @@ internal fun useSamplayTvLayout(
     isChannelDestination: Boolean,
     widthDp: Float
 ): Boolean = !usePhoneCatalogLayout(isTvDevice, route) && !usePhoneSearchLayout(isTvDevice, route) &&
+    !usePhoneSettingsLayout(isTvDevice, route) &&
     useTvContentLayout(isTvDevice, isPlayer, isChannelDestination, widthDp)
 
 /** The catalog tabs share the Inicio destination in the fixed five-item bottom bar. */
