@@ -14,5 +14,6 @@ fun MediaCollectionScreen(
     viewModel: MediaCollectionViewModel = viewModel()
 ) {
     LaunchedEffect(collection) { viewModel.load(collection) }
-    TvCollectionScreen(collection, viewModel, onOpenMedia, favorites, onToggleFavorite, isTv)
+    if (isTv) TvCollectionScreen(collection, viewModel, onOpenMedia, favorites, onToggleFavorite, isTv = true)
+    else PhoneCollectionScreen(collection, viewModel, onOpenMedia, favorites, onToggleFavorite)
 }

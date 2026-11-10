@@ -7,6 +7,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -34,6 +38,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Theaters
@@ -65,6 +70,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -288,8 +294,12 @@ internal fun IptvApp(
                 } else false
             }
     ) {
-        val isTvLayout = useTvContentLayout(
+        // Keep the redesigned catalog on touch devices even in a wide window; Android TV
+        // continues to use exactly the same sidebar, home and remote-focused layout as before.
+        val phoneCatalog = usePhoneCatalogLayout(isTelevision, currentRoute)
+        val isTvLayout = useSamplayTvLayout(
             isTvDevice = isTelevision,
+            route = currentRoute,
             isPlayer = isPlayer,
             isChannelDestination = currentRoute == IptvRoute.CHANNELS || currentRoute == IptvRoute.CHANNEL_DETAIL,
             widthDp = maxWidth.value
@@ -324,9 +334,13 @@ internal fun IptvApp(
                         onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
                         onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                         onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                        onHistory = { navigateTopLevel(navController, IptvRoute.HISTORY) },
                         onNavigate = { navigateTopLevel(navController, it) },
                         isTv = isTvLayout
                     )
+                    if (phoneCatalog) {
+                        PhoneCatalogTabs(currentRoute, onNavigate = { navigateTopLevel(navController, it) })
+                    }
                 }
                 IptvNavigationGraph(
                     navController = navController,
@@ -728,9 +742,14 @@ private fun AppTopBar(
     onHome: () -> Unit,
     onFavorites: () -> Unit,
     onSettings: () -> Unit,
+    onHistory: () -> Unit,
     onNavigate: (String) -> Unit,
     isTv: Boolean
 ) {
+    if (!isTv) {
+        PhoneTopBar(onHome = onHome, onSearch = onSearch, onHistory = onHistory, onNavigate = onNavigate)
+        return
+    }
     var now by remember { androidx.compose.runtime.mutableStateOf(Date()) }
     LaunchedEffect(isTv) {
         while (isTv) {
@@ -787,6 +806,100 @@ private fun AppTopBar(
                         maxLines = 1
                     )
                 }
+            }
+        }
+    }
+}
+
+private val phoneCatalogDestinations = listOf(
+    AppDestination(IptvRoute.HOME, "Recomendado", Icons.Filled.Home),
+    AppDestination(IptvRoute.MOVIES, "Películas", Icons.Filled.Movie),
+    AppDestination(IptvRoute.SERIES, "Series", Icons.Filled.Theaters),
+    AppDestination(IptvRoute.KIDS, "Kids", Icons.Filled.ChildCare),
+    AppDestination(IptvRoute.ANIME, "Anime", Icons.Filled.Animation)
+)
+
+@Composable
+private fun PhoneTopBar(
+    onHome: () -> Unit,
+    onSearch: () -> Unit,
+    onHistory: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(60.dp).padding(start = 14.dp, end = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClickLabel = "Ir a inicio", onClick = onHome)) {
+            TvBrandLogo(Modifier.width(108.dp))
+        }
+        Spacer(Modifier.weight(1f))
+        PhoneHeaderAction(Icons.Filled.Search, "Buscar", onSearch)
+        PhoneHeaderAction(Icons.Filled.History, "Historial", onHistory)
+        var expanded by remember { mutableStateOf(false) }
+        Box {
+            PhoneHeaderAction(Icons.Filled.MoreVert, "Abrir menú", { expanded = true })
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.background(TvSurface)) {
+                sidebarDestinations.forEach { destination ->
+                    DropdownMenuItem(
+                        text = { Text(destination.label, color = Color.White) },
+                        leadingIcon = { Icon(destination.icon, contentDescription = null, tint = TvAccent) },
+                        onClick = { expanded = false; onNavigate(destination.route) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhoneHeaderAction(icon: ImageVector, description: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.size(44.dp).clip(CircleShape).clickable(onClickLabel = description, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = description, tint = Color.White, modifier = Modifier.size(24.dp))
+    }
+}
+
+@Composable
+private fun PhoneCatalogTabs(currentRoute: String, onNavigate: (String) -> Unit) {
+    val state = rememberLazyListState()
+    val selectedIndex = phoneCatalogDestinations.indexOfFirst { it.route == currentRoute }
+    LaunchedEffect(currentRoute, state) {
+        if (selectedIndex >= 0) {
+            val item = state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == selectedIndex }
+            val completelyVisible = item != null && item.offset >= state.layoutInfo.viewportStartOffset &&
+                item.offset + item.size <= state.layoutInfo.viewportEndOffset
+            if (!completelyVisible) state.animateScrollToItem(selectedIndex)
+        }
+    }
+    LazyRow(
+        state = state,
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        items(phoneCatalogDestinations, key = AppDestination::route) { destination ->
+            val active = currentRoute == destination.route
+            Column(
+                modifier = Modifier.fillMaxHeight().selectable(
+                    selected = active,
+                    role = Role.Tab,
+                    onClick = { onNavigate(destination.route) }
+                ),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text(
+                        destination.label,
+                        color = if (active) PhoneChannelAccent else Color.White.copy(alpha = 0.7f),
+                        fontSize = 15.sp,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1
+                    )
+                }
+                Box(Modifier.width(38.dp).height(3.dp).background(if (active) PhoneChannelAccent else Color.Transparent, CircleShape))
             }
         }
     }
@@ -873,7 +986,8 @@ private fun SidebarItem(destination: AppDestination, selected: Boolean, onClick:
 
 @Composable
 private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
-    val selectedRoute = SettingsRoutes.topLevel(currentRoute)
+    val selectedRoute = phoneBottomCatalogRoute(SettingsRoutes.topLevel(currentRoute))
+    // These are the same five destinations on home and channels; labels remain accessible to TalkBack.
     val destinations = listOf(
         AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
         AppDestination(IptvRoute.CHANNELS, "En vivo", Icons.Filled.LiveTv),
@@ -882,29 +996,27 @@ private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
         AppDestination(IptvRoute.SETTINGS, "Ajustes", Icons.Filled.Settings)
     )
     Row(
-        modifier = Modifier.fillMaxWidth().height(72.dp).background(Color(0xFF101012)).padding(horizontal = 7.dp, vertical = 5.dp),
+        modifier = Modifier.fillMaxWidth().height(58.dp).background(Color(0xFF101012)).padding(horizontal = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         destinations.forEach { destination ->
             val selected = selectedRoute == destination.route
-            var focused by remember { androidx.compose.runtime.mutableStateOf(false) }
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
+            var focused by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier.weight(1f).fillMaxHeight()
                     .semantics { this.selected = selected }
                     .onFocusChanged { focused = it.isFocused }
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (selected || focused) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent)
-                    .clickable { onNavigate(destination.route) }
-                    .padding(vertical = 5.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(onClickLabel = destination.label) { onNavigate(destination.route) },
+                contentAlignment = Alignment.Center
             ) {
-                Icon(destination.icon, contentDescription = destination.label, tint = if (selected || focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(21.dp))
-                Spacer(Modifier.height(3.dp))
-                Text(destination.label, color = if (selected || focused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Icon(
+                    destination.icon,
+                    contentDescription = destination.label,
+                    tint = if (selected || focused) PhoneChannelAccent else Color.White.copy(alpha = 0.55f),
+                    modifier = Modifier.size(25.dp)
+                )
             }
         }
     }

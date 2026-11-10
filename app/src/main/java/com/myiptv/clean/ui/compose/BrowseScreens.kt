@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.myiptv.clean.data.repository.MediaPlaylist
 
-/** TV and phone use the same visual language, with each layout adapting to its available width. */
+/** Keep Android TV's existing home; phones use their own touch-oriented catalog layout. */
 @Composable
 fun HomeScreen(
     isTv: Boolean,
@@ -19,19 +19,34 @@ fun HomeScreen(
     onToggleFavorite: (String) -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
-    TvHomeScreen(
-        viewModel = viewModel,
-        isTv = isTv,
-        playlist = playlist,
-        onOpenChannels = onOpenChannels,
-        onOpenMovies = onOpenMovies,
-        onOpenSeries = onOpenSeries,
-        onOpenSettings = onOpenSettings,
-        onOpenChannel = onOpenChannel,
-        onOpenMedia = onOpenMedia,
-        favorites = favorites,
-        onToggleFavorite = onToggleFavorite
-    )
+    if (isTv) {
+        TvHomeScreen(
+            viewModel = viewModel,
+            isTv = true,
+            playlist = playlist,
+            onOpenChannels = onOpenChannels,
+            onOpenMovies = onOpenMovies,
+            onOpenSeries = onOpenSeries,
+            onOpenSettings = onOpenSettings,
+            onOpenChannel = onOpenChannel,
+            onOpenMedia = onOpenMedia,
+            favorites = favorites,
+            onToggleFavorite = onToggleFavorite
+        )
+    } else {
+        PhoneHomeScreen(
+            viewModel = viewModel,
+            playlist = playlist,
+            onOpenChannels = onOpenChannels,
+            onOpenMovies = onOpenMovies,
+            onOpenSeries = onOpenSeries,
+            onOpenSettings = onOpenSettings,
+            onOpenChannel = onOpenChannel,
+            onOpenMedia = onOpenMedia,
+            favorites = favorites,
+            onToggleFavorite = onToggleFavorite
+        )
+    }
 }
 
 @Composable
@@ -64,7 +79,8 @@ fun BrowseMediaScreen(
     onToggleFavorite: (String) -> Unit,
     viewModel: MoviesViewModel = viewModel()
 ) {
-    TvBrowseMediaScreen(kind, viewModel, onOpenMedia, favorites, onToggleFavorite, playlist, isTv)
+    if (isTv) TvBrowseMediaScreen(kind, viewModel, onOpenMedia, favorites, onToggleFavorite, playlist, isTv = true)
+    else PhoneBrowseMediaScreen(kind, viewModel, onOpenMedia, favorites, onToggleFavorite, playlist)
 }
 
 @Composable
