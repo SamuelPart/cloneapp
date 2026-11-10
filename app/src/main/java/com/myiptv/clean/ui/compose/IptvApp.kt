@@ -187,9 +187,12 @@ internal fun IptvApp(
     var tvChannelRequest by remember { mutableStateOf<TvChannelRequest?>(null) }
     var tvChannelRequestSequence by remember { mutableLongStateOf(0L) }
     val tvChannelKeys = remember { TvChannelKeys() }
-    val showChrome = !isPlayer && !isDetail && !(currentRoute == IptvRoute.CHANNELS && liveFullscreen)
     val uiMode = LocalConfiguration.current.uiMode
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
+    // Mobile search is a dedicated page with its own back and cancel controls, as in the reference.
+    // TV keeps its existing header and sidebar, and the five-item phone bar returns on leaving search.
+    val showChrome = !isPlayer && !isDetail && !(currentRoute == IptvRoute.CHANNELS && liveFullscreen) &&
+        !usePhoneSearchLayout(isTelevision, currentRoute)
     val favoritesViewModel: FavoritesViewModel = viewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(currentRoute) {
@@ -329,13 +332,13 @@ internal fun IptvApp(
                     AppTopBar(
                         onSearch = {
                             if (!isTvLayout && currentRoute == IptvRoute.CHANNELS) phoneChannelSearchOpen = !phoneChannelSearchOpen
-                            else navigateTopLevel(navController, IptvRoute.SEARCH)
+                            else navigateFromChrome(navController, IptvRoute.SEARCH, isTelevision)
                         },
                         onHome = { navigateTopLevel(navController, IptvRoute.HOME) },
                         onFavorites = { navigateTopLevel(navController, IptvRoute.FAVORITES) },
                         onSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
                         onHistory = { navigateTopLevel(navController, IptvRoute.HISTORY) },
-                        onNavigate = { navigateTopLevel(navController, it) },
+                        onNavigate = { navigateFromChrome(navController, it, isTelevision) },
                         isTv = isTvLayout
                     )
                     if (phoneCatalog) {
@@ -365,7 +368,7 @@ internal fun IptvApp(
                 if (showChrome && !isTvLayout) {
                     PhoneBottomBar(
                         currentRoute = currentRoute,
-                        onNavigate = { navigateTopLevel(navController, it) }
+                        onNavigate = { navigateFromChrome(navController, it, isTelevision) }
                     )
                 }
             }
@@ -378,6 +381,15 @@ private fun navigateTopLevel(navController: NavHostController, route: String) {
         popUpTo(IptvRoute.HOME) { saveState = true }
         launchSingleTop = true
         restoreState = true
+    }
+}
+
+/** Opening phone search retains the actual previous page so Back/Cancel can return to it. */
+private fun navigateFromChrome(navController: NavHostController, route: String, isTelevision: Boolean) {
+    if (usePhoneSearchLayout(isTelevision, route)) {
+        navController.navigate(route) { launchSingleTop = true }
+    } else {
+        navigateTopLevel(navController, route)
     }
 }
 
@@ -609,6 +621,9 @@ private fun IptvNavigationGraph(
                 SearchScreen(
                     isTv = currentIsTv.value,
                     playlist = currentPlaylist.value,
+                    onBack = {
+                        if (!navController.popBackStack()) navigateTopLevel(navController, IptvRoute.HOME)
+                    },
                     onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                     onOpenChannel = { navController.navigate(IptvRoute.channel(it)) }
                 )

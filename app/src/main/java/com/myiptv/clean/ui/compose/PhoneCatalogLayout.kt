@@ -6,14 +6,18 @@ internal val PHONE_CATALOG_ROUTES = setOf("home", "movies", "series", "kids", "a
 internal fun usePhoneCatalogLayout(isTvDevice: Boolean, route: String): Boolean =
     !isTvDevice && route in PHONE_CATALOG_ROUTES
 
-/** TV is unchanged; only phone catalog destinations override the old width-based TV layout. */
+/** Search has its own touch layout on phones, including wide or landscape windows. */
+internal fun usePhoneSearchLayout(isTvDevice: Boolean, route: String): Boolean =
+    !isTvDevice && route == "search"
+
+/** TV is unchanged; phone catalog and search override the old width-based TV layout. */
 internal fun useSamplayTvLayout(
     isTvDevice: Boolean,
     route: String,
     isPlayer: Boolean,
     isChannelDestination: Boolean,
     widthDp: Float
-): Boolean = !usePhoneCatalogLayout(isTvDevice, route) &&
+): Boolean = !usePhoneCatalogLayout(isTvDevice, route) && !usePhoneSearchLayout(isTvDevice, route) &&
     useTvContentLayout(isTvDevice, isPlayer, isChannelDestination, widthDp)
 
 /** The catalog tabs share the Inicio destination in the fixed five-item bottom bar. */

@@ -33,6 +33,20 @@ class PhoneCatalogLayoutTest {
     }
 
     @Test
+    fun searchUsesPhoneLayoutAtEveryWidthButNeverOnTv() {
+        for (width in listOf(240f, 320f, 720f, 840f, 1200f)) {
+            assertTrue(usePhoneSearchLayout(isTvDevice = false, route = "search"))
+            assertFalse(usePhoneSearchLayout(isTvDevice = true, route = "search"))
+            assertFalse(useSamplayTvLayout(false, "search", false, false, width))
+            assertTrue(useSamplayTvLayout(true, "search", false, false, width))
+        }
+        listOf("home", "channels", "movies", "favorites", "settings", "player/{id}").forEach { route ->
+            assertFalse(usePhoneSearchLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneSearchLayout(isTvDevice = true, route = route))
+        }
+    }
+
+    @Test
     fun eachCatalogTabKeepsInicioSelectedInTheFiveItemBar() {
         PHONE_CATALOG_ROUTES.forEach { assertEquals("home", phoneBottomCatalogRoute(it)) }
         assertEquals("channels", phoneBottomCatalogRoute("channels"))

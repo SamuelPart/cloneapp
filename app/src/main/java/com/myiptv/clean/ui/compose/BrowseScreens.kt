@@ -100,9 +100,13 @@ fun FavoritesScreen(
 fun SearchScreen(
     isTv: Boolean,
     playlist: MediaPlaylist,
+    onBack: () -> Unit,
     onOpenMedia: (String) -> Unit,
-    onOpenChannel: (String) -> Unit,
-    viewModel: SearchViewModel = viewModel()
+    onOpenChannel: (String) -> Unit
 ) {
-    TvSearchScreen(viewModel, onOpenMedia, onOpenChannel, playlist, isTv)
+    if (isTv) {
+        TvSearchScreen(viewModel(), onOpenMedia, onOpenChannel, playlist, isTv = true)
+    } else {
+        PhoneSearchScreen(playlist, onBack, onOpenMedia, onOpenChannel)
+    }
 }
