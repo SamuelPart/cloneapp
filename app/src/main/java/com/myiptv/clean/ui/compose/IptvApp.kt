@@ -124,6 +124,10 @@ private object IptvRoute {
     const val SERIES = "series"
     const val KIDS = "kids"
     const val ANIME = "anime"
+    const val MOVIE_CATALOG = "catalog/movies"
+    const val SERIES_CATALOG = "catalog/series"
+    const val WEEKLY_TRENDS = "catalog/trends"
+    const val DOCUMENTARIES = "catalog/documentaries"
     const val FAVORITES = "favorites"
     const val SEARCH = "search"
     const val DOWNLOADS = "downloads"
@@ -562,9 +566,11 @@ private fun IptvNavigationGraph(
                     isTv = currentIsTv.value,
                     playlist = currentPlaylist.value,
                     onOpenChannels = { navigateTopLevel(navController, IptvRoute.CHANNELS) },
-                    onOpenMovies = { navigateTopLevel(navController, IptvRoute.MOVIES) },
-                    onOpenSeries = { navigateTopLevel(navController, IptvRoute.SERIES) },
+                    onOpenMovies = { navigateTopLevel(navController, IptvRoute.MOVIE_CATALOG) },
+                    onOpenSeries = { navigateTopLevel(navController, IptvRoute.SERIES_CATALOG) },
                     onOpenSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                    onOpenWeeklyTrends = { navigateTopLevel(navController, IptvRoute.WEEKLY_TRENDS) },
+                    onOpenDocumentaries = { navigateTopLevel(navController, IptvRoute.DOCUMENTARIES) },
                     onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
                     onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                     favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
@@ -590,8 +596,62 @@ private fun IptvNavigationGraph(
                 )
             }
             composable(IptvRoute.MOVIES) {
+                if (currentIsTv.value) {
+                    BrowseMediaScreen(
+                        isTv = true,
+                        kind = MediaKind.MOVIE,
+                        playlist = currentPlaylist.value,
+                        onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                        favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                        onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                    )
+                } else {
+                    PhoneCategoryHomeScreen(
+                        category = PhoneHomeCategory.MOVIES,
+                        playlist = currentPlaylist.value,
+                        onOpenChannels = { navigateTopLevel(navController, IptvRoute.CHANNELS) },
+                        onOpenMoviesCatalog = { navigateTopLevel(navController, IptvRoute.MOVIE_CATALOG) },
+                        onOpenSeriesCatalog = { navigateTopLevel(navController, IptvRoute.SERIES_CATALOG) },
+                        onOpenWeeklyTrends = { navigateTopLevel(navController, IptvRoute.WEEKLY_TRENDS) },
+                        onOpenDocumentaries = { navigateTopLevel(navController, IptvRoute.DOCUMENTARIES) },
+                        onOpenSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                        onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
+                        onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                        favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                        onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) },
+                    )
+                }
+            }
+            composable(IptvRoute.SERIES) {
+                if (currentIsTv.value) {
+                    BrowseMediaScreen(
+                        isTv = true,
+                        kind = MediaKind.SERIES,
+                        playlist = currentPlaylist.value,
+                        onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                        favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                        onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                    )
+                } else {
+                    PhoneCategoryHomeScreen(
+                        category = PhoneHomeCategory.SERIES,
+                        playlist = currentPlaylist.value,
+                        onOpenChannels = { navigateTopLevel(navController, IptvRoute.CHANNELS) },
+                        onOpenMoviesCatalog = { navigateTopLevel(navController, IptvRoute.MOVIE_CATALOG) },
+                        onOpenSeriesCatalog = { navigateTopLevel(navController, IptvRoute.SERIES_CATALOG) },
+                        onOpenWeeklyTrends = { navigateTopLevel(navController, IptvRoute.WEEKLY_TRENDS) },
+                        onOpenDocumentaries = { navigateTopLevel(navController, IptvRoute.DOCUMENTARIES) },
+                        onOpenSettings = { navigateTopLevel(navController, IptvRoute.SETTINGS) },
+                        onOpenChannel = { navController.navigate(IptvRoute.channel(it)) },
+                        onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                        favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                        onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) },
+                    )
+                }
+            }
+            composable(IptvRoute.MOVIE_CATALOG) {
                 BrowseMediaScreen(
-                    isTv = currentIsTv.value,
+                    isTv = currentIsTelevisionDevice.value,
                     kind = MediaKind.MOVIE,
                     playlist = currentPlaylist.value,
                     onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
@@ -599,14 +659,30 @@ private fun IptvNavigationGraph(
                     onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
                 )
             }
-            composable(IptvRoute.SERIES) {
+            composable(IptvRoute.SERIES_CATALOG) {
                 BrowseMediaScreen(
-                    isTv = currentIsTv.value,
+                    isTv = currentIsTelevisionDevice.value,
                     kind = MediaKind.SERIES,
                     playlist = currentPlaylist.value,
                     onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                     favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
                     onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) }
+                )
+            }
+            composable(IptvRoute.WEEKLY_TRENDS) {
+                PhoneHomeShelfCatalogScreen(
+                    shelf = PhoneHomeShelf.WEEKLY_TRENDS,
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) },
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                )
+            }
+            composable(IptvRoute.DOCUMENTARIES) {
+                PhoneHomeShelfCatalogScreen(
+                    shelf = PhoneHomeShelf.DOCUMENTARIES,
+                    favorites = currentPlaylist.value.expandedMediaIds(favoritesViewModel.savedIds),
+                    onToggleFavorite = { favoritesViewModel.toggle(it, currentPlaylist.value) },
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                 )
             }
             composable(IptvRoute.KIDS) {

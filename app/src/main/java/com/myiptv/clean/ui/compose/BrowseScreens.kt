@@ -17,6 +17,9 @@ fun HomeScreen(
     onOpenMedia: (String) -> Unit,
     favorites: Set<String>,
     onToggleFavorite: (String) -> Unit,
+    category: PhoneHomeCategory = PhoneHomeCategory.RECOMMENDED,
+    onOpenWeeklyTrends: () -> Unit = {},
+    onOpenDocumentaries: () -> Unit = {},
     viewModel: HomeViewModel = viewModel()
 ) {
     if (isTv) {
@@ -44,9 +47,45 @@ fun HomeScreen(
             onOpenChannel = onOpenChannel,
             onOpenMedia = onOpenMedia,
             favorites = favorites,
-            onToggleFavorite = onToggleFavorite
+            onToggleFavorite = onToggleFavorite,
+            category = category,
+            onOpenWeeklyTrends = onOpenWeeklyTrends,
+            onOpenDocumentaries = onOpenDocumentaries,
         )
     }
+}
+
+@Composable
+internal fun PhoneCategoryHomeScreen(
+    category: PhoneHomeCategory,
+    playlist: MediaPlaylist,
+    onOpenChannels: () -> Unit,
+    onOpenMoviesCatalog: () -> Unit,
+    onOpenSeriesCatalog: () -> Unit,
+    onOpenWeeklyTrends: () -> Unit,
+    onOpenDocumentaries: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenChannel: (String) -> Unit,
+    onOpenMedia: (String) -> Unit,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+    viewModel: HomeViewModel = viewModel(),
+) {
+    PhoneHomeScreen(
+        viewModel = viewModel,
+        playlist = playlist,
+        onOpenChannels = onOpenChannels,
+        onOpenMovies = onOpenMoviesCatalog,
+        onOpenSeries = onOpenSeriesCatalog,
+        onOpenSettings = onOpenSettings,
+        onOpenChannel = onOpenChannel,
+        onOpenMedia = onOpenMedia,
+        favorites = favorites,
+        onToggleFavorite = onToggleFavorite,
+        category = category,
+        onOpenWeeklyTrends = onOpenWeeklyTrends,
+        onOpenDocumentaries = onOpenDocumentaries,
+    )
 }
 
 @Composable

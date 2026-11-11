@@ -4,9 +4,13 @@ import com.myiptv.clean.navigation.SettingsRoutes
 
 /** The portrait-style catalog belongs to phones/tablets, never to an Android TV device. */
 internal val PHONE_CATALOG_ROUTES = setOf("home", "movies", "series", "kids", "anime")
+internal val PHONE_CATALOG_DETAIL_ROUTES = setOf("catalog/movies", "catalog/series", "catalog/trends", "catalog/documentaries")
 
 internal fun usePhoneCatalogLayout(isTvDevice: Boolean, route: String): Boolean =
     !isTvDevice && route in PHONE_CATALOG_ROUTES
+
+internal fun usePhoneTouchLayout(isTvDevice: Boolean, route: String): Boolean =
+    !isTvDevice && (route in PHONE_CATALOG_ROUTES || route in PHONE_CATALOG_DETAIL_ROUTES)
 
 /** Search has its own touch layout on phones, including wide or landscape windows. */
 internal fun usePhoneSearchLayout(isTvDevice: Boolean, route: String): Boolean =
@@ -23,13 +27,13 @@ internal fun useSamplayTvLayout(
     isPlayer: Boolean,
     isChannelDestination: Boolean,
     widthDp: Float
-): Boolean = !usePhoneCatalogLayout(isTvDevice, route) && !usePhoneSearchLayout(isTvDevice, route) &&
+): Boolean = !usePhoneTouchLayout(isTvDevice, route) && !usePhoneSearchLayout(isTvDevice, route) &&
     !usePhoneSettingsLayout(isTvDevice, route) &&
     useTvContentLayout(isTvDevice, isPlayer, isChannelDestination, widthDp)
 
 /** The catalog tabs share the Inicio destination in the fixed five-item bottom bar. */
 internal fun phoneBottomCatalogRoute(route: String): String =
-    if (route in PHONE_CATALOG_ROUTES) "home" else route
+    if (route in PHONE_CATALOG_ROUTES || route in PHONE_CATALOG_DETAIL_ROUTES) "home" else route
 
 /** Show three portrait covers on normal phones and adapt for compact or wider windows. */
 internal fun phonePosterColumns(widthDp: Float): Int = when {

@@ -31,6 +31,10 @@ class HomeViewModel : ViewModel() {
         private set
     var documentaries by mutableStateOf<List<MediaItem>>(emptyList())
         private set
+    var isLoadingShelves by mutableStateOf(false)
+        private set
+    var shelvesStatus by mutableStateOf("")
+        private set
     var liveChannels by mutableStateOf<List<LiveChannel>>(emptyList())
         private set
     var isLoading by mutableStateOf(false)
@@ -97,19 +101,35 @@ class HomeViewModel : ViewModel() {
 
     /** Optional shelves use TMDb data only and never block the main catalog or live channels. */
     fun loadTvShelves() {
-        if (!TmdbRepository.isConfigured || tvShelvesLoaded || tvShelvesJob?.isActive == true) return
+        if (!TmdbRepository.isConfigured) {
+            shelvesStatus = "Configura TMDb para cargar tendencias y documentales."
+            return
+        }
+        if (tvShelvesLoaded || tvShelvesJob?.isActive == true) return
+        isLoadingShelves = true
+        shelvesStatus = "Consultando tendencias y documentales…"
         tvShelvesJob = viewModelScope.launch {
-            val result = loadTvShelfData(
-                loadTrends = { TmdbRepository.trendingThisWeek() },
-                loadDocumentaryMovies = { TmdbRepository.discoverMovies(TMDB_DOCUMENTARY_GENRE) },
-                loadDocumentarySeries = { TmdbRepository.discoverSeries(TMDB_DOCUMENTARY_GENRE) }
-            )
-            result.trends?.let { weeklyTrends = it.distinctBy(MediaItem::id).take(12) }
-            result.documentaryMovies?.let { documentaryMovies = it }
-            result.documentarySeries?.let { documentarySeries = it }
-            documentaries = homeGridCatalog(documentaryMovies, documentarySeries, MediaItem::id)
-            // Keep earlier successful results and retry failed shelves when home is reopened.
-            tvShelvesLoaded = result.allSucceeded
+            try {
+                val result = loadTvShelfData(
+                    loadTrends = { TmdbRepository.trendingThisWeek() },
+                    loadDocumentaryMovies = { TmdbRepository.discoverMovies(TMDB_DOCUMENTARY_GENRE) },
+                    loadDocumentarySeries = { TmdbRepository.discoverSeries(TMDB_DOCUMENTARY_GENRE) }
+                )
+                result.trends?.let { weeklyTrends = it.distinctBy(MediaItem::id).take(12) }
+                result.documentaryMovies?.let { documentaryMovies = it }
+                result.documentarySeries?.let { documentarySeries = it }
+                documentaries = homeGridCatalog(documentaryMovies, documentarySeries, MediaItem::id)
+                // Keep earlier successful results and retry failed shelves when home is reopened.
+                tvShelvesLoaded = result.allSucceeded
+                shelvesStatus = when {
+                    result.allSucceeded && weeklyTrends.isEmpty() && documentaries.isEmpty() -> "No hay títulos disponibles en estas secciones."
+                    result.allSucceeded -> "Tendencias y documentales cargados."
+                    weeklyTrends.isNotEmpty() || documentaries.isNotEmpty() -> "Algunas secciones no pudieron actualizarse."
+                    else -> "No se pudo conectar para cargar estas secciones."
+                }
+            } finally {
+                isLoadingShelves = false
+            }
         }
     }
 

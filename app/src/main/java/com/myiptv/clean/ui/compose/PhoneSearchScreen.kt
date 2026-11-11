@@ -154,11 +154,11 @@ internal fun PhoneSearchScreen(
             if (!searching) {
                 if (visibleSuggestions.isEmpty()) {
                     item(key = "suggestions-empty") {
-                        PhoneSearchMessage(
-                            if (!playlist.loaded || viewModel.popularLoading) "Cargando títulos…" else "No hay títulos disponibles",
-                            if (!playlist.loaded || viewModel.popularLoading) "" else viewModel.popularError
-                                ?: "Comprueba el catálogo y la conexión."
-                        )
+                        if (!playlist.loaded || viewModel.popularLoading) {
+                            SamplayLoadingPane(message = "Cargando títulos…")
+                        } else {
+                            PhoneSearchMessage("No hay títulos disponibles", viewModel.popularError ?: "Comprueba el catálogo y la conexión.")
+                        }
                     }
                 } else {
                     items(visibleSuggestions, key = { "suggestion-${it.item.id}" }) { suggestion ->
@@ -173,10 +173,11 @@ internal fun PhoneSearchScreen(
                 if (mediaResults.isEmpty() && channelResults.isEmpty()) {
                     item(key = "search-empty") {
                         val loading = !playlist.loaded || viewModel.searchPending || viewModel.channelsLoading
-                        PhoneSearchMessage(
-                            if (loading) "Buscando…" else "No encontramos resultados",
-                            if (loading) "" else viewModel.searchError ?: "Prueba otro título, género o canal."
-                        )
+                        if (loading) {
+                            SamplayLoadingPane(message = "Buscando…")
+                        } else {
+                            PhoneSearchMessage("No encontramos resultados", viewModel.searchError ?: "Prueba otro título, género o canal.")
+                        }
                     }
                 } else {
                     if (mediaResults.isNotEmpty()) {

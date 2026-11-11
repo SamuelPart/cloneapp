@@ -177,12 +177,16 @@ fun MediaDetailScreen(
     val item = loadedItem
     if (item == null) {
         val loading = detailLoading || !playlist.loaded
-        TvUnavailableDetail(
-            Icons.Filled.Movie,
-            if (loading) "Cargando ficha" else "Título no disponible",
-            if (loading) "Consultando el catálogo…" else "No se encontró este título en el catálogo M3U ni en TMDb.",
-            onBack
-        )
+        if (!isTv && loading) {
+            SamplayLoadingScreen("Cargando ficha…", onBack = onBack)
+        } else {
+            TvUnavailableDetail(
+                Icons.Filled.Movie,
+                if (loading) "Cargando ficha" else "Título no disponible",
+                if (loading) "Consultando el catálogo…" else "No se encontró este título en el catálogo M3U ni en TMDb.",
+                onBack
+            )
+        }
         return
     }
 

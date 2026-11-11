@@ -33,6 +33,20 @@ class PhoneCatalogLayoutTest {
     }
 
     @Test
+    fun sectionCatalogsKeepMobileLayoutWithoutChangingTv() {
+        PHONE_CATALOG_DETAIL_ROUTES.forEach { route ->
+            assertFalse(usePhoneCatalogLayout(isTvDevice = false, route = route))
+            assertTrue(usePhoneTouchLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneTouchLayout(isTvDevice = true, route = route))
+            for (width in listOf(320f, 720f, 840f, 1200f)) {
+                assertFalse(useSamplayTvLayout(false, route, false, false, width))
+                assertTrue(useSamplayTvLayout(true, route, false, false, width))
+            }
+            assertEquals("home", phoneBottomCatalogRoute(route))
+        }
+    }
+
+    @Test
     fun searchUsesPhoneLayoutAtEveryWidthButNeverOnTv() {
         for (width in listOf(240f, 320f, 720f, 840f, 1200f)) {
             assertTrue(usePhoneSearchLayout(isTvDevice = false, route = "search"))

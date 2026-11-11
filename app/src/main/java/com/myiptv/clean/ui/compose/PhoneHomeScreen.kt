@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.AsyncImage
 import com.myiptv.clean.CleanIPTVApp
@@ -67,6 +68,9 @@ import com.myiptv.clean.data.repository.mergeMediaCatalog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+
+internal enum class PhoneHomeCategory { RECOMMENDED, MOVIES, SERIES }
+internal enum class PhoneHomeShelf { WEEKLY_TRENDS, DOCUMENTARIES }
 
 /** Phone-only home, backed by the same M3U, TMDb, favorites and channels as the TV home. */
 @Composable
@@ -80,16 +84,38 @@ internal fun PhoneHomeScreen(
     onOpenChannel: (String) -> Unit,
     onOpenMedia: (String) -> Unit,
     favorites: Set<String>,
-    onToggleFavorite: (String) -> Unit
+    onToggleFavorite: (String) -> Unit,
+    category: PhoneHomeCategory = PhoneHomeCategory.RECOMMENDED,
+    onOpenWeeklyTrends: () -> Unit = {},
+    onOpenDocumentaries: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val available = remember(playlist.items, viewModel.trending, viewModel.recommended) {
         mergeMediaCatalog(playlist.items, viewModel.trending + viewModel.recommended)
     }
-    val movies = remember(available) { available.filter { it.kind == MediaKind.MOVIE } }
-    val series = remember(available) { available.filter { it.kind == MediaKind.SERIES } }
-    val preferred = if (playlist.items.isNotEmpty()) available.firstOrNull() else viewModel.featured
-    val featured = remember(preferred, movies, series) { featuredCatalog(preferred, movies, series, MediaItem::id) }
+    val allMovies = remember(available) { available.filter { it.kind == MediaKind.MOVIE } }
+    val allSeries = remember(available) { available.filter { it.kind == MediaKind.SERIES } }
+    val movies = if (category == PhoneHomeCategory.SERIES) emptyList() else allMovies
+    val series = if (category == PhoneHomeCategory.MOVIES) emptyList() else allSeries
+    val preferred = when (category) {
+        PhoneHomeCategory.MOVIES -> allMovies.firstOrNull()
+        PhoneHomeCategory.SERIES -> allSeries.firstOrNull()
+        PhoneHomeCategory.RECOMMENDED -> if (playlist.items.isNotEmpty()) available.firstOrNull() else viewModel.featured
+    }
+    val featured = remember(preferred, movies, series, category) {
+        if (category == PhoneHomeCategory.RECOMMENDED) featuredCatalog(preferred, movies, series, MediaItem::id)
+        else if (category == PhoneHomeCategory.MOVIES) featuredCatalog(preferred, movies, emptyList(), MediaItem::id)
+        else featuredCatalog(preferred, emptyList(), series, MediaItem::id)
+    }
+    val isInCategory: (MediaItem) -> Boolean = { item ->
+        when (category) {
+            PhoneHomeCategory.RECOMMENDED -> true
+            PhoneHomeCategory.MOVIES -> item.kind == MediaKind.MOVIE
+            PhoneHomeCategory.SERIES -> item.kind == MediaKind.SERIES
+        }
+    }
+    val trends = remember(viewModel.weeklyTrends, category) { viewModel.weeklyTrends.filter(isInCategory) }
+    val documentaries = remember(viewModel.documentaries, category) { viewModel.documentaries.filter(isInCategory) }
 
     LaunchedEffect(viewModel) { viewModel.loadTvShelves() }
 
@@ -112,13 +138,15 @@ internal fun PhoneHomeScreen(
         }
         if (movies.isNotEmpty()) {
             item(key = "movies") {
-                PhoneMediaShelf("Películas", movies, favorites, onToggleFavorite, onOpenMedia, onOpenMovies)
+                PhoneMediaShelf(
+                    if (category == PhoneHomeCategory.RECOMMENDED) "Películas Populares" else "Películas destacadas",
+                    movies, favorites, onToggleFavorite, onOpenMedia, onOpenMovies
+                )
             }
         }
-        if (movies.isNotEmpty() || series.isNotEmpty()) {
+        if (category == PhoneHomeCategory.RECOMMENDED && (movies.isNotEmpty() || series.isNotEmpty())) {
             item(key = "samplay-native-ad") {
                 if (AdsRules.canPlaceNativeOnHome(context.isTelevisionDevice(), isTvLayout = false)) {
-                    // The existing native ad supplies its own attribution and consent checks.
                     Box(Modifier.padding(horizontal = 14.dp)) {
                         SamplayNativeAd((context.applicationContext as CleanIPTVApp).ads)
                     }
@@ -127,63 +155,68 @@ internal fun PhoneHomeScreen(
         }
         if (series.isNotEmpty()) {
             item(key = "series") {
-                PhoneMediaShelf("Series", series, favorites, onToggleFavorite, onOpenMedia, onOpenSeries)
+                PhoneMediaShelf(
+                    if (category == PhoneHomeCategory.RECOMMENDED) "Series Populares" else "Series destacadas",
+                    series, favorites, onToggleFavorite, onOpenMedia, onOpenSeries
+                )
             }
         }
-        if (viewModel.weeklyTrends.isNotEmpty()) {
+        if (trends.isNotEmpty()) {
             item(key = "weekly-trends") {
-                PhoneMediaShelf("Tendencias esta semana", viewModel.weeklyTrends, favorites, onToggleFavorite, onOpenMedia)
+                PhoneMediaShelf("Tendencias esta semana", trends, favorites, onToggleFavorite, onOpenMedia, onOpenWeeklyTrends)
             }
         }
-        if (viewModel.documentaries.isNotEmpty()) {
+        if (documentaries.isNotEmpty()) {
             item(key = "documentaries") {
-                PhoneMediaShelf("Documentales", viewModel.documentaries, favorites, onToggleFavorite, onOpenMedia)
+                PhoneMediaShelf("Documentales", documentaries, favorites, onToggleFavorite, onOpenMedia, onOpenDocumentaries)
             }
         }
-        item(key = "live-channels") {
-            Column {
-                PhoneShelfHeading("TV en directo", onOpenChannels)
-                if (viewModel.liveChannels.isEmpty()) {
-                    Text(
-                        viewModel.statusMessage.substringAfter(" · ", "Cargando fuentes de TV…"),
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                } else {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(viewModel.liveChannels.take(20), key = LiveChannel::id) { channel ->
-                            TvChannelArtwork(
-                                channel = channel,
-                                modifier = Modifier.width(165.dp).height(98.dp).clip(RoundedCornerShape(7.dp)),
-                                onClick = { onOpenChannel(channel.id) }
-                            )
+        if (category == PhoneHomeCategory.RECOMMENDED) {
+            item(key = "live-channels") {
+                Column {
+                    PhoneShelfHeading("TV en directo", onOpenChannels)
+                    if (viewModel.liveChannels.isEmpty()) {
+                        Text(
+                            viewModel.statusMessage.substringAfter(" · ", "Cargando fuentes de TV…"),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    } else {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(viewModel.liveChannels.take(20), key = LiveChannel::id) { channel ->
+                                TvChannelArtwork(
+                                    channel = channel,
+                                    modifier = Modifier.width(165.dp).height(98.dp).clip(RoundedCornerShape(7.dp)),
+                                    onClick = { onOpenChannel(channel.id) }
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
-        item(key = "continue") {
-            Column(Modifier.padding(horizontal = 14.dp)) {
-                Text("Continuar viendo", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            item(key = "continue") {
+                Column(Modifier.padding(horizontal = 14.dp)) {
+                    Text("Continuar viendo", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(
+                        "El progreso de reproducción todavía no se guarda en este dispositivo.",
+                        modifier = Modifier.padding(top = 6.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            item(key = "status") {
                 Text(
-                    "El progreso de reproducción todavía no se guarda en este dispositivo.",
-                    modifier = Modifier.padding(top = 6.dp),
+                    "${playlist.statusMessage} · ${viewModel.statusMessage}",
+                    modifier = Modifier.padding(horizontal = 14.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
-        }
-        item(key = "status") {
-            Text(
-                "${playlist.statusMessage} · ${viewModel.statusMessage}",
-                modifier = Modifier.padding(horizontal = 14.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall
-            )
         }
     }
 }
@@ -260,19 +293,148 @@ private fun PhoneFeaturedCarousel(items: List<MediaItem>, onOpenMedia: (String) 
 
 @Composable
 private fun PhoneEmptyFeatured(loading: Boolean, status: String, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
+    Box(
         modifier = modifier.fillMaxWidth().aspectRatio(1.85f).clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF17191F)).clickable(onClick = onOpenSettings).padding(16.dp),
-        verticalArrangement = Arrangement.Center
+            .background(Color(0xFF17191F)),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Filled.Movie, contentDescription = null, tint = PhoneChannelAccent, modifier = Modifier.size(28.dp))
-        Spacer(Modifier.height(8.dp))
-        Text(if (loading) "Cargando catálogo…" else "Explora nuevas historias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
-        Text(
-            if (loading) "Consultando tus fuentes" else status.ifBlank { if (TmdbRepository.isConfigured) "Catálogo no disponible" else "Revisa tus fuentes en Ajustes" },
-            color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis
-        )
+        if (loading) {
+            SamplayLoading(Modifier.fillMaxSize(), "Cargando recomendaciones…", lionSize = 112.dp)
+        } else {
+            Column(
+                modifier = Modifier.fillMaxSize().clickable(onClick = onOpenSettings).padding(16.dp),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(Icons.Filled.Movie, contentDescription = null, tint = PhoneChannelAccent, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.height(8.dp))
+                Text("Explora nuevas historias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                Text(
+                    status.ifBlank { if (TmdbRepository.isConfigured) "Catálogo no disponible" else "Revisa tus fuentes en Ajustes" },
+                    color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
+}
+
+@Composable
+internal fun PhoneCollectionHomeScreen(
+    collection: MediaCollection,
+    items: List<MediaItem>,
+    loading: Boolean,
+    status: String,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+    onOpenMedia: (String) -> Unit,
+    onRetry: (() -> Unit)? = null,
+) {
+    val isKids = collection == MediaCollection.KIDS
+    val title = if (isKids) "Kids" else "Anime"
+    val featured = remember(items) { items.take(4) }
+    val movies = remember(items) { items.filter { it.kind == MediaKind.MOVIE } }
+    val series = remember(items) { items.filter { it.kind == MediaKind.SERIES } }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        item(key = "collection-featured") {
+            if (featured.isNotEmpty()) {
+                PhoneFeaturedCarousel(featured, onOpenMedia, Modifier.padding(horizontal = 14.dp))
+            } else if (loading) {
+                Box(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp).aspectRatio(1.85f)
+                        .clip(RoundedCornerShape(8.dp)).background(Color(0xFF17191F)),
+                ) {
+                    SamplayLoading(Modifier.fillMaxSize(), "Cargando $title…", lionSize = 112.dp)
+                }
+            } else {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+                    Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(status, modifier = Modifier.padding(top = 5.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (onRetry != null) {
+                        Text(
+                            "Reintentar",
+                            modifier = Modifier.padding(top = 10.dp).clickable(onClick = onRetry),
+                            color = PhoneChannelAccent,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+        if (movies.isNotEmpty()) {
+            item(key = "collection-movies") {
+                PhoneMediaShelf(if (isKids) "Películas para niños" else "Películas de anime", movies, favorites, onToggleFavorite, onOpenMedia)
+            }
+        }
+        if (series.isNotEmpty()) {
+            item(key = "collection-series") {
+                PhoneMediaShelf(if (isKids) "Series para niños" else "Series de anime", series, favorites, onToggleFavorite, onOpenMedia)
+            }
+        }
+        if (items.isNotEmpty()) {
+            item(key = "collection-all") {
+                PhoneMediaShelf(if (isKids) "Más contenido infantil" else "Más anime", items, favorites, onToggleFavorite, onOpenMedia)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun PhoneCuratedCatalogScreen(
+    title: String,
+    items: List<MediaItem>,
+    loading: Boolean,
+    status: String,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+    onOpenMedia: (String) -> Unit,
+    onRetry: (() -> Unit)? = null,
+) {
+    PhonePosterGrid(
+        items = items,
+        favorites = favorites,
+        onOpenMedia = onOpenMedia,
+        onToggleFavorite = onToggleFavorite,
+        header = { TvPageHeader(title, status) },
+        emptyContent = {
+            if (loading) {
+                SamplayLoadingPane(Modifier.fillMaxWidth(), "Cargando $title…")
+            } else {
+                Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (onRetry != null) {
+                        Text("Reintentar", modifier = Modifier.padding(top = 10.dp).clickable(onClick = onRetry), color = PhoneChannelAccent)
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+internal fun PhoneHomeShelfCatalogScreen(
+    shelf: PhoneHomeShelf,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+    onOpenMedia: (String) -> Unit,
+    viewModel: HomeViewModel = viewModel(),
+) {
+    LaunchedEffect(viewModel) { viewModel.loadTvShelves() }
+    val title = if (shelf == PhoneHomeShelf.WEEKLY_TRENDS) "Tendencias esta semana" else "Documentales"
+    val items = if (shelf == PhoneHomeShelf.WEEKLY_TRENDS) viewModel.weeklyTrends else viewModel.documentaries
+    PhoneCuratedCatalogScreen(
+        title = title,
+        items = items,
+        loading = viewModel.isLoadingShelves,
+        status = viewModel.shelvesStatus,
+        favorites = favorites,
+        onToggleFavorite = onToggleFavorite,
+        onOpenMedia = onOpenMedia,
+        onRetry = if (TmdbRepository.isConfigured) viewModel::loadTvShelves else null,
+    )
 }
 
 @Composable
@@ -313,7 +475,15 @@ private fun PhoneShelfHeading(title: String, onOpenAll: (() -> Unit)? = null) {
         modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, modifier = Modifier.weight(1f), color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            title,
+            modifier = Modifier.weight(1f).then(if (onOpenAll != null) Modifier.clickable(onClick = { onOpenAll.invoke() }) else Modifier),
+            color = Color.White,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         if (onOpenAll != null) {
             Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClickLabel = "Ver todo: $title", onClick = onOpenAll), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.MoreHoriz, contentDescription = "Ver todo: $title", tint = Color.White, modifier = Modifier.size(24.dp))

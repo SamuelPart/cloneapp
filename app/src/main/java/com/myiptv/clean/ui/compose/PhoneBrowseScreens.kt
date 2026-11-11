@@ -31,7 +31,8 @@ internal fun PhoneBrowseMediaScreen(
     onToggleFavorite: (String) -> Unit,
     playlist: MediaPlaylist
 ) {
-    val title = if (kind == MediaKind.MOVIE) "Películas" else "Series"
+    val title = if (kind == MediaKind.MOVIE) "Películas Populares" else "Series Populares"
+    val searchTitle = if (kind == MediaKind.MOVIE) "Películas" else "Series"
     val titles = viewModel.itemsFor(kind, playlist.items)
     val message = if (viewModel.query.isNotBlank() || viewModel.selectedGenre != "Todos") {
         "No se encontraron títulos para este filtro."
@@ -47,7 +48,7 @@ internal fun PhoneBrowseMediaScreen(
                 TvCatalogControls(
                     query = viewModel.query,
                     onQueryChange = { viewModel.query = it },
-                    placeholder = "Buscar $title",
+                    placeholder = "Buscar $searchTitle",
                     filters = viewModel.genresFor(kind, playlist.items),
                     selectedFilter = viewModel.selectedGenre,
                     onSelectFilter = { viewModel.selectedGenre = it }
@@ -62,12 +63,16 @@ internal fun PhoneBrowseMediaScreen(
             }
         },
         emptyContent = {
-            TvEmptyState(
-                Icons.Filled.Movie,
-                if (viewModel.isLoading || !playlist.loaded) "Cargando catálogo" else "No hay títulos",
-                message,
-                Modifier.fillMaxWidth().heightIn(min = 180.dp)
-            )
+            if (viewModel.isLoading || !playlist.loaded) {
+                SamplayLoadingPane(Modifier.fillMaxWidth(), "Cargando $title…")
+            } else {
+                TvEmptyState(
+                    Icons.Filled.Movie,
+                    "No hay títulos",
+                    message,
+                    Modifier.fillMaxWidth().heightIn(min = 180.dp)
+                )
+            }
         }
     )
 }
@@ -82,36 +87,22 @@ internal fun PhoneCollectionScreen(
     onToggleFavorite: (String) -> Unit
 ) {
     val isKids = collection == MediaCollection.KIDS
-    PhonePosterGrid(
+    PhoneCollectionHomeScreen(
+        collection = collection,
         items = viewModel.items,
-        favorites = favorites,
-        onOpenMedia = onOpenMedia,
-        onToggleFavorite = onToggleFavorite,
-        header = {
-            Column {
-                TvPageHeader(
-                    title = if (isKids) "Kids" else "Anime",
-                    subtitle = if (isKids) "Películas familiares y series infantiles según TMDb. Esta sección no sustituye la supervisión parental."
-                    else "Series de animación de origen japonés según TMDb."
-                )
-                TvStatus(viewModel.statusMessage)
-            }
+        loading = viewModel.isLoading,
+        status = viewModel.statusMessage.ifBlank {
+            if (isKids) "Películas familiares y series infantiles de TMDb." else "Series de animación de origen japonés de TMDb."
         },
-        emptyContent = {
-            TvEmptyState(
-                Icons.Filled.Movie,
-                if (viewModel.isLoading) "Cargando catálogo" else "No hay títulos disponibles",
-                viewModel.statusMessage,
-                Modifier.fillMaxWidth().heightIn(min = 180.dp),
-                action = if (!viewModel.isLoading && TmdbRepository.isConfigured) "Reintentar" else null,
-                onAction = if (!viewModel.isLoading && TmdbRepository.isConfigured) ({ viewModel.load(collection, force = true) }) else null
-            )
-        }
+        favorites = favorites,
+        onToggleFavorite = onToggleFavorite,
+        onOpenMedia = onOpenMedia,
+        onRetry = if (TmdbRepository.isConfigured) ({ viewModel.load(collection, force = true) }) else null,
     )
 }
 
 @Composable
-private fun PhonePosterGrid(
+internal fun PhonePosterGrid(
     items: List<MediaItem>,
     favorites: Set<String>,
     onOpenMedia: (String) -> Unit,
