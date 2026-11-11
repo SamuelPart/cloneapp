@@ -321,14 +321,18 @@ object MediaPlaylistParser {
         if ((season == null) != (episode == null) || (season != null && (kind != MediaKind.SERIES || season < 0 || episode!! < 1))) return null
 
         val idFromTag = tmdbMatch?.groupValues?.get(2)?.toLongOrNull()
-        val suppliedTmdb = values["tmdb-id"]?.toLongOrNull()
-        if ((tmdbMatch != null && idFromTag == null) || (values["tmdb-id"] != null && suppliedTmdb == null)) return null
+        // Empty optional attributes mean "not supplied", just like an omitted attribute.
+        // A non-empty invalid or contradictory ID must still reject the entry.
+        val suppliedTmdbText = values["tmdb-id"]?.takeIf(String::isNotBlank)
+        val suppliedTmdb = suppliedTmdbText?.toLongOrNull()
+        if ((tmdbMatch != null && idFromTag == null) || (suppliedTmdbText != null && suppliedTmdb == null)) return null
         if (idFromTag != null && suppliedTmdb != null && idFromTag != suppliedTmdb) return null
         val numericTmdb = idFromTag ?: suppliedTmdb
         if (numericTmdb != null && numericTmdb <= 0) return null
         // Optional metadata-only ID keeps an existing m3u_* identity and all saved links intact.
-        val suppliedMatchId = values["tmdb-match-id"]?.toLongOrNull()
-        if (values["tmdb-match-id"] != null && (suppliedMatchId == null || suppliedMatchId <= 0)) return null
+        val suppliedMatchText = values["tmdb-match-id"]?.takeIf(String::isNotBlank)
+        val suppliedMatchId = suppliedMatchText?.toLongOrNull()
+        if (suppliedMatchText != null && (suppliedMatchId == null || suppliedMatchId <= 0)) return null
         if (numericTmdb != null && suppliedMatchId != null && numericTmdb != suppliedMatchId) return null
         val seriesTitle = values["series-title"].orEmpty().ifBlank { groupSeriesTitle ?: displayName }
         val title = if (season != null) seriesTitle else displayName

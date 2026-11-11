@@ -99,6 +99,68 @@ class MediaPlaylistTest {
     }
 
     @Test
+    fun blankOptionalTmdbIdsAreEquivalentToMissingForMoviesAndEpisodes() {
+        val text = """
+            #EXTM3U
+            #EXTINF:-1 group-title="Peliculas" media-id="opcion-1" tmdb-id="" tmdb-match-id="",Sin ID
+            https://media.example/one.mp4
+            #EXTINF:-1 tvg-id="tmdb_movie_42" tmdb-id="  " tmdb-match-id='',Con ID explícito
+            https://media.example/two.mp4
+            #EXTINF:-1 group-title="La Brea Temporada 1" tmdb-id="" tmdb-match-id=" ",Capítulo 1
+            https://media.example/s1e1.mp4
+            #EXTINF:-1 group-title="La Brea Temporada 1" tmdb-match-id="128839",Capítulo 2
+            https://media.example/s1e2.mp4
+        """.trimIndent()
+        val omitted = text.replace(Regex("""\s+tmdb-(?:match-)?id=(?:"\s*"|'\s*')"""), "")
+        val withoutBlankFields = MediaPlaylistParser.parse(omitted)
+        val withBlankFields = MediaPlaylistParser.parse(text)
+
+        assertEquals(0, withBlankFields.ignoredEntries)
+        assertEquals(withoutBlankFields.items, withBlankFields.items)
+        assertEquals(withoutBlankFields.sources, withBlankFields.sources)
+        assertEquals(withoutBlankFields.episodes, withBlankFields.episodes)
+        val movie = withBlankFields.items.single { it.title == "Sin ID" }
+        assertNull(movie.tmdbId)
+        assertEquals("https://media.example/one.mp4", withBlankFields.source(movie.id)?.url)
+        assertEquals(42L, withBlankFields.item("tmdb_movie_42")?.tmdbId)
+        val series = withBlankFields.items.single { it.kind == MediaKind.SERIES }
+        assertEquals(128839L, series.tmdbId)
+        assertEquals(listOf(1, 2), withBlankFields.episodes(series.id, 1).map { it.number })
+        assertEquals("https://media.example/s1e1.mp4", withBlankFields.source(episodeSourceId(series.id, 1, 1))?.url)
+    }
+
+    @Test
+    fun nonblankInvalidOrContradictoryTmdbIdsStillRejectTheWholeUpdate() {
+        val previous = StoredCatalog("#EXTM3U\n#EXTINF:-1 group-title=\"Peliculas\",Anterior\nhttps://media.example/previous.mp4\n")
+        val invalidAttributes = listOf(
+            "tmdb-id=\"abc\"", "tmdb-id=\"0\"", "tmdb-id=\"-1\"", "tmdb-id=\"9223372036854775808\"",
+            "tmdb-match-id=\"abc\"", "tmdb-match-id=\"0\"", "tmdb-match-id=\"-1\"", "tmdb-match-id=\"9223372036854775808\"",
+            "tmdb-id=\"42\" tmdb-match-id=\"43\"",
+            "tvg-id=\"tmdb_movie_42\" tmdb-match-id=\"43\""
+        )
+        for (attributes in invalidAttributes) {
+            val text = "#EXTM3U\n#EXTINF:-1 group-title=\"Peliculas\" $attributes,Inválida\nhttps://media.example/bad.mp4\n"
+            assertEquals(attributes, 1, MediaPlaylistParser.parse(text).ignoredEntries)
+            assertNull(attributes, parseRemoteCatalog(text))
+            assertNull(attributes, updateStoredCatalog(previous, text))
+        }
+    }
+
+    @Test
+    fun emptyIdsInTheRealAssetNeverChangeAnySourceOrIdentity() {
+        val asset = listOf(File("src/main/assets/samplay_catalog.m3u"), File("app/src/main/assets/samplay_catalog.m3u"))
+            .firstOrNull(File::isFile) ?: error("No se encontró el catálogo incluido")
+        val text = asset.readText(Charsets.UTF_8)
+        val omitted = text.replace(Regex("""\s+tmdb-(?:match-)?id=(?:"\s*"|'\s*')"""), "")
+        val withoutBlankFields = MediaPlaylistParser.parse(omitted)
+        val withBlankFields = MediaPlaylistParser.parse(text)
+        assertEquals(0, withBlankFields.ignoredEntries)
+        assertEquals(withoutBlankFields.items, withBlankFields.items)
+        assertEquals(withoutBlankFields.sources, withBlankFields.sources)
+        assertEquals(withoutBlankFields.episodes, withBlankFields.episodes)
+    }
+
+    @Test
     fun playlistTakesPrecedenceWithoutDiscardingOldLocalSources() {
         val catalog = PlaylistSource("https://media.example/catalog.m3u8", MediaPlaybackType.DIRECT)
         val old = PlaylistSource("https://embed.example/legacy", MediaPlaybackType.IFRAME)

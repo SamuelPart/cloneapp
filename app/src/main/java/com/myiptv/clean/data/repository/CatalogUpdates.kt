@@ -48,9 +48,16 @@ internal fun parseRemoteCatalog(text: String): MediaPlaylist? {
 /** Diff by the original playlist identity, never by posters, TMDb metadata or changed URLs. */
 internal fun catalogAdditions(previous: MediaPlaylist, current: MediaPlaylist): List<CatalogAddition> {
     val result = mutableListOf<CatalogAddition>()
+    val previousById = previous.items.associateBy { it.id }
+    val currentIds = current.items.mapTo(mutableSetOf()) { it.id }
     for (item in current.items) {
-        val old = previous.item(item.id) ?: item.tmdbId?.let { tmdbId ->
+        val old = previousById[item.id] ?: item.tmdbId?.let { tmdbId ->
             item.tmdbMediaType?.let { type -> previous.item("tmdb_${type}_$tmdbId") }
+        }?.takeIf { candidate ->
+            // A verified TMDb alias can replace an old ID, but it cannot merge two M3U
+            // cards or hide a new card while the previous one still exists.
+            candidate.id !in currentIds &&
+                (item.id.startsWith("tmdb_") || candidate.id.startsWith("tmdb_"))
         }
         if (old == null || old.kind != item.kind) {
             result += CatalogAddition(item.id, item.title, item.kind)

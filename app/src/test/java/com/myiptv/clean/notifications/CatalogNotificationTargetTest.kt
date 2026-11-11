@@ -38,6 +38,19 @@ class CatalogNotificationTargetTest {
         assertNotEquals(whileOpen.sequence, repeatedTap.sequence)
     }
 
+    @Test fun separateOptionsForTheSameTitleHaveSeparateExactNotificationTargets() {
+        val first = CatalogAddition("m3u_movie_option_one", "Mismo título", MediaKind.MOVIE)
+        val second = CatalogAddition("m3u_movie_option_two", "Mismo título", MediaKind.MOVIE)
+        assertNotEquals(catalogNotificationIdentity(first), catalogNotificationIdentity(second))
+        val requests = CatalogNotificationRequests()
+        val firstTap = requests.accept(first.mediaId)!!
+        val secondTap = requests.accept(second.mediaId)!!
+        assertEquals(first.mediaId, firstTap.mediaId)
+        assertEquals(second.mediaId, secondTap.mediaId)
+        assertFalse(requests.consume(firstTap.sequence))
+        assertEquals(secondTap, requests.current)
+    }
+
     @Test fun notificationTargetsKeepExactMediaIdsAndRepeatedTapsDistinct() {
         val firstTap = CatalogNotificationTarget("series_1", 1)
         val secondTap = CatalogNotificationTarget("series_1", 2)

@@ -44,6 +44,21 @@ class RemoteCatalogClientTest {
         assertEquals(listOf("raw.githubusercontent.com", "api.github.com"), calls)
     }
 
+    @Test fun acceptsBlankOptionalTmdbIdsAndFallsBackForNonblankInvalidIds() {
+        val blank = "#EXTM3U\n#EXTINF:-1 group-title=\"Peliculas\" tmdb-id=\"\" tmdb-match-id=\" \" ,Real\nhttps://video.example/watch/1\n"
+        val invalid = blank.replace("tmdb-match-id=\" \"", "tmdb-match-id=\"invalid\"")
+        val calls = mutableListOf<String>()
+        val client = RemoteCatalogClient(
+            endpoints = listOf("https://raw.githubusercontent.com/catalog", "https://api.github.com/catalog"),
+            openConnection = { url ->
+                calls += url.host
+                Response(url, body = (if (url.host == "raw.githubusercontent.com") invalid else blank).toByteArray())
+            }
+        )
+        assertEquals(blank, client.fetch())
+        assertEquals(listOf("raw.githubusercontent.com", "api.github.com"), calls)
+    }
+
     @Test fun rejectsRedirectsToUntrustedOrNonHttpsHosts() {
         for (destination in listOf("https://evil.example/catalog", "http://api.github.com/catalog", "https://user@api.github.com/catalog")) {
             val calls = mutableListOf<String>()

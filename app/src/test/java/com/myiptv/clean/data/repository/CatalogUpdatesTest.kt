@@ -54,6 +54,75 @@ class CatalogUpdatesTest {
         assertEquals("https://video.example/new.mp4", parsed.source(withoutId.id)?.url)
     }
 
+    @Test fun blankOptionalTmdbIdsAllowUpdatesAndKeepNewNotificationTargetsExact() {
+        val previous = catalog(
+            "#EXTINF:-1 group-title=\"Peliculas\" tmdb-match-id=\"\",Anterior\nhttps://video.example/old.mp4",
+            episode(1)
+        )
+        val next = catalog(
+            "#EXTINF:-1 group-title=\"Peliculas\" tmdb-match-id=\" \" tmdb-id=\"\",Anterior\nhttps://video.example/replaced.mp4",
+            episode(1),
+            "#EXTINF:-1 group-title=\"La Brea Temporada 1\" tmdb-match-id=\"\",Capítulo 2\nhttps://video.example/s1e2.mp4",
+            "#EXTINF:-1 group-title=\"Peliculas\" tmdb-match-id=\"\",Nueva sin ID\nhttps://video.example/new.mp4",
+            "#EXTINF:-1 group-title=\"Serie nueva Temporada 1\" tmdb-id=\"\",Capítulo 1\nhttps://video.example/new-s1e1.mp4"
+        )
+        val before = parseRemoteCatalog(previous) ?: error("La lista anterior debe ser válida")
+        val saved = updateStoredCatalog(StoredCatalog(previous), next) ?: error("La actualización debe ser válida")
+        val after = parseRemoteCatalog(saved.content) ?: error("La lista guardada debe ser válida")
+        assertEquals(before.items.first().id, after.items.first().id)
+        assertEquals("https://video.example/replaced.mp4", after.source(after.items.first().id)?.url)
+        assertEquals(listOf("La Brea", "Nueva sin ID", "Serie nueva"), saved.pending.map { it.title })
+        val episodes = saved.pending.first()
+        val oldSeries = after.items.single { it.title == "La Brea" }
+        assertEquals(oldSeries.id, episodes.mediaId)
+        assertEquals(1, episodes.season)
+        assertEquals(listOf(2), episodes.episodes)
+        assertEquals("https://video.example/s1e2.mp4", after.source(episodeSourceId(oldSeries.id, 1, 2))?.url)
+        for (addition in saved.pending.drop(1)) {
+            assertEquals(after.items.single { it.title == addition.title }.id, addition.mediaId)
+        }
+        assertEquals(saved.pending, updateStoredCatalog(saved, next)!!.pending)
+    }
+
+    @Test fun distinctM3uOptionsWithTheSameTmdbIdAreAnnouncedSeparately() {
+        fun option(id: String, url: String) =
+            "#EXTINF:-1 group-title=\"Peliculas\" media-id=\"$id\" tmdb-match-id=\"8697\",quien soy?(1998)\n$url"
+        val first = option("option-1", "https://video.example/one.mp4")
+        val second = option("option-2", "https://video.example/two.mp4")
+        val third = option("option-3", "https://video.example/three.mp4")
+        val previous = catalog(first)
+        val next = catalog(first, second, third)
+        val updated = updateStoredCatalog(StoredCatalog(previous), next)!!
+        val playlist = parseRemoteCatalog(next)!!
+        val expectedNew = playlist.items.drop(1)
+        assertEquals(3, playlist.items.map { it.id }.distinct().size)
+        assertEquals(expectedNew.map { it.id }, updated.pending.map { it.mediaId })
+        assertEquals(listOf("https://video.example/two.mp4", "https://video.example/three.mp4"),
+            updated.pending.map { playlist.source(it.mediaId)?.url })
+        // Pending notices follow the exact card, not another one with the same TMDb metadata.
+        val removedSecond = updateStoredCatalog(updated, catalog(first, third))!!
+        assertEquals(listOf(expectedNew.last().id), removedSecond.pending.map { it.mediaId })
+    }
+
+    @Test fun aRetainedTmdbAliasDoesNotHideAnotherDistinctNewCard() {
+        val explicit = "#EXTINF:-1 tvg-id=\"tmdb_movie_42\",Una obra\nhttps://video.example/explicit.mp4"
+        val separate = "#EXTINF:-1 group-title=\"Peliculas\" media-id=\"otra-opcion\" tmdb-match-id=\"42\",Una obra\nhttps://video.example/separate.mp4"
+        for ((old, added) in listOf(explicit to separate, separate to explicit)) {
+            val before = catalog(old)
+            val after = catalog(old, added)
+            val expected = parseRemoteCatalog(after)!!.items.last()
+            val pending = updateStoredCatalog(StoredCatalog(before), after)!!.pending
+            assertEquals(listOf(expected.id), pending.map { it.mediaId })
+        }
+    }
+
+    @Test fun replacingAnIdentityWithItsVerifiedTmdbAliasIsNotANewTitle() {
+        val local = catalog("#EXTINF:-1 group-title=\"Peliculas\" tmdb-match-id=\"42\",Una obra\nhttps://video.example/one.mp4")
+        val explicit = catalog("#EXTINF:-1 tvg-id=\"tmdb_movie_42\",Una obra\nhttps://video.example/one.mp4")
+        assertTrue(updateStoredCatalog(StoredCatalog(local), explicit)!!.pending.isEmpty())
+        assertTrue(updateStoredCatalog(StoredCatalog(explicit), local)!!.pending.isEmpty())
+    }
+
     @Test fun newEpisodesAreGroupedWithoutTreatingChangedUrlsAsNew() {
         val before = catalog(episode(1), episode(2))
         val after = catalog(episode(1, url = "https://video.example/watch/replaced"), episode(2), episode(3), episode(4))
