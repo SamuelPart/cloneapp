@@ -6,7 +6,7 @@ import com.myiptv.clean.data.repository.MediaPlaylist
 
 /** Keep Android TV's existing home; phones use their own touch-oriented catalog layout. */
 @Composable
-fun HomeScreen(
+internal fun HomeScreen(
     isTv: Boolean,
     playlist: MediaPlaylist,
     onOpenChannels: () -> Unit,
