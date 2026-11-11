@@ -1,10 +1,12 @@
 package com.myiptv.clean.ui.compose
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,15 +22,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -79,6 +85,7 @@ import com.myiptv.clean.data.repository.mergeSeasonEpisodes
 import com.myiptv.clean.data.repository.resolvePlaybackSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun ChannelDetailScreen(
@@ -239,6 +246,19 @@ fun MediaDetailScreen(
     }
     val related = mergeMediaCatalog(playlist.items, TmdbRepository.cachedCatalog())
         .filter { it.id != item.id }.sortedByDescending(MediaItem::rating).take(8)
+    if (!isTv && item.kind == MediaKind.MOVIE) {
+        PhoneMovieDetailScreen(
+            item = item,
+            related = related,
+            hasPlayback = hasPlayback,
+            favorite = isFavorite(item.id),
+            onBack = onBack,
+            onPlay = { onPlay(item.id, item.kind, isKidsGenre(item.genres), canStillAdvertise) },
+            onToggleFavorite = { onToggleFavorite(item.id) },
+            onOpenMedia = onOpenMedia,
+        )
+        return
+    }
     val horizontalPadding = if (isTv) 36.dp else 18.dp
 
     Column(modifier = Modifier.fillMaxSize().background(Color.Black).verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
@@ -315,6 +335,214 @@ fun MediaDetailScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PhoneMovieDetailScreen(
+    item: MediaItem,
+    related: List<MediaItem>,
+    hasPlayback: Boolean,
+    favorite: Boolean,
+    onBack: () -> Unit,
+    onPlay: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onOpenMedia: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    var synopsisExpanded by remember(item.id) { mutableStateOf(false) }
+    val shareText = buildString {
+        append(item.title)
+        if (item.year > 0) append(" (${item.year})")
+        if (item.synopsis.isNotBlank()) append("\n${item.synopsis}")
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(Color(0xFF191A23)).verticalScroll(rememberScrollState())
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).clipToBounds()
+                .background(Brush.linearGradient(listOf(Color(item.colorA), Color(item.colorB), Color.Black)))
+        ) {
+            val artwork = item.backdropUrl ?: item.posterUrl
+            if (!artwork.isNullOrBlank()) DetailBackdropImage(imageUrl = artwork, modifier = Modifier.matchParentSize())
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.28f), Color.Transparent, Color.Black.copy(alpha = 0.5f)))))
+            Box(
+                modifier = Modifier.align(Alignment.TopStart).padding(12.dp).size(40.dp).clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f)).clickable(onClickLabel = "Volver", onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            if (hasPlayback) {
+                Box(
+                    modifier = Modifier.align(Alignment.Center).size(64.dp).clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.92f))
+                        .clickable(onClickLabel = "Reproducir película", onClick = onPlay),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = "Reproducir película", tint = Color.Black, modifier = Modifier.size(38.dp))
+                }
+            }
+        }
+
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    item.title,
+                    modifier = Modifier.weight(1f),
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.width(10.dp))
+                MovieDetailIconButton(Icons.Filled.Share, "Compartir película") {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Compartir película"))
+                }
+                Spacer(Modifier.width(8.dp))
+                MovieDetailIconButton(
+                    if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    if (favorite) "Quitar de mi lista" else "Añadir a mi lista",
+                    tint = if (favorite) Color(0xFFF04467) else Color.White,
+                    onClick = onToggleFavorite,
+                )
+            }
+
+            if (item.rating > 0.0) {
+                Text(
+                    "%.1f".format(Locale.US, item.rating),
+                    modifier = Modifier.padding(top = 2.dp),
+                    color = Color(0xFFFFA342),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            val metadata = listOfNotNull(
+                item.countryNames.firstOrNull(),
+                item.year.takeIf { it > 0 }?.toString(),
+                item.genres.take(2).takeIf { it.isNotEmpty() }?.joinToString(" / "),
+            ).joinToString("  |  ")
+            if (metadata.isNotBlank()) {
+                Text(
+                    metadata,
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = TvMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            if (item.synopsis.isNotBlank()) {
+                Text(
+                    item.synopsis,
+                    modifier = Modifier.padding(top = 14.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = if (synopsisExpanded) Int.MAX_VALUE else 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (item.synopsis.length > 150) {
+                    Text(
+                        if (synopsisExpanded) "Ver menos" else "Ver más",
+                        modifier = Modifier.padding(top = 2.dp).clickable { synopsisExpanded = !synopsisExpanded },
+                        color = Color(0xFFF04467),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+
+            if (item.directorNames.isNotEmpty()) {
+                Text(
+                    "Director: ${item.directorNames.take(3).joinToString(" / ")}",
+                    modifier = Modifier.padding(top = 18.dp),
+                    color = TvMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (item.castNames.isNotEmpty()) {
+                Text(
+                    "Actores: ${item.castNames.take(5).joinToString(" / ")}",
+                    modifier = Modifier.padding(top = 12.dp),
+                    color = TvMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        if (related.isNotEmpty()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 28.dp)) {
+                Text(
+                    "También podría gustarte",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp),
+                ) {
+                    items(related, key = MediaItem::id) { recommendation ->
+                        PhoneMovieRecommendationCard(recommendation) { onOpenMedia(recommendation.id) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MovieDetailIconButton(
+    icon: ImageVector,
+    description: String,
+    tint: Color = Color.White,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(11.dp))
+            .background(Color.White.copy(alpha = 0.12f))
+            .clickable(onClickLabel = description, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = description, tint = tint, modifier = Modifier.size(23.dp))
+    }
+}
+
+@Composable
+private fun PhoneMovieRecommendationCard(item: MediaItem, onClick: () -> Unit) {
+    Column(modifier = Modifier.width(112.dp).clickable(onClickLabel = "Abrir ${item.title}", onClick = onClick)) {
+        Box(modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(8.dp))) {
+            PosterArtwork(item = item, modifier = Modifier.fillMaxSize(), showTitle = false)
+            if (item.rating > 0.0) {
+                Text(
+                    "%.1f".format(Locale.US, item.rating),
+                    modifier = Modifier.align(Alignment.TopStart).padding(4.dp)
+                        .background(Color(0xFFE63857), RoundedCornerShape(3.dp)).padding(horizontal = 5.dp, vertical = 2.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+        Text(
+            item.title,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 5.dp),
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

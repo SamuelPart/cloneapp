@@ -35,11 +35,23 @@ data class TmdbMediaResponse(
     @SerializedName("episode_run_time") val episodeRunTime: List<Int>? = null,
     @SerializedName("number_of_seasons") val numberOfSeasons: Int? = null,
     @SerializedName("number_of_episodes") val numberOfEpisodes: Int? = null,
+    @SerializedName("production_countries") val productionCountries: List<TmdbCountryResponse>? = null,
     val credits: TmdbCreditsResponse? = null
 )
 
+data class TmdbCountryResponse(
+    val name: String? = null,
+    @SerializedName("iso_3166_1") val isoCode: String? = null
+)
+
 data class TmdbCreditsResponse(
-    val cast: List<TmdbCastResponse>? = null
+    val cast: List<TmdbCastResponse>? = null,
+    val crew: List<TmdbCrewResponse>? = null
+)
+
+data class TmdbCrewResponse(
+    val name: String? = null,
+    val job: String? = null
 )
 
 data class TmdbCastResponse(

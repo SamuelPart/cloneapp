@@ -28,7 +28,9 @@ data class MediaItem(
     val tmdbMediaType: String? = null,
     val castNames: List<String> = emptyList(),
     val seasonCount: Int? = null,
-    val episodeCount: Int? = null
+    val episodeCount: Int? = null,
+    val directorNames: List<String> = emptyList(),
+    val countryNames: List<String> = emptyList()
 )
 
 data class MediaEpisode(

@@ -172,6 +172,12 @@ object TmdbRepository {
             tmdbMediaType = mediaType,
             castNames = credits?.cast.orEmpty().take(12).mapNotNull { cast -> cast.name?.takeIf(String::isNotBlank) },
             seasonCount = numberOfSeasons,
+            directorNames = credits?.crew.orEmpty()
+                .filter { it.job.equals("Director", ignoreCase = true) }
+                .mapNotNull { it.name?.takeIf(String::isNotBlank) }
+                .distinct()
+                .take(3),
+            countryNames = productionCountries.orEmpty().mapNotNull { it.name?.takeIf(String::isNotBlank) }.distinct(),
             episodeCount = numberOfEpisodes
         )
     }

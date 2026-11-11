@@ -108,6 +108,8 @@ fun mergeMediaMetadata(local: MediaItem, remote: MediaItem): MediaItem {
         tmdbMediaType = remote.tmdbMediaType ?: local.tmdbMediaType,
         castNames = remote.castNames.ifEmpty { local.castNames },
         seasonCount = remote.seasonCount ?: local.seasonCount,
+        directorNames = remote.directorNames.ifEmpty { local.directorNames },
+        countryNames = remote.countryNames.ifEmpty { local.countryNames },
         episodeCount = remote.episodeCount ?: local.episodeCount
     )
 }
