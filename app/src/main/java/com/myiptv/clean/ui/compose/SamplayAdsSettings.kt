@@ -211,9 +211,13 @@ internal fun SamplayCoinSettings() {
             confirmButton = {
                 TextButton(onClick = {
                     rewardDialog = null
-                    if (!ads.showRewarded(activity, interstitial = format == RewardFormat.INTERSTITIAL, onFinished = {
-                        message = "Si completaste el anuncio, se añadieron 10 monedas."
-                    })) {
+                    if (!ads.showRewarded(
+                            activity = activity,
+                            interstitial = format == RewardFormat.INTERSTITIAL,
+                            onFinished = { message = "Si completaste el anuncio, se añadieron 10 monedas." },
+                            onFailedToShow = { message = "No se pudo mostrar el anuncio. Inténtalo de nuevo." },
+                        )
+                    ) {
                         message = "El anuncio ya no está disponible. Puedes seguir usando SamPlay."
                         ads.loadRewards()
                     }

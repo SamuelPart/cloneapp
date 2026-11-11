@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -36,29 +37,33 @@ import com.myiptv.clean.ads.CoinRules
 
 internal data class PlaybackRewardOffer(val id: String, val section: AdSection, val isChannel: Boolean)
 
-/** Watching and spending are optional; dismissing the dialog continues without a charge. */
+/** Playback requires a rewarded ad or coins; dismissing the offer cancels playback. */
 @Composable
 internal fun PlaybackRewardOfferDialog(
     offer: PlaybackRewardOffer,
     balance: Int,
     onWatch: () -> Unit,
     onSpend: () -> CoinPurchaseStatus?,
-    onContinue: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     var insufficient by remember(offer) { mutableStateOf(false) }
     var showHelp by remember(offer) { mutableStateOf(false) }
     if (insufficient) {
-        InsufficientCoinsDialog(balance = balance, price = CoinRules.PLAYBACK_PRICE, onContinue = onContinue) {
-            insufficient = false
-        }
+        InsufficientCoinsDialog(
+            balance = balance,
+            price = CoinRules.PLAYBACK_PRICE,
+            onWatch = { insufficient = false; onWatch() },
+            onBack = onCancel,
+            onDismiss = onCancel,
+        )
         return
     }
 
     if (showHelp) {
         val coinHelp = if (offer.isChannel) {
-            "Usar monedas evita nuevas invitaciones en este canal por una hora."
+            "Usar ${CoinRules.PLAYBACK_PRICE} monedas evita nuevas invitaciones en este canal por una hora."
         } else {
-            "Usar monedas omite el anuncio de esta reproducción."
+            "Usar ${CoinRules.PLAYBACK_PRICE} monedas omite el anuncio de esta reproducción."
         }
         AlertDialog(
             onDismissRequest = { showHelp = false },
@@ -68,7 +73,7 @@ internal fun PlaybackRewardOfferDialog(
         )
     }
 
-    Dialog(onDismissRequest = onContinue) {
+    Dialog(onDismissRequest = onCancel) {
         Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -100,23 +105,43 @@ internal fun PlaybackRewardOfferDialog(
 }
 
 @Composable
-internal fun InsufficientCoinsDialog(balance: Int, price: Int, onContinue: (() -> Unit)? = null, onDismiss: () -> Unit) {
+internal fun InsufficientCoinsDialog(
+    balance: Int,
+    price: Int,
+    onWatch: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Monedas insuficientes") },
         text = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SamplayCoinIcon(Modifier.size(42.dp))
-                Spacer(Modifier.width(12.dp))
-                Text("Necesitas $price monedas y tienes $balance. No se ha cobrado nada.")
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SamplayCoinIcon(Modifier.size(36.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Necesitas $price monedas y tienes $balance. No se hizo ningún cobro.")
+                }
+                if (onWatch != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lightbulb,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.tertiary,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Consejo: gana ${CoinRules.REWARDED_COINS} monedas viendo un anuncio.")
+                    }
+                }
             }
         },
         confirmButton = {
-            if (onContinue != null) TextButton(onClick = onContinue) { Text("Continuar gratis") }
+            if (onWatch != null) Button(onClick = onWatch) { Text("Ver anuncio") }
             else TextButton(onClick = onDismiss) { Text("Entendido") }
         },
         dismissButton = {
-            if (onContinue != null) TextButton(onClick = onDismiss) { Text("Volver") }
+            if (onBack != null) TextButton(onClick = onBack) { Text("Volver") }
         },
     )
 }

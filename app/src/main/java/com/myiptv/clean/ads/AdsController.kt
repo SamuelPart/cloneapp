@@ -483,7 +483,12 @@ internal class AdsController(private val app: Application) {
         else rewardedAd != null && AdsRules.isRewardFresh(rewardedLoadedAt, nowMs)
 
     /** Only explicit user consent calls this; the SDK's reward callback is the sole credit source. */
-    fun showRewarded(activity: Activity, interstitial: Boolean, onFinished: () -> Unit): Boolean {
+    fun showRewarded(
+        activity: Activity,
+        interstitial: Boolean,
+        onFinished: () -> Unit,
+        onFailedToShow: () -> Unit = {},
+    ): Boolean {
         if (!canShowAds || fullscreenShowing || resumedActivity?.get() !== activity || activity.isFinishing || activity.isDestroyed) return false
         if (!hasFreshReward(interstitial)) {
             loadRewards()
@@ -502,11 +507,11 @@ internal class AdsController(private val app: Application) {
         fullscreenShowing = true
         val rewardGate = RewardCallbackGate()
         var finished = false
-        fun finishOnce() {
+        fun finishOnce(callback: () -> Unit) {
             if (!finished) {
                 finished = true
                 fullscreenShowing = false
-                onFinished()
+                callback()
             }
         }
         fun creditOnce() {
@@ -514,11 +519,11 @@ internal class AdsController(private val app: Application) {
             rewardGate.onEarned { coins.creditCompletedAd() }
         }
         val callback = object : FullScreenContentCallback() {
-            override fun onAdDismissedFullScreenContent() = finishOnce()
+            override fun onAdDismissedFullScreenContent() = finishOnce(onFinished)
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
                 rewardGate.onFailedToShow()
                 Log.d(TAG, "Reward ad could not be shown: ${error.code}")
-                finishOnce()
+                finishOnce(onFailedToShow)
             }
         }
         return try {

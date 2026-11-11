@@ -101,14 +101,13 @@ class AdsRulesTest {
         assertFalse(AdsRules.canPreloadPhoneLiveReward(false, false, listOf("Infantiles / Familia")))
     }
 
-    @Test fun offerOnlyWhenMobileAdultContentHasAnAvailableAdAndNoPass() {
-        assertTrue(AdsRules.canOfferReward(false, false, true, false, true, true))
-        assertFalse(AdsRules.canOfferReward(true, false, true, false, true, true))
-        assertFalse(AdsRules.canOfferReward(false, true, true, false, true, true))
-        assertFalse(AdsRules.canOfferReward(false, false, false, false, true, true))
-        assertFalse(AdsRules.canOfferReward(false, false, true, true, true, true))
-        assertFalse(AdsRules.canOfferReward(false, false, true, false, false, true))
-        assertFalse(AdsRules.canOfferReward(false, false, true, false, true, false))
+    @Test fun eligiblePhonePlaybackRequiresAnAdOrCoinsChoiceEvenWhileAnAdLoads() {
+        assertTrue(AdsRules.canOfferReward(false, false, true, false, true))
+        assertFalse(AdsRules.canOfferReward(true, false, true, false, true))
+        assertFalse(AdsRules.canOfferReward(false, true, true, false, true))
+        assertFalse(AdsRules.canOfferReward(false, false, false, false, true))
+        assertFalse(AdsRules.canOfferReward(false, false, true, true, true))
+        assertFalse(AdsRules.canOfferReward(false, false, true, false, false))
     }
 
     @Test fun rewardedFormatsExpireAfterOneHour() {

@@ -72,9 +72,9 @@ internal object AdsRules {
     fun canPreloadPhoneLiveReward(isTv: Boolean, isFullscreen: Boolean, categories: List<String>): Boolean =
         !isTv && !isFullscreen && canOfferLiveChannelAds(categories)
 
-    /** A missing/blocked ad is always a direct path to playback, never a reason to wait. */
-    fun canOfferReward(isTv: Boolean, isKids: Boolean, hasActivity: Boolean, hasPass: Boolean, canShowAds: Boolean, hasFreshAd: Boolean): Boolean =
-        !isTv && !isKids && hasActivity && !hasPass && canShowAds && hasFreshAd
+    /** Eligible phone playback is gated by the ad-or-coins choice, even while an ad is loading. */
+    fun canOfferReward(isTv: Boolean, isKids: Boolean, hasActivity: Boolean, hasPass: Boolean, canShowAds: Boolean): Boolean =
+        !isTv && !isKids && hasActivity && !hasPass && canShowAds
 
     /** Both rewarded formats expire after one hour; app-open has a separate four-hour limit. */
     fun isRewardFresh(loadedAtMs: Long, nowMs: Long): Boolean =

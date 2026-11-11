@@ -472,7 +472,6 @@ private fun IptvNavigationGraph(
             hasActivity = activity != null,
             hasPass = pass,
             canShowAds = ads.canShowAdsIn(offer.section) && !ads.fullscreenShowing,
-            hasFreshAd = ads.hasFreshReward(false) || ads.hasFreshReward(true),
         )
         return pendingRewardDecision(
             sameOrigin = navController.currentBackStackEntry === request.origin,
@@ -505,7 +504,7 @@ private fun IptvNavigationGraph(
         if (requestOnScreen != null && !waitingForReward) {
             when (requestDecision) {
                 PendingRewardDecision.CANCEL -> cancel(requestOnScreen)
-                PendingRewardDecision.CONTINUE_FREE -> finish(requestOnScreen)
+                PendingRewardDecision.CONTINUE_FREE -> cancel(requestOnScreen)
                 else -> Unit
             }
         }
@@ -729,32 +728,41 @@ private fun IptvNavigationGraph(
         PlaybackRewardOfferDialog(
             offer = offer,
             balance = coins.state.balance,
-            onContinue = { finish(request) },
+            onCancel = { cancel(request) },
             onWatch = {
                 when (decision(request)) {
-                    PendingRewardDecision.CANCEL -> cancel(request)
-                    PendingRewardDecision.CONTINUE_FREE -> finish(request)
+                    PendingRewardDecision.CANCEL, PendingRewardDecision.CONTINUE_FREE -> cancel(request)
                     PendingRewardDecision.AVAILABLE -> {
                         val resume = runCatching { request.pauseForAd() }.getOrNull()
                         if (resume == null) {
-                            finish(request)
+                            cancel(request)
                         } else {
                             var resumed = false
                             fun resumeOnce() {
                                 if (!resumed) {
                                     resumed = true
-                                    runCatching { resume() } // A stale/disposed player must not block continuation.
+                                    runCatching { resume() }
                                 }
                             }
                             val useInterstitial = !ads.hasFreshReward(false) && ads.hasFreshReward(true)
                             waitingForReward = true
-                            if (activity == null || !ads.showRewarded(activity, useInterstitial) {
-                                    resumeOnce()
-                                    finish(request)
-                                }
-                            ) {
+                            val started = activity?.let {
+                                ads.showRewarded(
+                                    activity = it,
+                                    interstitial = useInterstitial,
+                                    onFinished = {
+                                        resumeOnce()
+                                        finish(request)
+                                    },
+                                    onFailedToShow = {
+                                        resumeOnce()
+                                        cancel(request)
+                                    },
+                                )
+                            } == true
+                            if (!started) {
                                 resumeOnce()
-                                finish(request)
+                                cancel(request)
                             }
                         }
                     }
@@ -763,7 +771,7 @@ private fun IptvNavigationGraph(
             onSpend = {
                 when (decision(request)) {
                     PendingRewardDecision.CANCEL -> { cancel(request); null }
-                    PendingRewardDecision.CONTINUE_FREE -> { finish(request); null }
+                    PendingRewardDecision.CONTINUE_FREE -> { cancel(request); null }
                     PendingRewardDecision.AVAILABLE -> {
                         if (coins.state.balance < CoinRules.PLAYBACK_PRICE) CoinPurchaseStatus.INSUFFICIENT
                         else {
