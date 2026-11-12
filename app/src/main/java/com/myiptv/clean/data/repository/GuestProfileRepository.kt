@@ -22,6 +22,36 @@ internal data class GuestProfile(
     val coverAnimated: Boolean
 )
 
+internal fun guestProfileHttpErrorMessage(status: Int, responseBody: String, savingProfile: Boolean): String {
+    val normalized = responseBody.lowercase()
+    val usernameConflict = savingProfile && (
+        status == 409 ||
+            "23505" in normalized ||
+            "guest_profiles_username_ci_idx" in normalized ||
+            "lower(username)" in normalized ||
+            "duplicate key" in normalized
+        )
+    if (usernameConflict) return "Ese nombre de usuario ya está en uso. Prueba con otro."
+
+    val technical = listOf("database request failed", "duplicate key", "constraint", "sqlstate", "23505")
+        .any(normalized::contains)
+    if (!technical) {
+        val serverMessage = runCatching { JSONObject(responseBody).optString("error").trim() }.getOrDefault("")
+        if (serverMessage.isNotBlank() && serverMessage.length <= 180 && !serverMessage.lowercase().contains("database request failed")) {
+            return serverMessage
+        }
+    }
+    return when {
+        status == 401 || status == 403 -> "No se pudo verificar el perfil. Cierra y vuelve a abrir esta pantalla."
+        status == 413 -> "La imagen es demasiado grande. Elige una imagen de hasta 3 MB."
+        status == 429 -> "Demasiadas solicitudes seguidas. Espera un momento e inténtalo otra vez."
+        status in 500..599 -> "El servicio de perfiles no está disponible. Inténtalo de nuevo más tarde."
+        else -> "No se pudo completar la solicitud. Revisa los datos e inténtalo de nuevo."
+    }
+}
+
+private class ProfileRequestException(message: String) : IOException(message)
+
 internal class GuestProfileRepository(context: Context) {
     private val appContext = context.applicationContext
     private val preferences = appContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
@@ -81,7 +111,7 @@ internal class GuestProfileRepository(context: Context) {
             .put("remove_cover", removeCover)
         avatarUri?.let { appendMedia(body, "avatar", it) }
         coverUri?.let { appendMedia(body, "cover", it) }
-        val profile = parseProfile(request("POST", "", body.toString(), retryOn503 = true))
+        val profile = parseProfile(request("POST", "", body.toString(), retryOn503 = true, savingProfile = true))
         preferences.edit().putString(USERNAME, profile.username).apply()
         profile
     }
@@ -111,7 +141,13 @@ internal class GuestProfileRepository(context: Context) {
             .put("${field}_base64", Base64.encodeToString(bytes, Base64.NO_WRAP))
     }
 
-    private fun request(method: String, suffix: String, body: String? = null, retryOn503: Boolean = method == "GET"): String {
+    private fun request(
+        method: String,
+        suffix: String,
+        body: String? = null,
+        retryOn503: Boolean = method == "GET",
+        savingProfile: Boolean = false
+    ): String {
         val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
         val key = BuildConfig.SUPABASE_PUBLISHABLE_KEY
         if (baseUrl.isBlank() || key.isBlank()) throw IOException("Supabase no está configurado.")
@@ -137,10 +173,13 @@ internal class GuestProfileRepository(context: Context) {
                     continue
                 }
                 if (status !in 200..299) {
-                    val detail = runCatching { JSONObject(responseBody).optString("error") }.getOrDefault("")
-                    throw IOException(detail.ifBlank { "No se pudo cargar el perfil ($status)." })
+                    throw ProfileRequestException(guestProfileHttpErrorMessage(status, responseBody, savingProfile))
                 }
                 return responseBody
+            } catch (error: ProfileRequestException) {
+                throw error
+            } catch (error: IOException) {
+                throw IOException("No se pudo conectar con el servicio de perfiles. Comprueba Internet e inténtalo otra vez.", error)
             } finally {
                 connection.disconnect()
             }
