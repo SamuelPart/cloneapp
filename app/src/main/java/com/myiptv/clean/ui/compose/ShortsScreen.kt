@@ -178,7 +178,8 @@ internal fun ShortsScreen(
                 }
                 val fullscreen = remember(page, candidate.playbackId) { PlayerFullscreenState(null) }
 
-                LaunchedEffect(interactions, interactionClipId) {
+                LaunchedEffect(interactions, interactionClipId, isCurrentPage) {
+                    if (!isCurrentPage) return@LaunchedEffect
                     runCatching { interactions.load(interactionClipId) }
                         .onSuccess { interactionState = it; interactionMessage = null }
                         .onFailure { interactionMessage = "No se pudieron cargar las acciones. Revisa tu conexión." }

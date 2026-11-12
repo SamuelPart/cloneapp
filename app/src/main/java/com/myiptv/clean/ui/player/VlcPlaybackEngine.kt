@@ -15,16 +15,11 @@ internal class VlcPlaybackEngine(
     private val referrer: String?,
     private val useVideoLayoutBounds: Boolean = false
 ) : PlaybackEngine {
-    private val libVlc = run {
-        // LibVLC 3.x calls System.exit if loading a native library fails. Preflight the same
-        // libraries so an unsupported device can show an error instead of terminating the app.
-        listOf("c++_shared", "vlc", "vlcjni").forEach(System::loadLibrary)
-        LibVLC(context.applicationContext, arrayListOf("--network-caching=1000"))
-    }
+    private val libVlc = SharedLibVlc.acquire(context.applicationContext)
     private val player = try {
         MediaPlayer(libVlc)
     } catch (error: Throwable) {
-        libVlc.release()
+        SharedLibVlc.release(libVlc)
         throw error
     }
 
@@ -111,8 +106,39 @@ internal class VlcPlaybackEngine(
         try {
             player.release()
         } finally {
-            libVlc.release()
+            SharedLibVlc.release(libVlc)
             videoLayout = null
+        }
+    }
+}
+
+/** Keep LibVLC's native runtime warm while current and preloaded Shorts players are alive. */
+private object SharedLibVlc {
+    private var instance: LibVLC? = null
+    private var references = 0
+
+    @Synchronized
+    fun acquire(context: Context): LibVLC {
+        instance?.let {
+            references++
+            return it
+        }
+        // LibVLC 3.x calls System.exit if loading a native library fails. Preflight first so
+        // unsupported devices can display an error instead of terminating the app.
+        listOf("c++_shared", "vlc", "vlcjni").forEach(System::loadLibrary)
+        return LibVLC(context.applicationContext, arrayListOf("--network-caching=600")).also {
+            instance = it
+            references = 1
+        }
+    }
+
+    @Synchronized
+    fun release(libVlc: LibVLC) {
+        if (instance !== libVlc || references == 0) return
+        references--
+        if (references == 0) {
+            instance = null
+            libVlc.release()
         }
     }
 }
