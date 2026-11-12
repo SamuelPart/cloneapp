@@ -37,6 +37,9 @@ internal class ShortsInteractionsRepository(context: Context) {
     private val clientId = preferences.getString(CLIENT_ID, null) ?: UUID.randomUUID().toString().also {
         preferences.edit().putString(CLIENT_ID, it).apply()
     }
+    private val clientToken = preferences.getString(CLIENT_TOKEN, null) ?: UUID.randomUUID().toString().also {
+        preferences.edit().putString(CLIENT_TOKEN, it).apply()
+    }
 
     suspend fun load(clipId: String): ShortsInteractionState = coroutineScope {
         val likes = async(Dispatchers.IO) { countRows("shorts_reactions", clipId) }
@@ -54,43 +57,38 @@ internal class ShortsInteractionsRepository(context: Context) {
     }
 
     suspend fun setLiked(clipId: String, liked: Boolean): Unit = withContext(Dispatchers.IO) {
-        val client = queryValue(clientId)
-        val clip = queryValue(clipId)
-        if (liked) {
-            request(
-                method = "POST",
-                path = "shorts_reactions?on_conflict=clip_id%2Cclient_id",
-                body = JSONObject().put("clip_id", clipId).put("client_id", clientId).toString(),
-                prefer = "resolution=ignore-duplicates,return=minimal"
-            )
-        } else {
-            request(method = "DELETE", path = "shorts_reactions?clip_id=eq.$clip&client_id=eq.$client")
-        }
+        requestFunction(
+            JSONObject()
+                .put("action", "reaction")
+                .put("client_id", clientId)
+                .put("client_token", clientToken)
+                .put("clip_id", clipId)
+                .put("liked", liked)
+        )
         Unit
     }
 
     suspend fun addComment(clipId: String, text: String): Unit = withContext(Dispatchers.IO) {
         val cleanText = text.trim().take(MAX_COMMENT_LENGTH)
         require(cleanText.isNotEmpty()) { "El comentario no puede estar vacío." }
-        request(
-            method = "POST",
-            path = "shorts_comments",
-            body = JSONObject()
-                .put("clip_id", clipId)
+        requestFunction(
+            JSONObject()
+                .put("action", "anonymous_comment")
                 .put("client_id", clientId)
+                .put("client_token", clientToken)
+                .put("clip_id", clipId)
                 .put("body", cleanText)
-                .toString(),
-            prefer = "return=minimal"
         )
         Unit
     }
 
     suspend fun recordShare(clipId: String): Unit = withContext(Dispatchers.IO) {
-        request(
-            method = "POST",
-            path = "shorts_shares",
-            body = JSONObject().put("clip_id", clipId).put("client_id", clientId).toString(),
-            prefer = "return=minimal"
+        requestFunction(
+            JSONObject()
+                .put("action", "share")
+                .put("client_id", clientId)
+                .put("client_token", clientToken)
+                .put("clip_id", clipId)
         )
         Unit
     }
@@ -139,6 +137,33 @@ internal class ShortsInteractionsRepository(context: Context) {
         return comments to total
     }
 
+    private fun requestFunction(body: JSONObject) {
+        val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
+        val key = BuildConfig.SUPABASE_PUBLISHABLE_KEY
+        if (baseUrl.isBlank() || key.isBlank()) throw IOException("Supabase no está configurado.")
+        val connection = (URL("$baseUrl/functions/v1/guest-profiles").openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = REQUEST_TIMEOUT_MS
+            readTimeout = REQUEST_TIMEOUT_MS
+            setRequestProperty("apikey", key)
+            setRequestProperty("Authorization", "Bearer $key")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            doOutput = true
+        }
+        try {
+            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) {
+                throw IOException("Supabase rechazó la acción ($status): ${responseBody.take(MAX_ERROR_LENGTH)}")
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private fun request(
         method: String,
         path: String,
@@ -154,6 +179,7 @@ internal class ShortsInteractionsRepository(context: Context) {
             connectTimeout = REQUEST_TIMEOUT_MS
             readTimeout = REQUEST_TIMEOUT_MS
             setRequestProperty("apikey", key)
+            setRequestProperty("Authorization", "Bearer $key")
             setRequestProperty("Accept", "application/json")
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             prefer?.let { setRequestProperty("Prefer", it) }
@@ -184,6 +210,7 @@ internal class ShortsInteractionsRepository(context: Context) {
     private companion object {
         const val PREFERENCES = "samplay_shorts_social"
         const val CLIENT_ID = "anonymous_client_id"
+        const val CLIENT_TOKEN = "anonymous_client_token"
         const val MAX_COMMENT_LENGTH = 500
         const val MAX_ERROR_LENGTH = 300
         const val REQUEST_TIMEOUT_MS = 12_000

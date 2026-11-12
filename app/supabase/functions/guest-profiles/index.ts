@@ -24,11 +24,43 @@ async function databaseRequest(method: string, table: string, params: Record<str
   return text ? JSON.parse(text) : null;
 }
 async function ownerProfile(clientId: string, token: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(clientId) || !/^[0-9a-f-]{36}$/i.test(token)) return null;
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(clientId) || !uuid.test(token)) return null;
   const rows = await databaseRequest("GET", "guest_profiles", { select: "client_id,owner_token_hash", client_id: `eq.${clientId}`, limit: "1" });
   const profile = rows?.[0];
   return profile?.owner_token_hash === await ownerHash(token) ? profile : null;
 }
+async function authenticatedShortsClient(clientId: string, token: string) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(clientId) || !uuid.test(token)) return false;
+  const tokenHash = await ownerHash(token);
+  const params = { select: "token_hash,expires_at", client_id: `eq.${clientId}`, limit: "1" };
+  let rows = await databaseRequest("GET", "shorts_client_tokens", params);
+  if (!rows?.length) {
+    await databaseRequest("POST", "shorts_client_tokens", { on_conflict: "client_id" }, {
+      client_id: clientId, token_hash: tokenHash,
+    }, "resolution=ignore-duplicates,return=minimal");
+    rows = await databaseRequest("GET", "shorts_client_tokens", params);
+  }
+  const client = rows?.[0];
+  if (client?.token_hash !== tokenHash) return false;
+  await databaseRequest("PATCH", "shorts_client_tokens", { client_id: `eq.${clientId}` }, {
+    last_seen_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+  }, "return=minimal");
+  return true;
+}
+
+async function consumeWriteLimit(clientId: string, action: string, limit: number) {
+  return await databaseRequest("POST", "rpc/consume_shorts_rate_limit", {}, {
+    p_client_id: clientId, p_action: action, p_limit: limit, p_window_seconds: 60,
+  }) === true;
+}
+
+function validClipId(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length >= 1 && value.length <= 2048;
+}
+
 async function uploadImage(bucket: string, clientId: string, path: string, base64: string, mime: string) {
   const extension = imageTypes[mime];
   if (!extension || !base64 || base64.length > 4_194_304) throw new Error("Elige una imagen JPG, PNG, WebP o GIF de hasta 3 MB.");
@@ -81,20 +113,66 @@ Deno.serve(async (request) => {
       return json(data);
     }
     if (request.method !== "POST") return json({ error: "Método no permitido." }, 405);
-    const body = await request.json();
+    const declaredLength = Number(request.headers.get("content-length") ?? 0);
+    if (declaredLength > 9 * 1024 * 1024) return json({ error: "La solicitud supera el tamaño permitido." }, 413);
+    const rawBody = await request.text();
+    if (new TextEncoder().encode(rawBody).byteLength > 9 * 1024 * 1024) return json({ error: "La solicitud supera el tamaño permitido." }, 413);
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(rawBody);
+      if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Solicitud inválida." }, 400);
+    } catch {
+      return json({ error: "Solicitud inválida." }, 400);
+    }
     const action = String(body.action ?? "profile");
     const clientId = String(body.client_id ?? "");
     const token = String(body.owner_token ?? "");
+    if (action === "reaction" || action === "share" || action === "anonymous_comment") {
+      const clipId = body.clip_id;
+      if (!validClipId(clipId)) return json({ error: "Identificador de Short inválido." }, 400);
+      if (!await authenticatedShortsClient(clientId, String(body.client_token ?? ""))) {
+        return json({ error: "No se pudo validar esta instalación." }, 401);
+      }
+      const writeLimit = action === "anonymous_comment" ? 5 : action === "share" ? 15 : 30;
+      if (!await consumeWriteLimit(clientId, action, writeLimit)) {
+        return json({ error: "Demasiadas acciones seguidas. Inténtalo más tarde." }, 429);
+      }
+      if (action === "reaction") {
+        if (typeof body.liked !== "boolean") return json({ error: "Reacción inválida." }, 400);
+        if (body.liked) {
+          await databaseRequest("POST", "shorts_reactions", { on_conflict: "clip_id,client_id" }, {
+            clip_id: clipId, client_id: clientId,
+          }, "resolution=ignore-duplicates,return=minimal");
+        } else {
+          await databaseRequest("DELETE", "shorts_reactions", { clip_id: `eq.${clipId}`, client_id: `eq.${clientId}` });
+        }
+        return json({ ok: true });
+      }
+      if (action === "share") {
+        await databaseRequest("POST", "shorts_shares", {}, { clip_id: clipId, client_id: clientId }, "return=minimal");
+        return json({ ok: true }, 201);
+      }
+      const comment = String(body.body ?? "").trim();
+      if (comment.length < 1 || comment.length > 500) return json({ error: "El comentario debe tener entre 1 y 500 caracteres." }, 400);
+      await databaseRequest("POST", "shorts_comments", {}, {
+        clip_id: clipId, client_id: clientId, profile_client_id: null, body: comment,
+      }, "return=minimal");
+      return json({ ok: true }, 201);
+    }
     if (action === "comment") {
       if (!await ownerProfile(clientId, token)) return json({ error: "Guarda tu perfil antes de comentar como usuario." }, 403);
       const clipId = String(body.clip_id ?? "");
       const comment = String(body.body ?? "").trim();
-      if (clipId.length < 1 || clipId.length > 2048 || comment.length < 1 || comment.length > 500) return json({ error: "El comentario debe tener entre 1 y 500 caracteres." }, 400);
+      if (!validClipId(clipId) || comment.length < 1 || comment.length > 500) return json({ error: "El comentario debe tener entre 1 y 500 caracteres." }, 400);
+      if (!await consumeWriteLimit(clientId, "profile_comment", 5)) {
+        return json({ error: "Demasiados comentarios seguidos. Inténtalo más tarde." }, 429);
+      }
       const rows = await databaseRequest("POST", "shorts_comments", { select: "id,body,created_at,profile:guest_profiles!shorts_comments_profile_client_id_fkey(client_id,display_name,username,avatar_url)" }, {
         clip_id: clipId, client_id: clientId, profile_client_id: clientId, body: comment,
       }, "return=representation");
       return json(rows?.[0] ?? {}, 201);
     }
+    if (action !== "profile") return json({ error: "Acción no permitida." }, 400);
 
     const displayName = String(body.display_name ?? "").trim();
     const username = String(body.username ?? "").trim().toLowerCase();
@@ -105,6 +183,7 @@ Deno.serve(async (request) => {
     });
     const existing = existingRows?.[0];
     if (existing && existing.owner_token_hash !== await ownerHash(token)) return json({ error: "Este perfil pertenece a otra instalación." }, 403);
+    if (!await consumeWriteLimit(clientId, "profile", 5)) return json({ error: "Demasiados cambios seguidos. Inténtalo más tarde." }, 429);
     const avatarUrl = body.avatar_base64 ? (await uploadImage("samplay-profiles", clientId, `avatar-${crypto.randomUUID()}`, String(body.avatar_base64), String(body.avatar_mime ?? ""))).url : (body.remove_avatar ? null : existing?.avatar_url ?? null);
     const coverUrl = body.cover_base64 ? (await uploadImage("samplay-profiles", clientId, `cover-${crypto.randomUUID()}`, String(body.cover_base64), String(body.cover_mime ?? ""))).url : (body.remove_cover ? null : existing?.cover_url ?? null);
     const row = { client_id: clientId, display_name: displayName, username, avatar_url: avatarUrl, cover_url: coverUrl, cover_animated: Boolean(body.cover_animated), owner_token_hash: await ownerHash(token), updated_at: new Date().toISOString() };
@@ -112,6 +191,6 @@ Deno.serve(async (request) => {
     return json(rows?.[0] ?? {}, 200);
   } catch (error) {
     console.error(error);
-    return json({ error: error instanceof Error ? error.message : "No se pudo completar la acción." }, 500);
+    return json({ error: "No se pudo completar la acción." }, 500);
   }
 });
