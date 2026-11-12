@@ -141,7 +141,6 @@ internal fun ShortsScreen(
             clips.isNotEmpty() -> VerticalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                beyondViewportPageCount = 1,
                 key = { page -> "$page-${clips[page].candidate.playbackId}" }
             ) { page ->
                 val clip = clips[page]
