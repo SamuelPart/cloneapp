@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -120,6 +121,7 @@ import java.util.Locale
 private object IptvRoute {
     const val HOME = "home"
     const val CHANNELS = "channels"
+    const val SHORTS = "shorts"
     const val MOVIES = "movies"
     const val SERIES = "series"
     const val KIDS = "kids"
@@ -159,6 +161,7 @@ private data class DeferredRewardPlayback(val request: PendingRewardPlayback, va
 private val sidebarDestinations = listOf(
     AppDestination(IptvRoute.CHANNELS, "TV", Icons.Filled.LiveTv),
     AppDestination(IptvRoute.HOME, "DESTACADO", Icons.Filled.ThumbUp),
+    AppDestination(IptvRoute.SHORTS, "SHORTS", Icons.Filled.PlayArrow),
     AppDestination(IptvRoute.MOVIES, "PELÍCULAS", Icons.Filled.Movie),
     AppDestination(IptvRoute.SERIES, "SERIES", Icons.Filled.Theaters),
     AppDestination(IptvRoute.KIDS, "KIDS", Icons.Filled.ChildCare),
@@ -186,6 +189,7 @@ internal fun IptvApp(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: IptvRoute.HOME
     val isPlayer = currentRoute == IptvRoute.PLAYER
+    val isShorts = currentRoute == IptvRoute.SHORTS
     val isDetail = currentRoute == IptvRoute.CHANNEL_DETAIL || currentRoute == IptvRoute.MEDIA_DETAIL
     var liveFullscreen by remember { mutableStateOf(false) }
     var phoneChannelSearchOpen by remember { mutableStateOf(false) }
@@ -197,8 +201,8 @@ internal fun IptvApp(
     val uiMode = LocalConfiguration.current.uiMode
     val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
     // Mobile search is a dedicated page with its own back and cancel controls, as in the reference.
-    // TV keeps its existing header and sidebar, and the five-item phone bar returns on leaving search.
-    val showChrome = !isPlayer && !isDetail && !(currentRoute == IptvRoute.CHANNELS && liveFullscreen) &&
+    // TV keeps its existing header and sidebar; phone navigation returns on leaving search.
+    val showChrome = !isPlayer && !isShorts && !isDetail && !(currentRoute == IptvRoute.CHANNELS && liveFullscreen) &&
         !usePhoneSearchLayout(isTelevision, currentRoute)
     val favoritesViewModel: FavoritesViewModel = viewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -329,7 +333,7 @@ internal fun IptvApp(
         // but protect browsing controls; full-screen playback still occupies the entire window.
         Row(modifier = Modifier.fillMaxSize().background(Color.Black).safeAreaWhenEnforced(
             isTelevision = isTelevision,
-            immersive = isPlayer || (currentRoute == IptvRoute.CHANNELS && liveFullscreen)
+            immersive = isPlayer || isShorts || (currentRoute == IptvRoute.CHANNELS && liveFullscreen)
         )) {
             if (showChrome && isTvLayout) {
                 TvSidebar(
@@ -561,6 +565,14 @@ private fun IptvNavigationGraph(
     // The graph itself must not be rebuilt when metadata or screen dimensions change.
     val graphBuilder: NavGraphBuilder.() -> Unit = remember(navController, favoritesViewModel, tvChannelKeys) {
         {
+            composable(IptvRoute.SHORTS) {
+                ShortsScreen(
+                    playlist = currentPlaylist.value,
+                    isTv = currentIsTelevisionDevice.value,
+                    onBack = { if (!navController.popBackStack()) navigateTopLevel(navController, IptvRoute.HOME) },
+                    onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
+                )
+            }
             composable(IptvRoute.HOME) {
                 HomeScreen(
                     isTv = currentIsTv.value,
@@ -1112,9 +1124,10 @@ private fun SidebarItem(destination: AppDestination, selected: Boolean, onClick:
 @Composable
 private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
     val selectedRoute = phoneBottomCatalogRoute(SettingsRoutes.topLevel(currentRoute))
-    // These are the same five destinations on home and channels; labels remain accessible to TalkBack.
+    // Six touch destinations include the personalized short-video feed; labels remain accessible to TalkBack.
     val destinations = listOf(
         AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
+        AppDestination(IptvRoute.SHORTS, "Shorts", Icons.Filled.PlayArrow),
         AppDestination(IptvRoute.CHANNELS, "En vivo", Icons.Filled.LiveTv),
         AppDestination(IptvRoute.SEARCH, "Buscar", Icons.Filled.Search),
         AppDestination(IptvRoute.FAVORITES, "Mi lista", Icons.Filled.Favorite),

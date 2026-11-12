@@ -1,0 +1,137 @@
+package com.myiptv.clean.data.repository
+
+import android.content.Context
+import com.myiptv.clean.ui.compose.MediaItem
+import com.myiptv.clean.ui.compose.MediaPlaybackType
+import org.json.JSONObject
+import kotlin.math.ln
+import kotlin.random.Random
+
+/** A playable, direct-source item from the local M3U catalog. */
+data class ShortsCandidate(
+    val media: MediaItem,
+    val playbackId: String,
+    val source: PlaylistSource
+)
+
+data class ShortClip(
+    val candidate: ShortsCandidate,
+    val durationMs: Long,
+    val startAtMs: Long?
+)
+
+/** Storage boundary kept small so the local profile can later be replaced by Supabase. */
+interface ShortsPreferenceStore {
+    fun genreCounts(): Map<String, Int>
+    fun recordWatch(genres: List<String>)
+}
+
+class LocalShortsPreferenceStore(context: Context) : ShortsPreferenceStore {
+    private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+
+    override fun genreCounts(): Map<String, Int> {
+        val json = runCatching { JSONObject(preferences.getString(GENRE_COUNTS, "{}").orEmpty()) }.getOrNull()
+            ?: return emptyMap()
+        return json.keys().asSequence().mapNotNull { key ->
+            normalizeGenre(key)?.let { it to json.optInt(key, 0).coerceAtLeast(0) }
+        }.toMap()
+    }
+
+    override fun recordWatch(genres: List<String>) {
+        val next = genreCounts().toMutableMap()
+        genres.mapNotNull(::normalizeGenre).distinct().forEach { genre ->
+            next[genre] = (next[genre] ?: 0).plus(1).coerceAtMost(MAX_GENRE_PLAYS)
+        }
+        val json = JSONObject().apply { next.forEach { (genre, count) -> put(genre, count) } }
+        preferences.edit().putString(GENRE_COUNTS, json.toString()).apply()
+    }
+
+    private companion object {
+        const val PREFERENCES = "samplay_shorts_profile"
+        const val GENRE_COUNTS = "genre_counts"
+        const val MAX_GENRE_PLAYS = 100_000
+    }
+}
+
+/** Build candidates only from the active M3U catalog. Iframes are skipped because their seek and
+ * duration controls belong to another site, so we cannot promise a 30–60 second excerpt. */
+fun shortsCandidates(playlist: MediaPlaylist): List<ShortsCandidate> = buildList {
+    playlist.sources.forEach { (playbackId, source) ->
+        if (source.type != MediaPlaybackType.DIRECT) return@forEach
+        val mediaId = parseEpisodeSourceId(playbackId)?.mediaId ?: playbackId
+        val media = playlist.item(mediaId) ?: return@forEach
+        add(ShortsCandidate(media = media, playbackId = playbackId, source = source))
+    }
+}.distinctBy(ShortsCandidate::playbackId)
+
+/**
+ * Produce an unordered recommendation batch. Watched genres increase their probability while
+ * every other title keeps a non-zero exploration chance. Large catalogs are sampled without
+ * replacement per batch; smaller ones use weighted replacement to keep the feed running. A fresh
+ * clip length and start point are selected whenever a batch is created.
+ */
+fun recommendShortClips(
+    candidates: List<ShortsCandidate>,
+    genreCounts: Map<String, Int>,
+    random: Random = Random.Default,
+    batchSize: Int = candidates.size
+): List<ShortClip> {
+    val allCandidates = candidates.distinctBy(ShortsCandidate::playbackId)
+    if (allCandidates.isEmpty() || batchSize <= 0) return emptyList()
+    val pool = allCandidates.toMutableList()
+    val sampleWithReplacement = allCandidates.size <= batchSize
+    val result = ArrayList<ShortClip>(batchSize)
+    while (result.size < batchSize) {
+        if (!sampleWithReplacement && pool.isEmpty()) pool.addAll(allCandidates)
+        val choices = if (sampleWithReplacement) allCandidates else pool
+        val weights = choices.map { candidate -> recommendationWeight(shortsTasteLabels(candidate.media), genreCounts) }
+        val total = weights.sum()
+        var target = random.nextDouble() * total
+        val selectedIndex = weights.indexOfFirst { weight ->
+            target -= weight
+            target < 0.0
+        }.let { if (it < 0) choices.lastIndex else it }
+        val candidate = choices[selectedIndex]
+        if (!sampleWithReplacement) pool.remove(candidate)
+        val clipDuration = random.nextLong(MIN_CLIP_MS, MAX_CLIP_MS + 1)
+        val runtime = parseRuntimeMs(candidate.media.duration)
+        val start = runtime?.let { totalRuntime ->
+            val maxStart = (totalRuntime - clipDuration).coerceAtLeast(0L)
+            if (maxStart > 0L) random.nextLong(maxStart + 1L) else 0L
+        }
+        result += ShortClip(candidate, clipDuration, start)
+    }
+    return result
+}
+
+fun shortsTasteLabels(media: MediaItem): List<String> = media.genres + when (media.kind) {
+    com.myiptv.clean.ui.compose.MediaKind.MOVIE -> "Película"
+    com.myiptv.clean.ui.compose.MediaKind.SERIES -> "Serie"
+}
+
+fun recommendationWeight(genres: List<String>, genreCounts: Map<String, Int>): Double {
+    val affinities = genres.mapNotNull(::normalizeGenre).distinct().map { genre ->
+        ln(1.0 + (genreCounts[genre] ?: 0).coerceAtLeast(0).toDouble())
+    }
+    // Exploration remains possible even for genres with no recorded watches.
+    val averageAffinity = if (affinities.isEmpty()) 0.0 else affinities.average()
+    return 1.0 + averageAffinity * 0.8
+}
+
+fun parseRuntimeMs(value: String): Long? {
+    val text = value.trim().lowercase()
+    if (text.isBlank() || text == "—") return null
+    val hourValues = Regex("(\\d+)\\s*(?:h|hr|hrs|hour|hours)").findAll(text).mapNotNull { it.groupValues[1].toLongOrNull() }.toList()
+    val minuteValues = Regex("(\\d+)\\s*(?:m|min|mins|minute|minutes)").findAll(text).mapNotNull { it.groupValues[1].toLongOrNull() }.toList()
+    val secondsValues = Regex("(\\d+)\\s*(?:s|sec|secs|second|seconds)").findAll(text).mapNotNull { it.groupValues[1].toLongOrNull() }.toList()
+    val numeric = Regex("^\\d+$").matchEntire(text)?.value?.toLongOrNull()
+    val totalMinutes = hourValues.sum() * 60L + minuteValues.sum() + (numeric ?: 0L)
+    val totalSeconds = totalMinutes * 60L + secondsValues.sum()
+    return totalSeconds.takeIf { it > 0L }?.times(1_000L)
+}
+
+private fun normalizeGenre(value: String): String? = value.trim().lowercase().takeIf(String::isNotBlank)
+
+const val SHORTS_BATCH_SIZE = 30
+private const val MIN_CLIP_MS = 30_000L
+private const val MAX_CLIP_MS = 60_000L

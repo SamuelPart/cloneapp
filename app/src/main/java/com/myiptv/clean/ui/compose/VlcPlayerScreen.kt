@@ -51,6 +51,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -91,6 +93,7 @@ import com.myiptv.clean.ui.player.shouldAutoHideControls
 import com.myiptv.clean.ui.player.shouldToggleOnSurfaceTap
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.random.Random
 import org.videolan.libvlc.util.VLCVideoLayout
 
 private data class VlcBinding(val engine: VlcPlaybackEngine, val controller: PlaybackController)
@@ -110,7 +113,13 @@ internal fun VlcPlayerScreen(
     playbackKey: Any? = null,
     onPlaybackEvent: (PlaybackEvent) -> Unit = {},
     onChannelStep: ((Int) -> Unit)? = null,
-    phoneLiveActions: PhoneLivePlayerActions? = null
+    phoneLiveActions: PhoneLivePlayerActions? = null,
+    shortClipActive: Boolean = true,
+    shortClipDurationMs: Long? = null,
+    shortClipStartAtMs: Long? = null,
+    onShortClipProgress: (Long) -> Unit = {},
+    onShortClipWatched: () -> Unit = {},
+    onShortClipFinished: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -123,7 +132,15 @@ internal fun VlcPlayerScreen(
     var audioDialogOpen by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
     var muteMessage by remember(sourceUrl, playbackKey) { mutableStateOf<String?>(null) }
     var interaction by remember(sourceUrl, playbackKey) { mutableIntStateOf(0) }
+    var shortClipElapsedMs by remember(sourceUrl, playbackKey) { mutableLongStateOf(0L) }
+    var shortClipFinished by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
+    var shortClipWatched by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
+    var shortClipStartApplied by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
     var previewFocused by remember { mutableStateOf(false) }
+    val latestPlaybackState = rememberUpdatedState(state)
+    val latestShortClipProgress = rememberUpdatedState(onShortClipProgress)
+    val latestShortClipWatched = rememberUpdatedState(onShortClipWatched)
+    val latestShortClipFinished = rememberUpdatedState(onShortClipFinished)
     val previousPreview = remember { mutableStateOf(tvPreview) }
     val screenFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
@@ -201,9 +218,67 @@ internal fun VlcPlayerScreen(
     }
 
     PlaybackCoinTimer(
-        active = binding != null && state.isPlaying && !state.isBuffering && !state.ended && state.error == null,
+        active = shortClipDurationMs == null && binding != null && state.isPlaying && !state.isBuffering && !state.ended && state.error == null,
         isTv = isTv,
     )
+
+    LaunchedEffect(binding, shortClipActive, shortClipDurationMs) {
+        val controller = binding?.controller ?: return@LaunchedEffect
+        if (shortClipDurationMs != null) {
+            if (shortClipActive) controller.onForeground() else controller.onBackground()
+        }
+    }
+    LaunchedEffect(binding, state.isSeekable, state.durationMs, shortClipDurationMs, shortClipStartAtMs) {
+        val current = binding ?: return@LaunchedEffect
+        val clipDuration = shortClipDurationMs ?: return@LaunchedEffect
+        if (!shortClipStartApplied && state.isSeekable && state.durationMs > 0L) {
+            val maxStart = (state.durationMs - clipDuration).coerceAtLeast(0L)
+            val startAt = shortClipStartAtMs?.coerceIn(0L, maxStart)
+                ?: if (maxStart > 0L) Random.Default.nextLong(maxStart + 1L) else 0L
+            current.controller.seekTo(startAt)
+            shortClipStartApplied = true
+        }
+    }
+    LaunchedEffect(binding, shortClipDurationMs, shortClipActive) {
+        val clipDuration = shortClipDurationMs ?: return@LaunchedEffect
+        if (binding == null) return@LaunchedEffect
+        while (isActive && !shortClipFinished) {
+            delay(250L)
+            val current = latestPlaybackState.value
+            when {
+                current.ended && shortClipActive -> {
+                    shortClipFinished = true
+                    latestShortClipFinished.value()
+                }
+                current.isPlaying && !current.isBuffering && current.error == null && shortClipActive -> {
+                    shortClipElapsedMs = (shortClipElapsedMs + 250L).coerceAtMost(clipDuration)
+                    latestShortClipProgress.value(shortClipElapsedMs)
+                    if (!shortClipWatched && shortClipElapsedMs >= minOf(10_000L, clipDuration / 3L)) {
+                        shortClipWatched = true
+                        latestShortClipWatched.value()
+                    }
+                    if (shortClipElapsedMs >= clipDuration) {
+                        shortClipFinished = true
+                        latestShortClipFinished.value()
+                    }
+                }
+                current.error != null && shortClipActive -> {
+                    shortClipFinished = true
+                    latestShortClipFinished.value()
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(binding, initializationError, shortClipDurationMs, shortClipActive) {
+        if (binding == null && initializationError != null && shortClipDurationMs != null && shortClipActive) {
+            delay(3_500L)
+            if (!shortClipFinished) {
+                shortClipFinished = true
+                latestShortClipFinished.value()
+            }
+        }
+    }
 
     LaunchedEffect(binding, phoneLiveActions?.muted, state.isPlaying, state.isBuffering) {
         val current = binding
@@ -376,10 +451,23 @@ internal fun VlcPlayerScreen(
             }
         )
 
-        if (phonePreview && !controlsVisible && state.isBuffering && state.error == null) {
+        if (shortClipDurationMs != null) {
+            if (shortClipActive && (initializationError != null || state.error != null)) {
+                Text(
+                    "No se pudo reproducir este clip. Pasando al siguiente…",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.align(Alignment.Center).background(Color.Black.copy(alpha = 0.65f)).padding(14.dp)
+                )
+            } else if (shortClipActive && state.isBuffering) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(30.dp), color = Color.White, strokeWidth = 2.dp)
+            }
+        } else if (phonePreview && !controlsVisible && state.isBuffering && state.error == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(28.dp), color = Color.White, strokeWidth = 2.dp)
         }
-        if (tvPreview) {
+        if (shortClipDurationMs != null) {
+            // The feed supplies its own controls and navigation overlay.
+        } else if (tvPreview) {
             Column(
                 modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.82f))))
