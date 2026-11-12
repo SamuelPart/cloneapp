@@ -25,6 +25,7 @@ class IptvActivity : AppCompatActivity() {
     private var notificationTarget by mutableStateOf<CatalogNotificationTarget?>(null)
     private var updateRequest by mutableStateOf<Long?>(null)
     private var updateRequestSequence = 0L
+    private var sharedProfileUsername by mutableStateOf<String?>(null)
     private val ads get() = (application as CleanIPTVApp).ads
     private var firstResume = true
 
@@ -58,6 +59,11 @@ class IptvActivity : AppCompatActivity() {
                         }
                     },
                     updateRequest = updateRequest,
+                    sharedProfileUsername = sharedProfileUsername,
+                    onSharedProfileHandled = {
+                        sharedProfileUsername = null
+                        intent?.data = null
+                    },
                     onUpdateRequestHandled = { handledSequence ->
                         if (updateRequest == handledSequence) {
                             updateRequest = null
@@ -93,6 +99,8 @@ class IptvActivity : AppCompatActivity() {
     }
 
     private fun receiveIntent(intent: Intent?) {
+        sharedProfileUsername = intent?.data?.takeIf { it.scheme == "samplay" && it.host == "profile" }
+            ?.lastPathSegment?.takeIf { it.matches(Regex("^[a-zA-Z0-9_.]{3,20}$")) }
         notificationRequests.accept(intent?.getStringExtra(EXTRA_CATALOG_MEDIA_ID))?.let {
             updateRequest = null // The latest tapped notification takes precedence.
             notificationTarget = it

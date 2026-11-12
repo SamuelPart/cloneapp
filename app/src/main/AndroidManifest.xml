@@ -46,9 +46,16 @@
 
         <activity
             android:name=".ui.compose.IptvActivity"
-            android:exported="false"
+            android:exported="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
-            android:theme="@style/Theme.CleanIPTV.NoActionBar" />
+            android:theme="@style/Theme.CleanIPTV.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="samplay" android:host="profile" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".ui.MainActivity"

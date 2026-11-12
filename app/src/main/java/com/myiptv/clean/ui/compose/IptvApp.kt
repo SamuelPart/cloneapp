@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -134,6 +135,8 @@ private object IptvRoute {
     const val SEARCH = "search"
     const val DOWNLOADS = "downloads"
     const val HISTORY = "history"
+    const val PROFILE = "profile"
+    const val PUBLIC_PROFILE = "profile/{username}"
     const val SETTINGS = SettingsRoutes.SETTINGS
     const val SETTINGS_COINS = SettingsRoutes.COINS
     const val CHANNEL_DETAIL = "channel/{id}"
@@ -170,6 +173,7 @@ private val sidebarDestinations = listOf(
     AppDestination(IptvRoute.FAVORITES, "MI LISTA", Icons.Filled.Favorite),
     AppDestination(IptvRoute.DOWNLOADS, "DESCARGAS", Icons.Filled.Download),
     AppDestination(IptvRoute.HISTORY, "HISTORIAL", Icons.Filled.History),
+    AppDestination(IptvRoute.PROFILE, "MI PERFIL", Icons.Filled.Person),
     AppDestination(IptvRoute.SETTINGS, "AJUSTES", Icons.Filled.Settings)
 )
 
@@ -179,6 +183,8 @@ internal fun IptvApp(
     onNotificationHandled: (Long) -> Unit = {},
     updateRequest: Long? = null,
     onUpdateRequestHandled: (Long) -> Unit = {},
+    sharedProfileUsername: String? = null,
+    onSharedProfileHandled: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
@@ -279,6 +285,13 @@ internal fun IptvApp(
                 }
             }
         }
+    }
+    LaunchedEffect(sharedProfileUsername) {
+        val username = sharedProfileUsername?.trim()?.removePrefix("@")?.lowercase() ?: return@LaunchedEffect
+        if (username.matches(Regex("^[a-z0-9_.]{3,20}$"))) {
+            navController.navigate("profile/${Uri.encode(username)}") { launchSingleTop = true }
+        }
+        onSharedProfileHandled()
     }
     LaunchedEffect(updateRequest) {
         val request = updateRequest ?: return@LaunchedEffect
@@ -743,6 +756,15 @@ private fun IptvNavigationGraph(
             composable(IptvRoute.HISTORY) {
                 HistoryScreen(currentIsTv.value)
             }
+            composable(IptvRoute.PROFILE) {
+                GuestProfileScreen()
+            }
+            composable(
+                route = IptvRoute.PUBLIC_PROFILE,
+                arguments = listOf(navArgument("username") { type = NavType.StringType })
+            ) { entry ->
+                GuestProfileScreen(username = entry.arguments?.getString("username"), onBack = { navController.popBackStack() })
+            }
             composable(IptvRoute.SETTINGS) { entry ->
                 SettingsScreen(
                     // Route transitions may overlap layouts; form factor belongs to the device.
@@ -1124,13 +1146,14 @@ private fun SidebarItem(destination: AppDestination, selected: Boolean, onClick:
 @Composable
 private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
     val selectedRoute = phoneBottomCatalogRoute(SettingsRoutes.topLevel(currentRoute))
-    // Six touch destinations include the personalized short-video feed; labels remain accessible to TalkBack.
+    // Keep the touch navigation compact; labels remain accessible to TalkBack.
     val destinations = listOf(
         AppDestination(IptvRoute.HOME, "Inicio", Icons.Filled.Home),
         AppDestination(IptvRoute.SHORTS, "Shorts", Icons.Filled.PlayArrow),
         AppDestination(IptvRoute.CHANNELS, "En vivo", Icons.Filled.LiveTv),
         AppDestination(IptvRoute.SEARCH, "Buscar", Icons.Filled.Search),
         AppDestination(IptvRoute.FAVORITES, "Mi lista", Icons.Filled.Favorite),
+        AppDestination(IptvRoute.PROFILE, "Perfil", Icons.Filled.Person),
         AppDestination(IptvRoute.SETTINGS, "Ajustes", Icons.Filled.Settings)
     )
     Row(
