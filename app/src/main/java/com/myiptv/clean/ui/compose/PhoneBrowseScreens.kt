@@ -58,7 +58,6 @@ internal fun PhoneBrowseMediaScreen(
             Column {
                 TvPageHeader(
                     title,
-                    if (kind == MediaKind.MOVIE) "Películas del catálogo M3U y de TMDb." else "Series del catálogo M3U y de TMDb.",
                     action = {
                         IconButton(onClick = { filterDialogOpen = true }) {
                             Icon(
@@ -69,7 +68,6 @@ internal fun PhoneBrowseMediaScreen(
                         }
                     },
                 )
-                TvStatus("${titles.size} títulos · ${playlist.statusMessage} · ${viewModel.statusMessage}")
             }
         },
         emptyContent = {

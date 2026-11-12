@@ -209,14 +209,6 @@ internal fun PhoneHomeScreen(
                     )
                 }
             }
-            item(key = "status") {
-                Text(
-                    "${playlist.statusMessage} · ${viewModel.statusMessage}",
-                    modifier = Modifier.padding(horizontal = 14.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
         }
     }
 }
@@ -398,7 +390,7 @@ internal fun PhoneCuratedCatalogScreen(
         favorites = favorites,
         onOpenMedia = onOpenMedia,
         onToggleFavorite = onToggleFavorite,
-        header = { TvPageHeader(title, status) },
+        header = { TvPageHeader(title) },
         emptyContent = {
             if (loading) {
                 SamplayLoadingPane(Modifier.fillMaxWidth(), "Cargando $title…")
