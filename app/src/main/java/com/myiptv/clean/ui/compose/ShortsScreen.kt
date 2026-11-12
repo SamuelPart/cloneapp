@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -72,7 +71,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.myiptv.clean.data.repository.LocalShortsPreferenceStore
 import com.myiptv.clean.data.repository.MediaPlaylist
-import com.myiptv.clean.data.repository.ShortClip
 import com.myiptv.clean.data.repository.ShortsComment
 import com.myiptv.clean.data.repository.ShortsInteractionState
 import com.myiptv.clean.data.repository.ShortsInteractionsRepository
@@ -160,7 +158,7 @@ internal fun ShortsScreen(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 key = { page -> "$page-${clips[page].candidate.playbackId}" }
-            ) { page ->
+            ) { page: Int ->
                 val clip = clips[page]
                 val candidate = clip.candidate
                 val isCurrentPage = pagerState.currentPage == page
@@ -457,7 +455,8 @@ private fun ShortsCommentsDialog(
                             modifier = Modifier.weight(1f, fill = false).heightIn(max = 320.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(comments, key = ShortsComment::id) { comment ->
+                            items(count = comments.size) { index ->
+                                val comment = comments[index]
                                 Surface(shape = RoundedCornerShape(10.dp), color = Color.White.copy(alpha = 0.08f)) {
                                     Text(comment.body, modifier = Modifier.fillMaxWidth().padding(12.dp), style = MaterialTheme.typography.bodyMedium)
                                 }

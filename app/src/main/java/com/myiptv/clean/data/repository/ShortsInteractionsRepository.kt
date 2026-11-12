@@ -50,7 +50,7 @@ internal class ShortsInteractionsRepository(context: Context) {
         )
     }
 
-    suspend fun setLiked(clipId: String, liked: Boolean) = withContext(Dispatchers.IO) {
+    suspend fun setLiked(clipId: String, liked: Boolean): Unit = withContext(Dispatchers.IO) {
         val client = queryValue(clientId)
         val clip = queryValue(clipId)
         if (liked) {
@@ -63,9 +63,10 @@ internal class ShortsInteractionsRepository(context: Context) {
         } else {
             request(method = "DELETE", path = "shorts_reactions?clip_id=eq.$clip&client_id=eq.$client")
         }
+        Unit
     }
 
-    suspend fun addComment(clipId: String, text: String) = withContext(Dispatchers.IO) {
+    suspend fun addComment(clipId: String, text: String): Unit = withContext(Dispatchers.IO) {
         val cleanText = text.trim().take(MAX_COMMENT_LENGTH)
         require(cleanText.isNotEmpty()) { "El comentario no puede estar vacío." }
         request(
@@ -78,15 +79,17 @@ internal class ShortsInteractionsRepository(context: Context) {
                 .toString(),
             prefer = "return=minimal"
         )
+        Unit
     }
 
-    suspend fun recordShare(clipId: String) = withContext(Dispatchers.IO) {
+    suspend fun recordShare(clipId: String): Unit = withContext(Dispatchers.IO) {
         request(
             method = "POST",
             path = "shorts_shares",
             body = JSONObject().put("clip_id", clipId).put("client_id", clientId).toString(),
             prefer = "return=minimal"
         )
+        Unit
     }
 
     private fun countRows(table: String, clipId: String): Int {
