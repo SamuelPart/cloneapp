@@ -180,6 +180,12 @@ internal fun VlcPlayerScreen(
         }
         showControls()
     }
+    fun restartShortClip(current: VlcBinding) {
+        shortClipElapsedMs = 0L
+        shortClipStartApplied = false
+        latestShortClipProgress.value(0L)
+        current.controller.restartPlayback()
+    }
 
     DisposableEffect(sourceUrl, userAgent, referrer, lifecycleOwner, generation, playbackKey, useVideoLayoutBounds) {
         var engine: VlcPlaybackEngine? = null
@@ -279,15 +285,13 @@ internal fun VlcPlayerScreen(
     }
     LaunchedEffect(binding, shortClipDurationMs, shortClipActive) {
         val clipDuration = shortClipDurationMs ?: return@LaunchedEffect
-        if (binding == null || !shortClipActive) return@LaunchedEffect
+        val currentBinding = binding ?: return@LaunchedEffect
+        if (!shortClipActive) return@LaunchedEffect
         while (isActive && !shortClipFinished) {
             delay(250L)
             val current = latestPlaybackState.value
             when {
-                current.ended && shortClipActive -> {
-                    shortClipFinished = true
-                    latestShortClipFinished.value()
-                }
+                current.ended && shortClipActive -> restartShortClip(currentBinding)
                 current.isPlaying && !current.isBuffering && current.error == null && shortClipActive -> {
                     shortClipElapsedMs = (shortClipElapsedMs + 250L).coerceAtMost(clipDuration)
                     latestShortClipProgress.value(shortClipElapsedMs)
@@ -295,10 +299,7 @@ internal fun VlcPlayerScreen(
                         shortClipWatched = true
                         latestShortClipWatched.value()
                     }
-                    if (shortClipElapsedMs >= clipDuration) {
-                        shortClipFinished = true
-                        latestShortClipFinished.value()
-                    }
+                    if (shortClipElapsedMs >= clipDuration) restartShortClip(currentBinding)
                 }
                 current.error != null && shortClipActive -> {
                     shortClipFinished = true

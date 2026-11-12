@@ -106,6 +106,9 @@ internal class PlaybackController(
         }
     }
 
+    /** Reopens the same media for clip looping, even when playback has not reached EndReached. */
+    fun restartPlayback() = restart()
+
     fun play() {
         if (released) return
         if (state.error != null || state.ended) {

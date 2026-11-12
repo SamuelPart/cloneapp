@@ -173,6 +173,20 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun explicitRestartReloadsTheSameMediaWithoutWaitingForEndReached() {
+        val engine = FakeEngine()
+        val controller = start(engine)
+        engine.emit(PlaybackEvent.Playing)
+
+        controller.restartPlayback()
+
+        assertEquals(2, engine.loaded)
+        assertEquals(2, engine.played)
+        assertEquals(1, engine.stopped)
+        assertTrue(controller.state.isBuffering)
+    }
+
+    @Test
     fun liveStreamDoesNotExposeOrPerformSeeking() {
         val engine = FakeEngine()
         engine.position = PlaybackProgress(15_000, 0, false)
