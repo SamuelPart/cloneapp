@@ -14,14 +14,24 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.TmdbRepository
 
-/** Keep the existing real search, genre and sorting filters; only the phone presentation changes. */
+/** Keep genre and ordering controls, but surface them through a compact filter dialog on phones. */
 @Composable
 internal fun PhoneBrowseMediaScreen(
     kind: MediaKind,
@@ -32,7 +42,9 @@ internal fun PhoneBrowseMediaScreen(
     playlist: MediaPlaylist
 ) {
     val title = if (kind == MediaKind.MOVIE) "Películas Populares" else "Series Populares"
-    val searchTitle = if (kind == MediaKind.MOVIE) "Películas" else "Series"
+    val genres = viewModel.genresFor(kind, playlist.items)
+    val sortOptions = listOf("Populares", "Mejor valoradas", "Recientes")
+    var filterDialogOpen by remember(kind) { mutableStateOf(false) }
     val titles = viewModel.itemsFor(kind, playlist.items)
     val message = if (viewModel.query.isNotBlank() || viewModel.selectedGenre != "Todos") {
         "No se encontraron títulos para este filtro."
@@ -44,20 +56,18 @@ internal fun PhoneBrowseMediaScreen(
         onToggleFavorite = onToggleFavorite,
         header = {
             Column {
-                TvPageHeader(title, if (kind == MediaKind.MOVIE) "Películas del catálogo M3U y de TMDb." else "Series del catálogo M3U y de TMDb.")
-                TvCatalogControls(
-                    query = viewModel.query,
-                    onQueryChange = { viewModel.query = it },
-                    placeholder = "Buscar $searchTitle",
-                    filters = viewModel.genresFor(kind, playlist.items),
-                    selectedFilter = viewModel.selectedGenre,
-                    onSelectFilter = { viewModel.selectedGenre = it }
-                )
-                TvFilterRow(
-                    options = listOf("Populares", "Mejor valoradas", "Recientes"),
-                    selected = viewModel.selectedTab,
-                    onSelect = { viewModel.selectedTab = it },
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                TvPageHeader(
+                    title,
+                    if (kind == MediaKind.MOVIE) "Películas del catálogo M3U y de TMDb." else "Series del catálogo M3U y de TMDb.",
+                    action = {
+                        IconButton(onClick = { filterDialogOpen = true }) {
+                            Icon(
+                                Icons.Filled.Tune,
+                                contentDescription = "Abrir filtros",
+                                tint = if (viewModel.selectedGenre != "Todos" || viewModel.selectedTab != "Populares") PhoneChannelAccent else Color.White,
+                            )
+                        }
+                    },
                 )
                 TvStatus("${titles.size} títulos · ${playlist.statusMessage} · ${viewModel.statusMessage}")
             }
@@ -75,6 +85,40 @@ internal fun PhoneBrowseMediaScreen(
             }
         }
     )
+    if (filterDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { filterDialogOpen = false },
+            title = { Text("Filtros del catálogo") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Género")
+                    TvFilterRow(
+                        options = genres,
+                        selected = viewModel.selectedGenre,
+                        onSelect = { viewModel.selectedGenre = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text("Ordenar por")
+                    TvFilterRow(
+                        options = sortOptions,
+                        selected = viewModel.selectedTab,
+                        onSelect = { viewModel.selectedTab = it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { filterDialogOpen = false }) { Text("Aplicar") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.selectedGenre = "Todos"
+                    viewModel.selectedTab = "Populares"
+                    viewModel.query = ""
+                }) { Text("Limpiar") }
+            },
+        )
+    }
 }
 
 /** The Kids callback remains the one supplied by navigation, which marks details as child content. */
