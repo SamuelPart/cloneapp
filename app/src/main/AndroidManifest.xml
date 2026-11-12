@@ -55,11 +55,27 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="samplay" android:host="profile" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="samplay" android:host="shorts" />
+            </intent-filter>
         </activity>
 
         <activity
             android:name=".ui.MainActivity"
             android:exported="false" />
+
+        <provider
+            android:name=".ui.compose.SamplayShareFileProvider"
+            android:authorities="${applicationId}.shares"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/samplay_share_paths" />
+        </provider>
 
         <service
             android:name=".notifications.CatalogSyncJob"

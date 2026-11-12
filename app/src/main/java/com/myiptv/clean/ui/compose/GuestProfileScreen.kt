@@ -1,6 +1,5 @@
 package com.myiptv.clean.ui.compose
 
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,10 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -50,15 +47,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.myiptv.clean.BuildConfig
 import com.myiptv.clean.data.repository.GuestProfile
 import com.myiptv.clean.data.repository.GuestProfileRepository
 import kotlinx.coroutines.launch
@@ -71,7 +64,6 @@ internal fun GuestProfileScreen(
     val context = LocalContext.current
     val repository = remember(context) { GuestProfileRepository(context) }
     val scope = rememberCoroutineScope()
-    val clipboard = LocalClipboardManager.current
     val ownerMode = username.isNullOrBlank()
     var profile by remember { mutableStateOf<GuestProfile?>(null) }
     var name by remember { mutableStateOf("") }
@@ -112,7 +104,6 @@ internal fun GuestProfileScreen(
             message = null
         }
     }
-    val profileLink = profile?.let { "${BuildConfig.SUPABASE_URL.trimEnd('/')}/functions/v1/guest-profiles?username=${Uri.encode(it.username)}" }
 
     Column(
         modifier = Modifier.fillMaxSize().background(Color(0xFF0D0E12)).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
@@ -121,20 +112,6 @@ internal fun GuestProfileScreen(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             if (!ownerMode) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White) }
             Text(if (ownerMode) "Mi perfil" else "Perfil", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            if (profile != null) {
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = {
-                    val link = profileLink ?: return@TextButton
-                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, "Mira el perfil @${profile?.username} en SamPlay: $link")
-                    }, "Compartir perfil"))
-                }) {
-                    Icon(Icons.Filled.Share, contentDescription = null, tint = Color(0xFFFF5678))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Compartir", color = Color(0xFFFF8BA0))
-                }
-            }
         }
 
         Box(
@@ -186,7 +163,7 @@ internal fun GuestProfileScreen(
         }
 
         if (ownerMode) {
-            Text("Sin cuenta ni contraseña: el perfil se guarda en este dispositivo y se publica para compartirlo.", color = Color(0xFFB3B4BF), style = MaterialTheme.typography.bodyMedium)
+            Text("Sin cuenta ni contraseña: configura tu espacio personal de perfil.", color = Color(0xFFB3B4BF), style = MaterialTheme.typography.bodyMedium)
             OutlinedTextField(value = name, onValueChange = { name = it.take(40) }, modifier = Modifier.fillMaxWidth(), label = { Text("Nombre visible") }, singleLine = true)
             OutlinedTextField(
                 value = handle,
@@ -212,7 +189,7 @@ internal fun GuestProfileScreen(
                     message = null
                     scope.launch {
                         runCatching { repository.save(name, handle, avatarUri, coverUri, removeAvatar, removeCover, coverAnimated) }
-                            .onSuccess { profile = it; avatarUri = null; coverUri = null; removeAvatar = false; removeCover = false; message = "Perfil guardado. Ya puedes compartirlo." }
+                            .onSuccess { profile = it; avatarUri = null; coverUri = null; removeAvatar = false; removeCover = false; message = "Perfil guardado." }
                             .onFailure { message = it.message ?: "No se pudo guardar el perfil." }
                         saving = false
                     }
@@ -234,38 +211,10 @@ internal fun GuestProfileScreen(
             }
         }
 
-        if (profile != null) {
-            Surface(color = Color(0xFF171920), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Ideas para compartir", color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    ShareIdea("1", "Enlace directo", "Manda tu perfil por WhatsApp, mensajes o redes.")
-                    ShareIdea("2", "Tarjeta para historias", "Una imagen con tu avatar, portada y @usuario, lista para publicar.")
-                    ShareIdea("3", "Código QR", "Pon un QR en una invitación o muéstralo en persona para abrir tu perfil.")
-                    if (profileLink != null) TextButton(onClick = { clipboard.setText(AnnotatedString(profileLink)); message = "Enlace copiado." }) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Copiar enlace", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-            }
-        }
         if (loading) CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally), color = Color(0xFFFF5678))
         message?.let { Text(it, color = if (it.startsWith("Perfil guardado") || it.contains("copiado")) Color(0xFF8DE6AE) else Color(0xFFFFA0A0), style = MaterialTheme.typography.bodyMedium) }
-        if (ownerMode && profile == null && !loading) Text("Tu perfil aún no se comparte. Elige un nombre y un @usuario para empezar.", color = Color(0xFFB3B4BF), style = MaterialTheme.typography.bodySmall)
+        if (ownerMode && profile == null && !loading) Text("Completa tu perfil con un nombre y un @usuario para empezar.", color = Color(0xFFB3B4BF), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(14.dp))
-    }
-}
-
-@Composable
-private fun ShareIdea(number: String, title: String, detail: String) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
-        Surface(shape = CircleShape, color = Color(0xFF38212C), modifier = Modifier.size(28.dp)) {
-            Box(contentAlignment = Alignment.Center) { Text(number, color = Color(0xFFFF8BA0), fontWeight = FontWeight.Bold) }
-        }
-        Column {
-            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
-            Text(detail, color = Color(0xFFB3B4BF), style = MaterialTheme.typography.bodySmall)
-        }
     }
 }
 

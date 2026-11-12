@@ -38,7 +38,6 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -173,7 +172,6 @@ private val sidebarDestinations = listOf(
     AppDestination(IptvRoute.FAVORITES, "MI LISTA", Icons.Filled.Favorite),
     AppDestination(IptvRoute.DOWNLOADS, "DESCARGAS", Icons.Filled.Download),
     AppDestination(IptvRoute.HISTORY, "HISTORIAL", Icons.Filled.History),
-    AppDestination(IptvRoute.PROFILE, "MI PERFIL", Icons.Filled.Person),
     AppDestination(IptvRoute.SETTINGS, "AJUSTES", Icons.Filled.Settings)
 )
 
@@ -185,6 +183,10 @@ internal fun IptvApp(
     onUpdateRequestHandled: (Long) -> Unit = {},
     sharedProfileUsername: String? = null,
     onSharedProfileHandled: () -> Unit = {},
+    openSharedShorts: Boolean = false,
+    sharedShortClipId: String? = null,
+    onSharedShortsHandled: () -> Unit = {},
+    onSharedShortClipHandled: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
@@ -293,6 +295,12 @@ internal fun IptvApp(
         }
         onSharedProfileHandled()
     }
+    LaunchedEffect(openSharedShorts) {
+        if (openSharedShorts) {
+            navigateTopLevel(navController, IptvRoute.SHORTS)
+            onSharedShortsHandled()
+        }
+    }
     LaunchedEffect(updateRequest) {
         val request = updateRequest ?: return@LaunchedEffect
         // Phone settings has collapsible sections; keep this event until the update card opens.
@@ -383,6 +391,8 @@ internal fun IptvApp(
                     isTelevisionDevice = isTelevision,
                     favoritesViewModel = favoritesViewModel,
                     playlist = playlist,
+                    sharedShortClipId = sharedShortClipId,
+                    onSharedShortClipHandled = onSharedShortClipHandled,
                     pendingPhoneSettingsUpdate = pendingPhoneSettingsUpdate,
                     onPhoneSettingsUpdateHandled = { handled ->
                         pendingPhoneSettingsUpdate = phoneSettingsUpdateAfterHandled(pendingPhoneSettingsUpdate, handled)
@@ -437,6 +447,8 @@ private fun IptvNavigationGraph(
     isTelevisionDevice: Boolean,
     favoritesViewModel: FavoritesViewModel,
     playlist: MediaPlaylist,
+    sharedShortClipId: String?,
+    onSharedShortClipHandled: () -> Unit,
     pendingPhoneSettingsUpdate: Long?,
     onPhoneSettingsUpdateHandled: (Long) -> Unit,
     liveFullscreen: Boolean,
@@ -452,6 +464,8 @@ private fun IptvNavigationGraph(
     val currentIsTv = rememberUpdatedState(isTv)
     val currentIsTelevisionDevice = rememberUpdatedState(isTelevisionDevice)
     val currentPlaylist = rememberUpdatedState(playlist)
+    val currentSharedShortClipId = rememberUpdatedState(sharedShortClipId)
+    val currentOnSharedShortClipHandled = rememberUpdatedState(onSharedShortClipHandled)
     val currentPhoneSettingsUpdate = rememberUpdatedState(pendingPhoneSettingsUpdate)
     val currentOnPhoneSettingsUpdateHandled = rememberUpdatedState(onPhoneSettingsUpdateHandled)
     val currentLiveFullscreen = rememberUpdatedState(liveFullscreen)
@@ -582,6 +596,8 @@ private fun IptvNavigationGraph(
                 ShortsScreen(
                     playlist = currentPlaylist.value,
                     isTv = currentIsTelevisionDevice.value,
+                    initialClipId = currentSharedShortClipId.value,
+                    onInitialClipHandled = { currentOnSharedShortClipHandled.value() },
                     onBack = { if (!navController.popBackStack()) navigateTopLevel(navController, IptvRoute.HOME) },
                     onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
                     onOpenProfile = { navigateTopLevel(navController, IptvRoute.PROFILE) },
@@ -773,6 +789,7 @@ private fun IptvNavigationGraph(
                     isTv = currentIsTelevisionDevice.value,
                     playlist = currentPlaylist.value,
                     onOpenCoins = { navController.navigate(IptvRoute.SETTINGS_COINS) { launchSingleTop = true } },
+                    onOpenProfile = { navController.navigate(IptvRoute.PROFILE) { launchSingleTop = true } },
                     // Only the visible entry may consume an update while navigation animates.
                     openUpdateRequest = phoneSettingsUpdateForEntry(currentPhoneSettingsUpdate.value, entry === currentEntry),
                     onUpdateRequestHandled = { currentOnPhoneSettingsUpdateHandled.value(it) }
@@ -1155,7 +1172,6 @@ private fun PhoneBottomBar(currentRoute: String, onNavigate: (String) -> Unit) {
         AppDestination(IptvRoute.CHANNELS, "En vivo", Icons.Filled.LiveTv),
         AppDestination(IptvRoute.SEARCH, "Buscar", Icons.Filled.Search),
         AppDestination(IptvRoute.FAVORITES, "Mi lista", Icons.Filled.Favorite),
-        AppDestination(IptvRoute.PROFILE, "Perfil", Icons.Filled.Person),
         AppDestination(IptvRoute.SETTINGS, "Ajustes", Icons.Filled.Settings)
     )
     Row(

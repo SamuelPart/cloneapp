@@ -70,6 +70,7 @@ android {
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'com.google.zxing:core:3.5.3'
     // Inject the ad-layer guard at document start, including third-party iframe documents.
     implementation 'androidx.webkit:webkit:1.11.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'

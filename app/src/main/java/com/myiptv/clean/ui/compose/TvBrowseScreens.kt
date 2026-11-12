@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -272,7 +273,7 @@ internal fun TvLibraryScreen(downloads: Boolean, isTv: Boolean) {
 }
 
 @Composable
-internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean, onOpenCoins: () -> Unit) {
+internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean, onOpenCoins: () -> Unit, onOpenProfile: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val syncStatus by MediaPlaylistRepository.syncStatus.collectAsState()
@@ -292,6 +293,11 @@ internal fun TvSettingsScreen(playlist: MediaPlaylist, isTv: Boolean, onOpenCoin
                     Text("Consulta tu saldo, recompensas y canjes en su propia pantalla.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
                     TvActionButton("Abrir Monedas SamPlay", onClick = onOpenCoins, icon = Icons.Filled.ArrowForward)
                 }
+            }
+            TvInfoPanel {
+                TvSectionLabel("Mi perfil")
+                Text("Abre tu espacio personal para editar tu perfil.", color = TvMuted, style = MaterialTheme.typography.bodySmall)
+                TvActionButton("Abrir mi perfil", onClick = onOpenProfile, icon = Icons.Filled.Person)
             }
             TvInfoPanel {
                 TvSectionLabel("Fuentes")

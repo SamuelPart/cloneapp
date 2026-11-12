@@ -105,6 +105,8 @@ import kotlinx.coroutines.launch
 internal fun ShortsScreen(
     playlist: MediaPlaylist,
     isTv: Boolean,
+    initialClipId: String? = null,
+    onInitialClipHandled: () -> Unit = {},
     onBack: () -> Unit,
     onOpenMedia: (String) -> Unit,
     onOpenProfile: () -> Unit = {},
@@ -169,14 +171,19 @@ internal fun ShortsScreen(
         clips.addAll(ordered)
     }
 
-    LaunchedEffect(candidates) {
+    LaunchedEffect(candidates, initialClipId) {
         val identity = candidates.map { Triple(it.playbackId, it.source.url, it.source.type) }
-        if (identity != activeSourceIdentity) {
+        if (identity != activeSourceIdentity || initialClipId != null) {
             activeSourceIdentity = identity
             clips.clear()
             if (candidates.isNotEmpty()) {
-                clips.addAll(recommendShortClips(candidates, genreCounts, batchSize = SHORTS_BATCH_SIZE))
+                val recommended = recommendShortClips(candidates, genreCounts, batchSize = SHORTS_BATCH_SIZE)
+                val sharedClip = candidates.firstOrNull { it.media.id == initialClipId }
+                val firstBatch = if (sharedClip == null) recommended else
+                    listOf(sharedClip) + recommended.filterNot { it.playbackId == sharedClip.playbackId }
+                clips.addAll(firstBatch.take(SHORTS_BATCH_SIZE))
                 pagerState.scrollToPage(0)
+                if (sharedClip != null) onInitialClipHandled()
             }
         } else {
             // TMDb can enrich titles/genres after the local catalog loads. Refresh metadata in-place
@@ -252,12 +259,16 @@ internal fun ShortsScreen(
                     }
                 }
                 fun shareShort() {
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, "${candidate.media.title} · Clip de SamPlay")
-                    }
                     try {
-                        val chooser = Intent.createChooser(shareIntent, "Compartir clip")
+                        val cardUri = createShortPromoCard(context, candidate.media.title, candidate.media.id.toString())
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "image/png"
+                            putExtra(Intent.EXTRA_STREAM, cardUri)
+                            putExtra(Intent.EXTRA_TEXT, "${candidate.media.title} · Descúbrelo en SamPlay")
+                            clipData = android.content.ClipData.newUri(context.contentResolver, "SamPlay Short", cardUri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        val chooser = Intent.createChooser(shareIntent, "Compartir Short de SamPlay")
                         if (activity != null) activity.startActivity(chooser)
                         else context.startActivity(chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                         scope.launch {
@@ -266,7 +277,7 @@ internal fun ShortsScreen(
                                 .onFailure { interactionMessage = "No se pudo registrar el compartido." }
                         }
                     } catch (_: Exception) {
-                        interactionMessage = "No se pudo abrir el menú para compartir."
+                        interactionMessage = "No se pudo generar o compartir la tarjeta promocional."
                     }
                 }
                 fun submitComment() {

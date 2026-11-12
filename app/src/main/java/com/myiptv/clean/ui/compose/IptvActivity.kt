@@ -26,6 +26,8 @@ class IptvActivity : AppCompatActivity() {
     private var updateRequest by mutableStateOf<Long?>(null)
     private var updateRequestSequence = 0L
     private var sharedProfileUsername by mutableStateOf<String?>(null)
+    private var openSharedShorts by mutableStateOf(false)
+    private var sharedShortClipId by mutableStateOf<String?>(null)
     private val ads get() = (application as CleanIPTVApp).ads
     private var firstResume = true
 
@@ -60,6 +62,10 @@ class IptvActivity : AppCompatActivity() {
                     },
                     updateRequest = updateRequest,
                     sharedProfileUsername = sharedProfileUsername,
+                    openSharedShorts = openSharedShorts,
+                    sharedShortClipId = sharedShortClipId,
+                    onSharedShortsHandled = { openSharedShorts = false },
+                    onSharedShortClipHandled = { sharedShortClipId = null; intent?.data = null },
                     onSharedProfileHandled = {
                         sharedProfileUsername = null
                         intent?.data = null
@@ -99,8 +105,11 @@ class IptvActivity : AppCompatActivity() {
     }
 
     private fun receiveIntent(intent: Intent?) {
-        sharedProfileUsername = intent?.data?.takeIf { it.scheme == "samplay" && it.host == "profile" }
+        val deepLink = intent?.data?.takeIf { it.scheme == "samplay" }
+        sharedProfileUsername = deepLink?.takeIf { it.host == "profile" }
             ?.lastPathSegment?.takeIf { it.matches(Regex("^[a-zA-Z0-9_.]{3,20}$")) }
+        openSharedShorts = deepLink?.host == "shorts"
+        sharedShortClipId = deepLink?.takeIf { it.host == "shorts" }?.getQueryParameter("clip")
         notificationRequests.accept(intent?.getStringExtra(EXTRA_CATALOG_MEDIA_ID))?.let {
             updateRequest = null // The latest tapped notification takes precedence.
             notificationTarget = it

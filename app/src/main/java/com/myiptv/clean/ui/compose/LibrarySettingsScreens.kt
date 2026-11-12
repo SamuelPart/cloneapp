@@ -14,9 +14,10 @@ fun SettingsScreen(
     isTv: Boolean,
     playlist: MediaPlaylist,
     onOpenCoins: () -> Unit,
+    onOpenProfile: () -> Unit = {},
     openUpdateRequest: Long? = null,
     onUpdateRequestHandled: (Long) -> Unit = {}
 ) {
-    if (isTv) TvSettingsScreen(playlist, isTv = true, onOpenCoins = onOpenCoins)
-    else PhoneSettingsScreen(playlist, onOpenCoins, openUpdateRequest, onUpdateRequestHandled)
+    if (isTv) TvSettingsScreen(playlist, isTv = true, onOpenCoins = onOpenCoins, onOpenProfile = onOpenProfile)
+    else PhoneSettingsScreen(playlist, onOpenCoins, onOpenProfile, openUpdateRequest, onUpdateRequestHandled)
 }

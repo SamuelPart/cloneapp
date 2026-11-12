@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -89,6 +90,7 @@ private val PhoneSettingsBorder = Color.White.copy(alpha = 0.08f)
 internal fun PhoneSettingsScreen(
     playlist: MediaPlaylist,
     onOpenCoins: () -> Unit,
+    onOpenProfile: () -> Unit = {},
     openUpdateRequest: Long? = null,
     onUpdateRequestHandled: (Long) -> Unit = {}
 ) {
@@ -135,6 +137,7 @@ internal fun PhoneSettingsScreen(
             Text("Todo en su lugar", color = TvMuted, style = MaterialTheme.typography.bodySmall)
         }
         PhoneSettingsCoinCard(wallet.balance, onOpenCoins)
+        PhoneSettingsProfileCard(onClick = onOpenProfile)
         Text(
             "PREFERENCIAS",
             modifier = Modifier.padding(start = 2.dp, top = 10.dp, bottom = 2.dp),
@@ -243,6 +246,31 @@ private fun PhoneSettingsCoinCard(balance: Int, onOpenCoins: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("$balance monedas · Ver recompensas", color = TvMuted,
                 style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Icon(Icons.Filled.ArrowForward, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(21.dp))
+    }
+}
+
+@Composable
+private fun PhoneSettingsProfileCard(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(shape).background(PhoneSettingsCard)
+            .border(1.dp, PhoneSettingsBorder, shape)
+            .clickable(role = Role.Button, onClickLabel = "Abrir mi perfil", onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(PhoneChannelAccent.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.Person, contentDescription = null, tint = PhoneChannelAccent, modifier = Modifier.size(21.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Mi perfil", color = Color.White, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text("Tu espacio personal en SamPlay", color = TvMuted, style = MaterialTheme.typography.bodySmall)
         }
         Icon(Icons.Filled.ArrowForward, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(21.dp))
     }
