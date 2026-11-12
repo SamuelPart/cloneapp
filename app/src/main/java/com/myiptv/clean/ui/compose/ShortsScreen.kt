@@ -4,10 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,7 +30,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Close
@@ -109,7 +105,6 @@ internal fun ShortsScreen(
     onInitialClipHandled: () -> Unit = {},
     onBack: () -> Unit,
     onOpenMedia: (String) -> Unit,
-    onOpenProfile: () -> Unit = {},
     onOpenUserProfile: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -136,13 +131,6 @@ internal fun ShortsScreen(
     var ownerProfile by remember { mutableStateOf<GuestProfile?>(null) }
     var stories by remember { mutableStateOf(emptyList<GuestStory>()) }
     var selectedStoryGroup by remember { mutableStateOf<List<GuestStory>?>(null) }
-    var storyComposerUri by remember { mutableStateOf<Uri?>(null) }
-    var storyCaption by remember { mutableStateOf("") }
-    var storyMessage by remember { mutableStateOf<String?>(null) }
-    var storyPublishing by remember { mutableStateOf(false) }
-    val storyPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) { storyComposerUri = uri; storyCaption = ""; storyMessage = null }
-    }
     var genreCounts by remember(preferences) { mutableStateOf(preferences.genreCounts()) }
     val candidates = remember(playlist.items, playlist.sources) { shortsCandidates(playlist) }
     val clips = remember { mutableStateListOf<ShortClip>() }
@@ -158,10 +146,6 @@ internal fun ShortsScreen(
         ownerProfile = guestProfiles.myProfile()
         stories = runCatching { guestProfiles.loadStories() }.getOrDefault(emptyList())
     }
-    fun refreshStories() {
-        scope.launch { stories = runCatching { guestProfiles.loadStories() }.getOrDefault(stories) }
-    }
-
     fun appendRecommendedBatch() {
         val batch = recommendShortClips(candidates, genreCounts, batchSize = SHORTS_BATCH_SIZE)
         val previousId = clips.lastOrNull()?.candidate?.playbackId
@@ -382,9 +366,7 @@ internal fun ShortsScreen(
 
                     if (isCurrentPage) {
                         StoriesTray(
-                            ownProfile = ownerProfile,
                             groups = storyGroups,
-                            onAddStory = { if (ownerProfile == null) onOpenProfile() else storyPicker.launch("image/*") },
                             onOpenStory = { selectedStoryGroup = it }
                         )
                     }
@@ -454,28 +436,6 @@ internal fun ShortsScreen(
             else -> ShortsEmptyState(onBack)
         }
     }
-    storyComposerUri?.let { uri ->
-        StoryComposerDialog(
-            imageUri = uri,
-            caption = storyCaption,
-            message = storyMessage,
-            saving = storyPublishing,
-            onCaptionChange = { storyCaption = it.take(240) },
-            onDismiss = { if (!storyPublishing) storyComposerUri = null },
-            onPublish = {
-                if (!storyPublishing) {
-                    storyPublishing = true
-                    storyMessage = null
-                    scope.launch {
-                        runCatching { guestProfiles.publishStory(uri, storyCaption) }
-                            .onSuccess { storyComposerUri = null; refreshStories() }
-                            .onFailure { storyMessage = it.message ?: "No se pudo publicar la historia." }
-                        storyPublishing = false
-                    }
-                }
-            }
-        )
-    }
     selectedStoryGroup?.let { group ->
         StoryViewerDialog(
             stories = group,
@@ -487,46 +447,27 @@ internal fun ShortsScreen(
 
 @Composable
 private fun BoxScope.StoriesTray(
-    ownProfile: GuestProfile?,
     groups: List<List<GuestStory>>,
-    onAddStory: () -> Unit,
     onOpenStory: (List<GuestStory>) -> Unit
 ) {
-    val ownStories = groups.firstOrNull { it.firstOrNull()?.profileClientId == ownProfile?.clientId }.orEmpty()
-    val otherStories = groups.filterNot { it.firstOrNull()?.profileClientId == ownProfile?.clientId }
     LazyRow(
         modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(top = 78.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)
     ) {
-        item(key = "own-story") {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
-                if (ownStories.isNotEmpty()) onOpenStory(ownStories) else onAddStory()
-            }) {
-                StoryAvatar(ownProfile?.avatarUrl, ownProfile?.displayName ?: "Tu historia", isOwn = ownStories.isEmpty())
-                Text(if (ownStories.isEmpty()) "Tu historia" else "Mi historia", color = Color.White, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-            }
-        }
-        if (ownStories.isNotEmpty()) {
-            item(key = "add-story") {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onAddStory)) {
-                    StoryAvatar(ownProfile?.avatarUrl, "Añadir historia", isOwn = true)
-                    Text("Añadir", color = Color.White, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                }
-            }
-        }
-        items(otherStories, key = { it.first().profileClientId }) { group ->
+        items(groups, key = { it.first().profileClientId }) { group ->
             val author = group.first()
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onOpenStory(group) }) {
-                StoryAvatar(author.avatarUrl, author.displayName, isOwn = false)
-                Text("@${author.username}", color = Color.White, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                StoryAvatar(author.avatarUrl, author.displayName)
+                Text(if (author.username.isNotBlank()) "@${author.username}" else author.displayName,
+                    color = Color.White, style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
         }
     }
 }
 
 @Composable
-private fun StoryAvatar(imageUrl: String?, name: String, isOwn: Boolean) {
+private fun StoryAvatar(imageUrl: String?, name: String) {
     Box(
         modifier = Modifier.size(62.dp).clip(CircleShape)
             .background(Brush.linearGradient(listOf(Color(0xFFFF426F), Color(0xFFFFB347))))
@@ -537,54 +478,6 @@ private fun StoryAvatar(imageUrl: String?, name: String, isOwn: Boolean) {
             AsyncImage(imageUrl, contentDescription = "Foto de $name", modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
         } else {
             Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.84f), modifier = Modifier.size(30.dp))
-        }
-        if (isOwn) {
-            Surface(shape = CircleShape, color = Color(0xFFFF426F), modifier = Modifier.align(Alignment.BottomEnd).size(21.dp)) {
-                Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, contentDescription = "Publicar historia", tint = Color.White, modifier = Modifier.size(16.dp)) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StoryComposerDialog(
-    imageUri: Uri,
-    caption: String,
-    message: String?,
-    saving: Boolean,
-    onCaptionChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onPublish: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxWidth().widthIn(max = 460.dp).padding(18.dp), shape = RoundedCornerShape(20.dp), color = Color(0xFF171920), contentColor = Color.White) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Nueva historia", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                AsyncImage(
-                    model = imageUri,
-                    contentDescription = "Vista previa de la historia",
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).clip(RoundedCornerShape(14.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                OutlinedTextField(
-                    value = caption,
-                    onValueChange = onCaptionChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Añade un comentario (opcional)") },
-                    supportingText = { Text("${caption.length}/240 · se eliminará en 24 horas") },
-                    maxLines = 3
-                )
-                message?.let { Text(it, color = Color(0xFFFFA0A0), style = MaterialTheme.typography.bodySmall) }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onDismiss, enabled = !saving, modifier = Modifier.weight(1f)) { Text("Cancelar") }
-                    Button(onClick = onPublish, enabled = !saving, modifier = Modifier.weight(1f)) {
-                        if (saving) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (saving) "Publicando…" else "Publicar")
-                    }
-                }
-            }
         }
     }
 }
@@ -608,7 +501,7 @@ private fun StoryViewerDialog(
                 )
                 Column(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.72f)))).padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        StoryAvatar(story.avatarUrl, story.displayName, isOwn = false)
+                        StoryAvatar(story.avatarUrl, story.displayName)
                         Column(modifier = Modifier.weight(1f).padding(start = 10.dp).clickable { onOpenProfile(story.username) }) {
                             Text(story.displayName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
                             Text("@${story.username}", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)

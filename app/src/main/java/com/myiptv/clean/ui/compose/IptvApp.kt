@@ -600,7 +600,6 @@ private fun IptvNavigationGraph(
                     onInitialClipHandled = { currentOnSharedShortClipHandled.value() },
                     onBack = { if (!navController.popBackStack()) navigateTopLevel(navController, IptvRoute.HOME) },
                     onOpenMedia = { navController.navigate(IptvRoute.media(it)) },
-                    onOpenProfile = { navigateTopLevel(navController, IptvRoute.PROFILE) },
                     onOpenUserProfile = { username -> navController.navigate("profile/${Uri.encode(username)}") },
                 )
             }
