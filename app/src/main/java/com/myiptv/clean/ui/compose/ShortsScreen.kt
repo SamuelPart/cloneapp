@@ -178,9 +178,12 @@ internal fun ShortsScreen(
             clips.clear()
             if (candidates.isNotEmpty()) {
                 val recommended = recommendShortClips(candidates, genreCounts, batchSize = SHORTS_BATCH_SIZE)
-                val sharedClip = candidates.firstOrNull { it.media.id == initialClipId }
+                val sharedCandidate = candidates.firstOrNull { it.playbackId == initialClipId }
+                val sharedClip = sharedCandidate?.let {
+                    recommendShortClips(listOf(it), genreCounts, batchSize = 1).firstOrNull()
+                }
                 val firstBatch = if (sharedClip == null) recommended else
-                    listOf(sharedClip) + recommended.filterNot { it.playbackId == sharedClip.playbackId }
+                    listOf(sharedClip) + recommended.filterNot { it.candidate.playbackId == sharedClip.candidate.playbackId }
                 clips.addAll(firstBatch.take(SHORTS_BATCH_SIZE))
                 pagerState.scrollToPage(0)
                 if (sharedClip != null) onInitialClipHandled()
@@ -260,7 +263,7 @@ internal fun ShortsScreen(
                 }
                 fun shareShort() {
                     try {
-                        val cardUri = createShortPromoCard(context, candidate.media.title, candidate.media.id.toString())
+                        val cardUri = createShortPromoCard(context, candidate.media.title, candidate.playbackId)
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "image/png"
                             putExtra(Intent.EXTRA_STREAM, cardUri)
