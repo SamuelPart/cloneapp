@@ -17,7 +17,11 @@ import java.util.UUID
 internal data class ShortsComment(
     val id: String,
     val body: String,
-    val createdAt: String
+    val createdAt: String,
+    val profileClientId: String? = null,
+    val displayName: String? = null,
+    val username: String? = null,
+    val avatarUrl: String? = null
 )
 
 internal data class ShortsInteractionState(
@@ -115,17 +119,22 @@ internal class ShortsInteractionsRepository(context: Context) {
     private fun loadComments(clipId: String): Pair<List<ShortsComment>, Int> {
         val response = request(
             method = "GET",
-            path = "shorts_comments?select=id,body,created_at&clip_id=eq.${queryValue(clipId)}&order=created_at.desc",
+            path = "shorts_comments?select=id,body,created_at,profile_client_id,profile:guest_profiles!shorts_comments_profile_client_id_fkey(client_id,display_name,username,avatar_url)&clip_id=eq.${queryValue(clipId)}&order=created_at.desc",
             prefer = "count=exact",
             range = "0-49"
         )
         val rows = JSONArray(response.body)
         val comments = (0 until rows.length()).map { index ->
             val row = rows.getJSONObject(index)
+            val profile = row.optJSONObject("profile")
             ShortsComment(
                 id = row.optString("id"),
                 body = row.optString("body"),
-                createdAt = row.optString("created_at")
+                createdAt = row.optString("created_at"),
+                profileClientId = row.optString("profile_client_id").takeIf { it.isNotBlank() },
+                displayName = profile?.optString("display_name")?.takeIf { it.isNotBlank() },
+                username = profile?.optString("username")?.takeIf { it.isNotBlank() },
+                avatarUrl = profile?.optString("avatar_url")?.takeIf { it.isNotBlank() }
             )
         }
         val total = response.contentRange?.substringAfterLast('/')?.toIntOrNull() ?: comments.size
