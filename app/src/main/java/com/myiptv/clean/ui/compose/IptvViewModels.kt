@@ -180,6 +180,27 @@ class ChannelsViewModel : ViewModel() {
     }
 }
 
+internal fun orderPopularCatalogItems(items: List<MediaItem>, tmdbOrder: List<MediaItem>): List<MediaItem> {
+    val rankById = buildMap {
+        tmdbOrder.forEachIndexed { index, remote ->
+            putIfAbsent(remote.id, index)
+            val mediaType = if (remote.kind == MediaKind.MOVIE) "movie" else "tv"
+            remote.tmdbId?.takeIf { it > 0 }?.let { putIfAbsent("tmdb_${mediaType}_$it", index) }
+        }
+    }
+    return items.withIndex()
+        .sortedWith(
+            compareBy<IndexedValue<MediaItem>> { indexed ->
+                val item = indexed.value
+                val mediaType = if (item.kind == MediaKind.MOVIE) "movie" else "tv"
+                rankById[item.id]
+                    ?: item.tmdbId?.takeIf { it > 0 }?.let { rankById["tmdb_${mediaType}_$it"] }
+                    ?: Int.MAX_VALUE
+            }.thenBy { it.index }
+        )
+        .map(IndexedValue<MediaItem>::value)
+}
+
 class MoviesViewModel : ViewModel() {
     private var movieCatalog by mutableStateOf<List<MediaItem>>(emptyList())
     private var seriesCatalog by mutableStateOf<List<MediaItem>>(emptyList())
@@ -241,7 +262,7 @@ class MoviesViewModel : ViewModel() {
         return when (selectedTab) {
             "Mejor valoradas" -> filtered.sortedByDescending(MediaItem::rating)
             "Recientes" -> filtered.sortedByDescending(MediaItem::year)
-            else -> filtered
+            else -> orderPopularCatalogItems(filtered, remote.filter { it.kind == kind })
         }
     }
 
