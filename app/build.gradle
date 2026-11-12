@@ -41,6 +41,16 @@ android {
         }
     }
 
+    // Generate small per-device APKs alongside a universal APK required by the GitHub updater.
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
+            universalApk true
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
