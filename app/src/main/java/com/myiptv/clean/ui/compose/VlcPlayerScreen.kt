@@ -134,6 +134,7 @@ internal fun VlcPlayerScreen(
     var muteMessage by remember(sourceUrl, playbackKey) { mutableStateOf<String?>(null) }
     var interaction by remember(sourceUrl, playbackKey) { mutableIntStateOf(0) }
     var shortClipElapsedMs by remember(sourceUrl, playbackKey) { mutableLongStateOf(0L) }
+    var shortClipActionVisible by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
     var shortClipFinished by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
     var shortClipWatched by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
     var shortClipStartApplied by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
@@ -155,6 +156,7 @@ internal fun VlcPlayerScreen(
     }
     fun togglePlayback() {
         showControls()
+        if (shortClipDurationMs != null && shortClipActive) shortClipActionVisible = true
         if (initializationError != null) {
             initializationError = null
             state = PlaybackState()
@@ -352,6 +354,12 @@ internal fun VlcPlayerScreen(
             controlsVisible = false
         }
     }
+    LaunchedEffect(shortClipActionVisible, interaction, shortClipDurationMs) {
+        if (shortClipDurationMs != null && shortClipActionVisible) {
+            delay(1_100L)
+            shortClipActionVisible = false
+        }
+    }
     LaunchedEffect(state.error, state.ended) {
         if (state.error != null || state.ended) showControls()
     }
@@ -477,9 +485,12 @@ internal fun VlcPlayerScreen(
 
         // This layer is behind the actual buttons, so touch targets and the timeline win hit testing.
         Box(
-            modifier = Modifier.matchParentSize().pointerInput(binding, initializationError, isTv, controlsVisible, tvPreview, onPreviewActivate) {
+            modifier = Modifier.matchParentSize().pointerInput(binding, initializationError, isTv, controlsVisible, tvPreview, onPreviewActivate, shortClipDurationMs, shortClipActive) {
                 detectTapGestures { point ->
-                    if (tvPreview) onPreviewActivate() else {
+                    if (tvPreview) onPreviewActivate() else if (shortClipDurationMs != null && shortClipActive) {
+                        // Shorts use the same tap anywhere to toggle behavior as mobile clip feeds.
+                        togglePlayback()
+                    } else {
                         val center = isPlaybackCenter(point.x, point.y, size.width, size.height)
                         if (shouldToggleOnSurfaceTap(isTv, controlsVisible, center)) togglePlayback() else showControls()
                     }
@@ -498,7 +509,7 @@ internal fun VlcPlayerScreen(
             } else if (shortClipActive && state.isBuffering) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(30.dp), color = Color.White, strokeWidth = 2.dp)
             }
-            if (shortClipActive) {
+            if (shortClipActive && shortClipActionVisible) {
                 val clipAction = when {
                     state.error != null || state.ended -> Icons.Filled.Replay
                     state.isPlaying -> Icons.Filled.Pause
@@ -511,7 +522,7 @@ internal fun VlcPlayerScreen(
                     else -> "Reproducir clip"
                 }
                 Box(
-                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp).size(56.dp)
+                    modifier = Modifier.align(Alignment.Center).size(76.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.58f))
                         .clickable(onClick = ::togglePlayback)
