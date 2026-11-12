@@ -97,6 +97,7 @@ internal fun ShortsScreen(
     val candidates = remember(playlist.items, playlist.sources) { shortsCandidates(playlist) }
     val clips = remember { mutableStateListOf<ShortClip>() }
     val pagerState = rememberPagerState(pageCount = { clips.size })
+    var activeSourceIdentity by remember { mutableStateOf(emptyList<Triple<String, String, MediaPlaybackType>>()) }
     val scope = rememberCoroutineScope()
 
     fun appendRecommendedBatch() {
@@ -109,9 +110,26 @@ internal fun ShortsScreen(
     }
 
     LaunchedEffect(candidates) {
-        clips.clear()
-        if (candidates.isNotEmpty()) clips.addAll(recommendShortClips(candidates, genreCounts, batchSize = SHORTS_BATCH_SIZE))
-        if (clips.isNotEmpty()) pagerState.scrollToPage(0)
+        val identity = candidates.map { Triple(it.playbackId, it.source.url, it.source.type) }
+        if (identity != activeSourceIdentity) {
+            activeSourceIdentity = identity
+            clips.clear()
+            if (candidates.isNotEmpty()) {
+                clips.addAll(recommendShortClips(candidates, genreCounts, batchSize = SHORTS_BATCH_SIZE))
+                pagerState.scrollToPage(0)
+            }
+        } else {
+            // TMDb can enrich titles/genres after the local catalog loads. Refresh metadata in-place
+            // so the pager and the currently warming player do not disappear or restart.
+            val latestByPlaybackId = candidates.associateBy { it.playbackId }
+            clips.indices.forEach { index ->
+                val previous = clips[index]
+                val latest = latestByPlaybackId[previous.candidate.playbackId]
+                if (latest != null && previous.candidate.media != latest.media) {
+                    clips[index] = previous.copy(candidate = latest)
+                }
+            }
+        }
     }
     LaunchedEffect(pagerState.currentPage, clips.size, candidates.size) {
         if (clips.isNotEmpty() && candidates.isNotEmpty() && clips.size - pagerState.currentPage <= 3) appendRecommendedBatch()
@@ -123,16 +141,19 @@ internal fun ShortsScreen(
             clips.isNotEmpty() -> VerticalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
+                beyondViewportPageCount = 1,
                 key = { page -> "$page-${clips[page].candidate.playbackId}" }
             ) { page ->
                 val clip = clips[page]
                 val candidate = clip.candidate
+                val isCurrentPage = pagerState.currentPage == page
+                val isNextPage = page == pagerState.currentPage + 1
                 var elapsedMs by remember(page, candidate.playbackId, clip.durationMs) { mutableLongStateOf(0L) }
                 var savedPreference by remember(page, candidate.playbackId) { mutableStateOf(false) }
                 val fullscreen = remember(page, candidate.playbackId) { PlayerFullscreenState(null) }
 
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                    if (pagerState.currentPage == page) VlcPlayerScreen(
+                    if (isCurrentPage || isNextPage) VlcPlayerScreen(
                         sourceUrl = candidate.source.url,
                         title = candidate.media.title,
                         isLiveChannel = false,
@@ -142,7 +163,8 @@ internal fun ShortsScreen(
                         fullscreen = fullscreen,
                         onBack = onBack,
                         playbackKey = "short-$page-${candidate.playbackId}",
-                        shortClipActive = pagerState.currentPage == page,
+                        shortClipActive = isCurrentPage,
+                        shortClipPreload = isNextPage,
                         shortClipDurationMs = clip.durationMs,
                         shortClipStartAtMs = clip.startAtMs,
                         onShortClipProgress = { elapsedMs = it },
@@ -254,7 +276,7 @@ private fun ShortsEmptyState(onBack: () -> Unit) {
         Icon(Icons.Filled.Movie, contentDescription = null, tint = Color.White.copy(alpha = 0.72f), modifier = Modifier.size(46.dp))
         Text("Aún no hay clips disponibles", color = Color.White, fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 16.dp))
-        Text("Shorts usa enlaces directos del catálogo para crear fragmentos de 30 a 60 segundos. Los enlaces iframe no se incluyen.",
+        Text("Shorts usa enlaces directos del catálogo para crear fragmentos de 1:30 a 2:30 minutos. Los enlaces iframe no se incluyen.",
             color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(top = 8.dp))
         TextButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) { Text("Volver al catálogo") }

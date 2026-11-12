@@ -10,7 +10,7 @@ import org.junit.Test
 
 class ShortsCatalogTest {
     @Test
-    fun generatedClipsUseThirtyToSixtySecondsAndSafeRandomOffsets() {
+    fun generatedClipsUseNinetyToOneHundredFiftySecondsAndSafeRandomOffsets() {
         val clips = recommendShortClips(
             candidates = listOf(candidate("movie-a", duration = "120 min"), candidate("movie-b", duration = "90 min")),
             genreCounts = emptyMap(),
@@ -19,7 +19,7 @@ class ShortsCatalogTest {
 
         assertEquals(2, clips.size)
         clips.forEach { clip ->
-            assertTrue(clip.durationMs in 30_000L..60_000L)
+            assertTrue(clip.durationMs in 90_000L..150_000L)
             val maxStart = (parseRuntimeMs(clip.candidate.media.duration)!! - clip.durationMs).coerceAtLeast(0L)
             assertTrue(clip.startAtMs != null && clip.startAtMs in 0L..maxStart)
         }

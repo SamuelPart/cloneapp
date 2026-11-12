@@ -115,6 +115,7 @@ internal fun VlcPlayerScreen(
     onChannelStep: ((Int) -> Unit)? = null,
     phoneLiveActions: PhoneLivePlayerActions? = null,
     shortClipActive: Boolean = true,
+    shortClipPreload: Boolean = false,
     shortClipDurationMs: Long? = null,
     shortClipStartAtMs: Long? = null,
     onShortClipProgress: (Long) -> Unit = {},
@@ -138,6 +139,8 @@ internal fun VlcPlayerScreen(
     var shortClipStartApplied by remember(sourceUrl, playbackKey) { mutableStateOf(false) }
     var previewFocused by remember { mutableStateOf(false) }
     val latestPlaybackState = rememberUpdatedState(state)
+    val latestShortClipPreload = rememberUpdatedState(shortClipPreload)
+    val latestPlaybackEventCallback = rememberUpdatedState(onPlaybackEvent)
     val latestShortClipProgress = rememberUpdatedState(onShortClipProgress)
     val latestShortClipWatched = rememberUpdatedState(onShortClipWatched)
     val latestShortClipFinished = rememberUpdatedState(onShortClipFinished)
@@ -185,7 +188,13 @@ internal fun VlcPlayerScreen(
             engine = newEngine
             // Keep the callback associated with this exact channel/attempt; stale VLC events must
             // never mark the next channel as failed after a rapid manual change.
-            val newController = PlaybackController(newEngine, onPlaybackEvent = onPlaybackEvent) { state = it }
+            val newController = PlaybackController(
+                newEngine,
+                onPlaybackEvent = { event ->
+                    if (latestShortClipPreload.value && event == PlaybackEvent.Playing) newEngine.setMuted(true)
+                    latestPlaybackEventCallback.value(event)
+                }
+            ) { state = it }
             controller = newController
             binding = VlcBinding(newEngine, newController)
             initializationError = null
@@ -222,10 +231,28 @@ internal fun VlcPlayerScreen(
         isTv = isTv,
     )
 
-    LaunchedEffect(binding, shortClipActive, shortClipDurationMs) {
-        val controller = binding?.controller ?: return@LaunchedEffect
+    LaunchedEffect(binding, shortClipActive, shortClipPreload, shortClipDurationMs) {
+        val current = binding ?: return@LaunchedEffect
         if (shortClipDurationMs != null) {
-            if (shortClipActive) controller.onForeground() else controller.onBackground()
+            when {
+                shortClipActive -> {
+                    current.controller.onForeground()
+                    current.engine.setMuted(false)
+                    current.controller.play()
+                }
+                shortClipPreload -> {
+                    current.controller.onForeground()
+                    current.engine.setMuted(true)
+                }
+                else -> current.controller.onBackground()
+            }
+        }
+    }
+    LaunchedEffect(binding, shortClipPreload, state.isPlaying, state.isBuffering) {
+        val current = binding ?: return@LaunchedEffect
+        if (shortClipDurationMs != null && shortClipPreload && state.isPlaying && !state.isBuffering) {
+            current.engine.setMuted(true)
+            current.controller.pause()
         }
     }
     LaunchedEffect(binding, state.isSeekable, state.durationMs, shortClipDurationMs, shortClipStartAtMs) {
@@ -241,7 +268,7 @@ internal fun VlcPlayerScreen(
     }
     LaunchedEffect(binding, shortClipDurationMs, shortClipActive) {
         val clipDuration = shortClipDurationMs ?: return@LaunchedEffect
-        if (binding == null) return@LaunchedEffect
+        if (binding == null || !shortClipActive) return@LaunchedEffect
         while (isActive && !shortClipFinished) {
             delay(250L)
             val current = latestPlaybackState.value
@@ -253,7 +280,7 @@ internal fun VlcPlayerScreen(
                 current.isPlaying && !current.isBuffering && current.error == null && shortClipActive -> {
                     shortClipElapsedMs = (shortClipElapsedMs + 250L).coerceAtMost(clipDuration)
                     latestShortClipProgress.value(shortClipElapsedMs)
-                    if (!shortClipWatched && shortClipElapsedMs >= minOf(10_000L, clipDuration / 3L)) {
+                    if (!shortClipWatched && shortClipElapsedMs >= minOf(30_000L, clipDuration / 3L)) {
                         shortClipWatched = true
                         latestShortClipWatched.value()
                     }
@@ -352,9 +379,9 @@ internal fun VlcPlayerScreen(
             }
         }
     }
-    LaunchedEffect(isTv, tvPreview, controlsVisible, audioDialogOpen, binding) {
+    LaunchedEffect(isTv, tvPreview, controlsVisible, audioDialogOpen, binding, shortClipDurationMs) {
         // The preview must not steal focus from the channel list on every channel change.
-        if (isTv && !tvPreview && !audioDialogOpen) {
+        if (isTv && !tvPreview && !audioDialogOpen && shortClipDurationMs == null) {
             withFrameNanos { }
             runCatching { if (controlsVisible) playFocus.requestFocus() else screenFocus.requestFocus() }
         }

@@ -54,7 +54,7 @@ class LocalShortsPreferenceStore(context: Context) : ShortsPreferenceStore {
 }
 
 /** Build candidates only from the active M3U catalog. Iframes are skipped because their seek and
- * duration controls belong to another site, so we cannot promise a 30–60 second excerpt. */
+ * duration controls belong to another site, so we cannot promise a 1:30–2:30 excerpt. */
 fun shortsCandidates(playlist: MediaPlaylist): List<ShortsCandidate> = buildList {
     playlist.sources.forEach { (playbackId, source) ->
         if (source.type != MediaPlaybackType.DIRECT) return@forEach
@@ -133,5 +133,5 @@ fun parseRuntimeMs(value: String): Long? {
 private fun normalizeGenre(value: String): String? = value.trim().lowercase().takeIf(String::isNotBlank)
 
 const val SHORTS_BATCH_SIZE = 30
-private const val MIN_CLIP_MS = 30_000L
-private const val MAX_CLIP_MS = 60_000L
+private const val MIN_CLIP_MS = 90_000L
+private const val MAX_CLIP_MS = 150_000L
