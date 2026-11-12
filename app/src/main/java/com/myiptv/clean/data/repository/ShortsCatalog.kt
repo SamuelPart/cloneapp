@@ -5,6 +5,7 @@ import com.myiptv.clean.ui.compose.MediaItem
 import com.myiptv.clean.ui.compose.MediaPlaybackType
 import org.json.JSONObject
 import kotlin.math.ln
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 /** A playable, direct-source item from the local M3U catalog. */
@@ -66,9 +67,9 @@ fun shortsCandidates(playlist: MediaPlaylist): List<ShortsCandidate> = buildList
 
 /**
  * Produce an unordered recommendation batch. Watched genres increase their probability while
- * every other title keeps a non-zero exploration chance. Large catalogs are sampled without
- * replacement per batch; smaller ones use weighted replacement to keep the feed running. A fresh
- * clip length and start point are selected whenever a batch is created.
+ * every other title keeps a non-zero exploration chance. Sampling with replacement lets one film
+ * contribute several distinct excerpts in a batch; repeat appearances are gently down-weighted.
+ * A fresh clip length and start point are selected for every excerpt.
  */
 fun recommendShortClips(
     candidates: List<ShortsCandidate>,
@@ -78,31 +79,51 @@ fun recommendShortClips(
 ): List<ShortClip> {
     val allCandidates = candidates.distinctBy(ShortsCandidate::playbackId)
     if (allCandidates.isEmpty() || batchSize <= 0) return emptyList()
-    val pool = allCandidates.toMutableList()
-    val sampleWithReplacement = allCandidates.size <= batchSize
+    val appearancesByWork = mutableMapOf<String, Int>()
     val result = ArrayList<ShortClip>(batchSize)
     while (result.size < batchSize) {
-        if (!sampleWithReplacement && pool.isEmpty()) pool.addAll(allCandidates)
-        val choices = if (sampleWithReplacement) allCandidates else pool
-        val weights = choices.map { candidate -> recommendationWeight(shortsTasteLabels(candidate.media), genreCounts) }
+        val weights = allCandidates.map { candidate ->
+            val workId = shortsWorkId(candidate.media)
+            recommendationWeight(shortsTasteLabels(candidate.media), genreCounts) /
+                sqrt(1.0 + (appearancesByWork[workId] ?: 0).toDouble())
+        }
         val total = weights.sum()
         var target = random.nextDouble() * total
         val selectedIndex = weights.indexOfFirst { weight ->
             target -= weight
             target < 0.0
-        }.let { if (it < 0) choices.lastIndex else it }
-        val candidate = choices[selectedIndex]
-        if (!sampleWithReplacement) pool.remove(candidate)
-        val clipDuration = random.nextLong(MIN_CLIP_MS, MAX_CLIP_MS + 1)
-        val runtime = parseRuntimeMs(candidate.media.duration)
-        val start = runtime?.let { totalRuntime ->
-            val maxStart = (totalRuntime - clipDuration).coerceAtLeast(0L)
-            if (maxStart > 0L) random.nextLong(maxStart + 1L) else 0L
+        }.let { if (it < 0) allCandidates.lastIndex else it }
+        val candidate = allCandidates[selectedIndex]
+        val workId = shortsWorkId(candidate.media)
+        val previousClipsForWork = result.filter { shortsWorkId(it.candidate.media) == workId }
+        var clipDuration = random.nextLong(MIN_CLIP_MS, MAX_CLIP_MS + 1)
+        var start = randomStart(candidate, clipDuration, random)
+        var attempt = 0
+        while (
+            previousClipsForWork.any { previous ->
+                (start != null && previous.startAtMs == start) ||
+                    (start == null && previous.startAtMs == null && previous.durationMs == clipDuration)
+            } && attempt < 16
+        ) {
+            clipDuration = random.nextLong(MIN_CLIP_MS, MAX_CLIP_MS + 1)
+            start = randomStart(candidate, clipDuration, random)
+            attempt++
         }
         result += ShortClip(candidate, clipDuration, start)
+        appearancesByWork[workId] = (appearancesByWork[workId] ?: 0) + 1
     }
     return result
 }
+
+private fun randomStart(candidate: ShortsCandidate, clipDurationMs: Long, random: Random): Long? {
+    val runtime = parseRuntimeMs(candidate.media.duration) ?: return null
+    val maxStart = (runtime - clipDurationMs).coerceAtLeast(0L)
+    return if (maxStart > 0L) random.nextLong(maxStart + 1L) else 0L
+}
+
+private fun shortsWorkId(media: MediaItem): String = media.tmdbId?.takeIf { it > 0L }
+    ?.let { "${media.kind.name.lowercase()}_$it" }
+    ?: media.id
 
 fun shortsTasteLabels(media: MediaItem): List<String> = media.genres + when (media.kind) {
     com.myiptv.clean.ui.compose.MediaKind.MOVIE -> "Película"

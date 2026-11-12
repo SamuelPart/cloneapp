@@ -26,6 +26,22 @@ class ShortsCatalogTest {
     }
 
     @Test
+    fun theSameMovieCanProduceSeveralDifferentShorts() {
+        val movie = candidate("movie-a", duration = "120 min")
+        val clips = recommendShortClips(
+            candidates = listOf(movie),
+            genreCounts = emptyMap(),
+            random = Random(31),
+            batchSize = 12
+        )
+
+        assertEquals(12, clips.size)
+        assertTrue(clips.all { it.candidate.media.id == movie.media.id })
+        assertTrue(clips.map(ShortClip::startAtMs).distinct().size > 1)
+        assertTrue(clips.map(ShortClip::durationMs).distinct().size > 1)
+    }
+
+    @Test
     fun shortsOnlyUseDirectCatalogSourcesAndKeepEpisodeParentForDetails() {
         val series = candidate("m3u_tv_abcdef", "45 min").media.copy(kind = MediaKind.SERIES)
         val playlist = MediaPlaylist(
