@@ -63,13 +63,6 @@ Deno.serve(async (request) => {
   try {
     if (request.method === "GET") {
       const url = new URL(request.url);
-      if (url.searchParams.get("stories") === "feed") {
-        const rows = await databaseRequest("GET", "guest_stories", {
-          select: "id,profile_client_id,media_url,media_type,caption,created_at,expires_at,profile:guest_profiles!guest_stories_profile_client_id_fkey(client_id,display_name,username,avatar_url)",
-          expires_at: `gt.${new Date().toISOString()}`, order: "created_at.desc", limit: "100",
-        });
-        return json(rows ?? []);
-      }
       const username = url.searchParams.get("username")?.toLowerCase();
       if (!username || !/^[a-z0-9_.]{3,20}$/.test(username)) return json({ error: "Usuario inválido." }, 400);
       const profiles = await databaseRequest("GET", "guest_profiles", {
@@ -99,15 +92,6 @@ Deno.serve(async (request) => {
       if (clipId.length < 1 || clipId.length > 2048 || comment.length < 1 || comment.length > 500) return json({ error: "El comentario debe tener entre 1 y 500 caracteres." }, 400);
       const rows = await databaseRequest("POST", "shorts_comments", { select: "id,body,created_at,profile:guest_profiles!shorts_comments_profile_client_id_fkey(client_id,display_name,username,avatar_url)" }, {
         clip_id: clipId, client_id: clientId, profile_client_id: clientId, body: comment,
-      }, "return=representation");
-      return json(rows?.[0] ?? {}, 201);
-    }
-    if (action === "story") {
-      if (!await ownerProfile(clientId, token)) return json({ error: "Guarda tu perfil antes de publicar una historia." }, 403);
-      const caption = String(body.caption ?? "").trim().slice(0, 240);
-      const uploaded = await uploadImage("samplay-stories", clientId, `story-${crypto.randomUUID()}`, String(body.media_base64 ?? ""), String(body.media_mime ?? ""));
-      const rows = await databaseRequest("POST", "guest_stories", { select: "id,profile_client_id,media_url,media_type,caption,created_at,expires_at,profile:guest_profiles!guest_stories_profile_client_id_fkey(client_id,display_name,username,avatar_url)" }, {
-        profile_client_id: clientId, media_url: uploaded.url, media_type: uploaded.mime, caption,
       }, "return=representation");
       return json(rows?.[0] ?? {}, 201);
     }

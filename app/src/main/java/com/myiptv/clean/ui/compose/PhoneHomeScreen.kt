@@ -299,7 +299,7 @@ private fun PhoneEmptyFeatured(loading: Boolean, status: String, onOpenSettings:
             ) {
                 Icon(Icons.Filled.Movie, contentDescription = null, tint = PhoneChannelAccent, modifier = Modifier.size(28.dp))
                 Spacer(Modifier.height(8.dp))
-                Text("Explora nuevas historias", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                Text("Explora el catálogo", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
                 Text(
                     status.ifBlank { if (TmdbRepository.isConfigured) "Catálogo no disponible" else "Revisa tus fuentes en Ajustes" },
                     color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis

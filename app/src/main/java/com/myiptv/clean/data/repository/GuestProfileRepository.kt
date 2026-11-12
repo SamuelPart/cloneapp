@@ -22,19 +22,6 @@ internal data class GuestProfile(
     val coverAnimated: Boolean
 )
 
-internal data class GuestStory(
-    val id: String,
-    val profileClientId: String,
-    val displayName: String,
-    val username: String,
-    val avatarUrl: String?,
-    val mediaUrl: String,
-    val mediaType: String,
-    val caption: String,
-    val createdAt: String,
-    val expiresAt: String
-)
-
 internal class GuestProfileRepository(context: Context) {
     private val appContext = context.applicationContext
     private val preferences = appContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
@@ -53,25 +40,6 @@ internal class GuestProfileRepository(context: Context) {
     suspend fun find(username: String): GuestProfile = withContext(Dispatchers.IO) {
         val cleanUsername = normalizeUsername(username)
         parseProfile(request("GET", "?username=${queryValue(cleanUsername)}"))
-    }
-
-    suspend fun loadStories(): List<GuestStory> = withContext(Dispatchers.IO) {
-        val rows = org.json.JSONArray(request("GET", "?stories=feed"))
-        (0 until rows.length()).mapNotNull { index ->
-            runCatching { parseStory(rows.getJSONObject(index)) }.getOrNull()
-        }
-    }
-
-    suspend fun publishStory(uri: Uri, caption: String): GuestStory = withContext(Dispatchers.IO) {
-        require(preferences.getString(USERNAME, null) != null) { "Crea y guarda tu perfil antes de publicar una historia." }
-        val cleanCaption = caption.trim().take(MAX_STORY_CAPTION_LENGTH)
-        val body = JSONObject()
-            .put("action", "story")
-            .put("client_id", clientId)
-            .put("owner_token", ownerToken)
-            .put("caption", cleanCaption)
-        appendMedia(body, "media", uri)
-        parseStory(JSONObject(request("POST", "", body.toString())))
     }
 
     suspend fun publishComment(clipId: String, text: String): Unit = withContext(Dispatchers.IO) {
@@ -191,22 +159,6 @@ internal class GuestProfileRepository(context: Context) {
         )
     }
 
-    private fun parseStory(row: JSONObject): GuestStory {
-        val author = row.getJSONObject("profile")
-        return GuestStory(
-            id = row.getString("id"),
-            profileClientId = row.getString("profile_client_id"),
-            displayName = author.optString("display_name", "SamPlay"),
-            username = author.optString("username", "invitado"),
-            avatarUrl = author.optString("avatar_url").takeIf { url -> url.isNotBlank() },
-            mediaUrl = row.getString("media_url"),
-            mediaType = row.getString("media_type"),
-            caption = row.optString("caption"),
-            createdAt = row.optString("created_at"),
-            expiresAt = row.optString("expires_at")
-        )
-    }
-
     private fun normalizeUsername(value: String): String {
         val username = value.trim().removePrefix("@").lowercase()
         require(username.matches(Regex("^[a-z0-9_.]{3,20}$"))) {
@@ -223,7 +175,6 @@ internal class GuestProfileRepository(context: Context) {
         const val OWNER_TOKEN = "owner_token"
         const val USERNAME = "username"
         const val MAX_IMAGE_BYTES = 3 * 1024 * 1024
-        const val MAX_STORY_CAPTION_LENGTH = 240
         const val MAX_COMMENT_LENGTH = 500
         const val MAX_503_RETRIES = 2
         const val REQUEST_TIMEOUT_MS = 30_000

@@ -450,7 +450,7 @@ private fun TvCatalogPlaceholder(
                 when {
                     loading -> "Cargando catálogo"
                     configured -> "Catálogo principal no disponible"
-                    else -> "Explora nuevas historias"
+                    else -> "Explora el catálogo"
                 },
                 color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold, maxLines = 2
             )

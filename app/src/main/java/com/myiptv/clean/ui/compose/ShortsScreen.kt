@@ -11,7 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -82,7 +81,6 @@ import androidx.core.view.WindowInsetsCompat
 import coil.compose.AsyncImage
 import com.myiptv.clean.data.repository.GuestProfile
 import com.myiptv.clean.data.repository.GuestProfileRepository
-import com.myiptv.clean.data.repository.GuestStory
 import com.myiptv.clean.data.repository.LocalShortsPreferenceStore
 import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.ShortClip
@@ -129,22 +127,14 @@ internal fun ShortsScreen(
     val interactions = remember(context) { ShortsInteractionsRepository(context) }
     val guestProfiles = remember(context) { GuestProfileRepository(context) }
     var ownerProfile by remember { mutableStateOf<GuestProfile?>(null) }
-    var stories by remember { mutableStateOf(emptyList<GuestStory>()) }
-    var selectedStoryGroup by remember { mutableStateOf<List<GuestStory>?>(null) }
     var genreCounts by remember(preferences) { mutableStateOf(preferences.genreCounts()) }
     val candidates = remember(playlist.items, playlist.sources) { shortsCandidates(playlist) }
     val clips = remember { mutableStateListOf<ShortClip>() }
     val pagerState = rememberPagerState(pageCount = { clips.size })
     var activeSourceIdentity by remember { mutableStateOf(emptyList<Triple<String, String, MediaPlaybackType>>()) }
     val scope = rememberCoroutineScope()
-    val storyGroups = remember(stories) {
-        stories.groupBy { it.profileClientId }.values
-            .map { group -> group.sortedBy(GuestStory::createdAt) }
-            .sortedByDescending { group -> group.lastOrNull()?.createdAt.orEmpty() }
-    }
     LaunchedEffect(guestProfiles) {
         ownerProfile = guestProfiles.myProfile()
-        stories = runCatching { guestProfiles.loadStories() }.getOrDefault(emptyList())
     }
     fun appendRecommendedBatch() {
         val batch = recommendShortClips(candidates, genreCounts, batchSize = SHORTS_BATCH_SIZE)
@@ -364,13 +354,6 @@ internal fun ShortsScreen(
                         Text("SHORTS", color = Color.White, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
                     }
 
-                    if (isCurrentPage) {
-                        StoriesTray(
-                            groups = storyGroups,
-                            onOpenStory = { selectedStoryGroup = it }
-                        )
-                    }
-
                     Column(
                         modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
                             .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f))))
@@ -434,90 +417,6 @@ internal fun ShortsScreen(
             }
             !playlist.loaded -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
             else -> ShortsEmptyState(onBack)
-        }
-    }
-    selectedStoryGroup?.let { group ->
-        StoryViewerDialog(
-            stories = group,
-            onOpenProfile = { username -> selectedStoryGroup = null; onOpenUserProfile(username) },
-            onDismiss = { selectedStoryGroup = null }
-        )
-    }
-}
-
-@Composable
-private fun BoxScope.StoriesTray(
-    groups: List<List<GuestStory>>,
-    onOpenStory: (List<GuestStory>) -> Unit
-) {
-    LazyRow(
-        modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(top = 78.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)
-    ) {
-        items(groups, key = { it.first().profileClientId }) { group ->
-            val author = group.first()
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onOpenStory(group) }) {
-                StoryAvatar(author.avatarUrl, author.displayName)
-                Text(if (author.username.isNotBlank()) "@${author.username}" else author.displayName,
-                    color = Color.White, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StoryAvatar(imageUrl: String?, name: String) {
-    Box(
-        modifier = Modifier.size(62.dp).clip(CircleShape)
-            .background(Brush.linearGradient(listOf(Color(0xFFFF426F), Color(0xFFFFB347))))
-            .padding(2.dp).clip(CircleShape).background(Color(0xFF171920)),
-        contentAlignment = Alignment.Center
-    ) {
-        if (!imageUrl.isNullOrBlank()) {
-            AsyncImage(imageUrl, contentDescription = "Foto de $name", modifier = Modifier.fillMaxSize().clip(CircleShape), contentScale = ContentScale.Crop)
-        } else {
-            Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.84f), modifier = Modifier.size(30.dp))
-        }
-    }
-}
-
-@Composable
-private fun StoryViewerDialog(
-    stories: List<GuestStory>,
-    onOpenProfile: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var index by remember(stories) { mutableIntStateOf(0) }
-    val story = stories.getOrNull(index) ?: return
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxWidth().widthIn(max = 440.dp).aspectRatio(0.58f).padding(12.dp), shape = RoundedCornerShape(20.dp), color = Color(0xFF171920), contentColor = Color.White) {
-            Box {
-                AsyncImage(
-                    model = story.mediaUrl,
-                    contentDescription = "Historia de @${story.username}${if (story.mediaType == "image/gif") ", GIF animado" else ""}",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Column(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.72f)))).padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StoryAvatar(story.avatarUrl, story.displayName)
-                        Column(modifier = Modifier.weight(1f).padding(start = 10.dp).clickable { onOpenProfile(story.username) }) {
-                            Text(story.displayName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
-                            Text("@${story.username}", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
-                        }
-                        IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Cerrar historia", tint = Color.White) }
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (story.caption.isNotBlank()) Text(story.caption, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = { if (index + 1 < stories.size) index++ else onDismiss() }) {
-                                Text(if (index + 1 < stories.size) "Siguiente" else "Cerrar", color = Color.White)
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
