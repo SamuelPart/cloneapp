@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Image
@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,9 +56,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.ImageLoader
 import coil.compose.AsyncImage
-import coil.decode.GifDecoder
 import coil.request.ImageRequest
 import com.myiptv.clean.BuildConfig
 import com.myiptv.clean.data.repository.GuestProfile
@@ -75,9 +72,6 @@ internal fun GuestProfileScreen(
     val repository = remember(context) { GuestProfileRepository(context) }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
-    val imageLoader = remember(context) {
-        ImageLoader.Builder(context).components { add(GifDecoder.Factory()) }.build()
-    }
     val ownerMode = username.isNullOrBlank()
     var profile by remember { mutableStateOf<GuestProfile?>(null) }
     var name by remember { mutableStateOf("") }
@@ -125,7 +119,7 @@ internal fun GuestProfileScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            if (!ownerMode) IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White) }
+            if (!ownerMode) IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White) }
             Text(if (ownerMode) "Mi perfil" else "Perfil", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             if (profile != null) {
                 Spacer(Modifier.weight(1f))
@@ -153,7 +147,6 @@ internal fun GuestProfileScreen(
             if (coverModel != null && !removeCover) {
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(coverModel).crossfade(true).build(),
-                    imageLoader = imageLoader,
                     contentDescription = "Portada del perfil",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -179,8 +172,7 @@ internal fun GuestProfileScreen(
                 if (avatarModel != null && !removeAvatar) {
                     AsyncImage(
                         model = ImageRequest.Builder(context).data(avatarModel).crossfade(true).build(),
-                        imageLoader = imageLoader,
-                        contentDescription = "Foto de perfil",
+                            contentDescription = "Foto de perfil",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )

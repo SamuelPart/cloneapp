@@ -113,7 +113,7 @@ internal class GuestProfileRepository(context: Context) {
             .put("remove_cover", removeCover)
         avatarUri?.let { appendMedia(body, "avatar", it) }
         coverUri?.let { appendMedia(body, "cover", it) }
-        val profile = parseProfile(request("POST", "", body.toString()))
+        val profile = parseProfile(request("POST", "", body.toString(), retryOn503 = true))
         preferences.edit().putString(USERNAME, profile.username).apply()
         profile
     }
@@ -143,33 +143,41 @@ internal class GuestProfileRepository(context: Context) {
             .put("${field}_base64", Base64.encodeToString(bytes, Base64.NO_WRAP))
     }
 
-    private fun request(method: String, suffix: String, body: String? = null): String {
+    private fun request(method: String, suffix: String, body: String? = null, retryOn503: Boolean = method == "GET"): String {
         val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
         val key = BuildConfig.SUPABASE_PUBLISHABLE_KEY
         if (baseUrl.isBlank() || key.isBlank()) throw IOException("Supabase no está configurado.")
-        val connection = (URL("$baseUrl/functions/v1/guest-profiles$suffix").openConnection() as HttpURLConnection).apply {
-            requestMethod = method
-            connectTimeout = REQUEST_TIMEOUT_MS
-            readTimeout = REQUEST_TIMEOUT_MS
-            setRequestProperty("apikey", key)
-            setRequestProperty("Authorization", "Bearer $key")
-            setRequestProperty("Accept", "application/json")
-            setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            if (body != null) doOutput = true
-        }
-        try {
-            if (body != null) connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) {
-                val detail = runCatching { JSONObject(responseBody).optString("error") }.getOrDefault("")
-                throw IOException(detail.ifBlank { "No se pudo cargar el perfil ($status)." })
+        val retryLimit = if (retryOn503) MAX_503_RETRIES else 0
+        for (attempt in 0..retryLimit) {
+            val connection = (URL("$baseUrl/functions/v1/guest-profiles$suffix").openConnection() as HttpURLConnection).apply {
+                requestMethod = method
+                connectTimeout = REQUEST_TIMEOUT_MS
+                readTimeout = REQUEST_TIMEOUT_MS
+                setRequestProperty("apikey", key)
+                setRequestProperty("Authorization", "Bearer $key")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                if (body != null) doOutput = true
             }
-            return responseBody
-        } finally {
-            connection.disconnect()
+            try {
+                if (body != null) connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                val status = connection.responseCode
+                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                val responseBody = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                if (status == 503 && retryOn503 && attempt < retryLimit) {
+                    Thread.sleep(500L * (attempt + 1))
+                    continue
+                }
+                if (status !in 200..299) {
+                    val detail = runCatching { JSONObject(responseBody).optString("error") }.getOrDefault("")
+                    throw IOException(detail.ifBlank { "No se pudo cargar el perfil ($status)." })
+                }
+                return responseBody
+            } finally {
+                connection.disconnect()
+            }
         }
+        throw IOException("El servicio de perfiles no está disponible. Inténtalo de nuevo en unos segundos.")
     }
 
     private fun parseProfile(json: String) = JSONObject(json).let {
@@ -217,6 +225,7 @@ internal class GuestProfileRepository(context: Context) {
         const val MAX_IMAGE_BYTES = 3 * 1024 * 1024
         const val MAX_STORY_CAPTION_LENGTH = 240
         const val MAX_COMMENT_LENGTH = 500
+        const val MAX_503_RETRIES = 2
         const val REQUEST_TIMEOUT_MS = 30_000
     }
 }

@@ -34,7 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
@@ -42,7 +42,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,6 +59,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,10 +83,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import coil.ImageLoader
 import coil.compose.AsyncImage
-import coil.decode.GifDecoder
-import coil.request.ImageRequest
 import com.myiptv.clean.data.repository.GuestProfile
 import com.myiptv.clean.data.repository.GuestProfileRepository
 import com.myiptv.clean.data.repository.GuestStory
@@ -133,9 +131,6 @@ internal fun ShortsScreen(
     val preferences: ShortsPreferenceStore = remember(context) { LocalShortsPreferenceStore(context) }
     val interactions = remember(context) { ShortsInteractionsRepository(context) }
     val guestProfiles = remember(context) { GuestProfileRepository(context) }
-    val storyImageLoader = remember(context) {
-        ImageLoader.Builder(context).components { add(GifDecoder.Factory()) }.build()
-    }
     var ownerProfile by remember { mutableStateOf<GuestProfile?>(null) }
     var stories by remember { mutableStateOf(emptyList<GuestStory>()) }
     var selectedStoryGroup by remember { mutableStateOf<List<GuestStory>?>(null) }
@@ -353,7 +348,7 @@ internal fun ShortsScreen(
                     }
 
                     LinearProgressIndicator(
-                        progress = (elapsedMs.toFloat() / clip.durationMs.coerceAtLeast(1L)).coerceIn(0f, 1f),
+                        progress = { (elapsedMs.toFloat() / clip.durationMs.coerceAtLeast(1L)).coerceIn(0f, 1f) },
                         modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp)
                             .clip(CircleShape),
                         color = Color.White,
@@ -365,7 +360,7 @@ internal fun ShortsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CircleAction(onBack) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White, modifier = Modifier.size(21.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White, modifier = Modifier.size(21.dp))
                         }
                         Spacer(Modifier.width(11.dp))
                         Text("SHORTS", color = Color.White, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
@@ -451,7 +446,6 @@ internal fun ShortsScreen(
             caption = storyCaption,
             message = storyMessage,
             saving = storyPublishing,
-            imageLoader = storyImageLoader,
             onCaptionChange = { storyCaption = it.take(240) },
             onDismiss = { if (!storyPublishing) storyComposerUri = null },
             onPublish = {
@@ -471,7 +465,6 @@ internal fun ShortsScreen(
     selectedStoryGroup?.let { group ->
         StoryViewerDialog(
             stories = group,
-            imageLoader = storyImageLoader,
             onOpenProfile = { username -> selectedStoryGroup = null; onOpenUserProfile(username) },
             onDismiss = { selectedStoryGroup = null }
         )
@@ -545,19 +538,16 @@ private fun StoryComposerDialog(
     caption: String,
     message: String?,
     saving: Boolean,
-    imageLoader: ImageLoader,
     onCaptionChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onPublish: () -> Unit
 ) {
-    val context = LocalContext.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.fillMaxWidth().widthIn(max = 460.dp).padding(18.dp), shape = RoundedCornerShape(20.dp), color = Color(0xFF171920), contentColor = Color.White) {
             Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Nueva historia", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 AsyncImage(
-                    model = ImageRequest.Builder(context).data(imageUri).crossfade(true).build(),
-                    imageLoader = imageLoader,
+                    model = imageUri,
                     contentDescription = "Vista previa de la historia",
                     modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).clip(RoundedCornerShape(14.dp)),
                     contentScale = ContentScale.Crop
@@ -575,7 +565,7 @@ private fun StoryComposerDialog(
                     TextButton(onClick = onDismiss, enabled = !saving, modifier = Modifier.weight(1f)) { Text("Cancelar") }
                     Button(onClick = onPublish, enabled = !saving, modifier = Modifier.weight(1f)) {
                         if (saving) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        else Icon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                        else Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(if (saving) "Publicando…" else "Publicar")
                     }
@@ -588,20 +578,17 @@ private fun StoryComposerDialog(
 @Composable
 private fun StoryViewerDialog(
     stories: List<GuestStory>,
-    imageLoader: ImageLoader,
     onOpenProfile: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    var index by remember(stories) { mutableStateOf(0) }
+    var index by remember(stories) { mutableIntStateOf(0) }
     val story = stories.getOrNull(index) ?: return
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.fillMaxWidth().widthIn(max = 440.dp).aspectRatio(0.58f).padding(12.dp), shape = RoundedCornerShape(20.dp), color = Color(0xFF171920), contentColor = Color.White) {
             Box {
                 AsyncImage(
-                    model = ImageRequest.Builder(context).data(story.mediaUrl).crossfade(true).build(),
-                    imageLoader = imageLoader,
-                    contentDescription = "Historia de @${story.username}",
+                    model = story.mediaUrl,
+                    contentDescription = "Historia de @${story.username}${if (story.mediaType == "image/gif") ", GIF animado" else ""}",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -677,7 +664,6 @@ private fun ShortsCommentsDialog(
     onOpenUserProfile: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(modifier = Modifier.fillMaxSize().padding(18.dp), contentAlignment = Alignment.Center) {
             Surface(
@@ -742,7 +728,7 @@ private fun ShortsCommentsDialog(
                             if (sending) {
                                 CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             } else {
-                                Icon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                             }
                             Spacer(Modifier.width(6.dp))
                             Text(if (sending) "Enviando" else "Publicar")

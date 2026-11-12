@@ -1,38 +1,61 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!);
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 const imageTypes: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
 
 async function ownerHash(token: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
   return [...new Uint8Array(digest)].map((part) => part.toString(16).padStart(2, "0")).join("");
 }
+function apiHeaders(extra: Record<string, string> = {}) {
+  return { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, ...extra };
+}
+async function databaseRequest(method: string, table: string, params: Record<string, string> = {}, body?: unknown, prefer?: string) {
+  const query = new URLSearchParams(params).toString();
+  const response = await fetch(`${supabaseUrl}/rest/v1/${table}${query ? `?${query}` : ""}`, {
+    method,
+    headers: apiHeaders({ Accept: "application/json", ...(body == null ? {} : { "Content-Type": "application/json" }), ...(prefer ? { Prefer: prefer } : {}) }),
+    ...(body == null ? {} : { body: JSON.stringify(body) }),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Database request failed (${response.status}): ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : null;
+}
 async function ownerProfile(clientId: string, token: string) {
   if (!/^[0-9a-f-]{36}$/i.test(clientId) || !/^[0-9a-f-]{36}$/i.test(token)) return null;
-  const { data, error } = await admin.from("guest_profiles").select("client_id,owner_token_hash").eq("client_id", clientId).maybeSingle();
-  if (error) throw error;
-  return data?.owner_token_hash === await ownerHash(token) ? data : null;
+  const rows = await databaseRequest("GET", "guest_profiles", { select: "client_id,owner_token_hash", client_id: `eq.${clientId}`, limit: "1" });
+  const profile = rows?.[0];
+  return profile?.owner_token_hash === await ownerHash(token) ? profile : null;
 }
 async function uploadImage(bucket: string, clientId: string, path: string, base64: string, mime: string) {
   const extension = imageTypes[mime];
   if (!extension || !base64 || base64.length > 4_194_304) throw new Error("Elige una imagen JPG, PNG, WebP o GIF de hasta 3 MB.");
-  const { error: bucketError } = await admin.storage.createBucket(bucket, {
-    public: true,
-    fileSizeLimit: 3 * 1024 * 1024,
-    allowedMimeTypes: Object.keys(imageTypes),
-  });
-  if (bucketError && !/already exists/i.test(bucketError.message)) throw bucketError;
+  const { error: bucketError } = await (async () => {
+    const response = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+      method: "POST",
+      headers: apiHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ id: bucket, name: bucket, public: true, file_size_limit: 3 * 1024 * 1024, allowed_mime_types: Object.keys(imageTypes) }),
+    });
+    const text = await response.text();
+    if (response.ok || /already exists|duplicate/i.test(text)) return { error: null };
+    return { error: new Error(`Storage bucket creation failed (${response.status}): ${text.slice(0, 250)}`) };
+  })();
+  if (bucketError) throw bucketError;
+
   const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
   if (bytes.byteLength > 3 * 1024 * 1024) throw new Error("La imagen supera 3 MB.");
   const objectPath = `${clientId}/${path}.${extension}`;
-  const { error } = await admin.storage.from(bucket).upload(objectPath, bytes, { contentType: mime, upsert: true, cacheControl: "3600" });
-  if (error) throw error;
-  return { url: admin.storage.from(bucket).getPublicUrl(objectPath).data.publicUrl, mime };
+  const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/");
+  const response = await fetch(`${supabaseUrl}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}`, {
+    method: "POST",
+    headers: apiHeaders({ "Content-Type": mime, "x-upsert": "true", "cache-control": "3600" }),
+    body: bytes,
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Image upload failed (${response.status}): ${text.slice(0, 300)}`);
+  return { url: `${supabaseUrl}/storage/v1/object/public/${encodeURIComponent(bucket)}/${encodedPath}`, mime };
 }
 
 Deno.serve(async (request) => {
@@ -41,17 +64,18 @@ Deno.serve(async (request) => {
     if (request.method === "GET") {
       const url = new URL(request.url);
       if (url.searchParams.get("stories") === "feed") {
-        const { data, error } = await admin.from("guest_stories")
-          .select("id,profile_client_id,media_url,media_type,caption,created_at,expires_at,profile:guest_profiles!guest_stories_profile_client_id_fkey(client_id,display_name,username,avatar_url)")
-          .gt("expires_at", new Date().toISOString())
-          .order("created_at", { ascending: false }).limit(100);
-        if (error) throw error;
-        return json(data ?? []);
+        const rows = await databaseRequest("GET", "guest_stories", {
+          select: "id,profile_client_id,media_url,media_type,caption,created_at,expires_at,profile:guest_profiles!guest_stories_profile_client_id_fkey(client_id,display_name,username,avatar_url)",
+          expires_at: `gt.${new Date().toISOString()}`, order: "created_at.desc", limit: "100",
+        });
+        return json(rows ?? []);
       }
       const username = url.searchParams.get("username")?.toLowerCase();
       if (!username || !/^[a-z0-9_.]{3,20}$/.test(username)) return json({ error: "Usuario inválido." }, 400);
-      const { data, error } = await admin.from("guest_profiles").select("client_id,display_name,username,avatar_url,cover_url,cover_animated,updated_at").eq("username", username).maybeSingle();
-      if (error) throw error;
+      const profiles = await databaseRequest("GET", "guest_profiles", {
+        select: "client_id,display_name,username,avatar_url,cover_url,cover_animated,updated_at", username: `eq.${username}`, limit: "1",
+      });
+      const data = profiles?.[0];
       if (!data) return json({ error: "No encontramos ese perfil." }, 404);
       if ((request.headers.get("accept") ?? "").includes("text/html")) {
         const title = `${escapeHtml(data.display_name)} (@${escapeHtml(data.username)}) · SamPlay`;
@@ -69,40 +93,39 @@ Deno.serve(async (request) => {
     const clientId = String(body.client_id ?? "");
     const token = String(body.owner_token ?? "");
     if (action === "comment") {
+      if (!await ownerProfile(clientId, token)) return json({ error: "Guarda tu perfil antes de comentar como usuario." }, 403);
       const clipId = String(body.clip_id ?? "");
       const comment = String(body.body ?? "").trim();
-      if (!await ownerProfile(clientId, token)) return json({ error: "Guarda tu perfil antes de comentar como usuario." }, 403);
       if (clipId.length < 1 || clipId.length > 2048 || comment.length < 1 || comment.length > 500) return json({ error: "El comentario debe tener entre 1 y 500 caracteres." }, 400);
-      const { data, error } = await admin.from("shorts_comments").insert({
+      const rows = await databaseRequest("POST", "shorts_comments", { select: "id,body,created_at,profile:guest_profiles!shorts_comments_profile_client_id_fkey(client_id,display_name,username,avatar_url)" }, {
         clip_id: clipId, client_id: clientId, profile_client_id: clientId, body: comment,
-      }).select("id,body,created_at,profile:guest_profiles!shorts_comments_profile_client_id_fkey(client_id,display_name,username,avatar_url)").single();
-      if (error) throw error;
-      return json(data, 201);
+      }, "return=representation");
+      return json(rows?.[0] ?? {}, 201);
     }
     if (action === "story") {
       if (!await ownerProfile(clientId, token)) return json({ error: "Guarda tu perfil antes de publicar una historia." }, 403);
       const caption = String(body.caption ?? "").trim().slice(0, 240);
       const uploaded = await uploadImage("samplay-stories", clientId, `story-${crypto.randomUUID()}`, String(body.media_base64 ?? ""), String(body.media_mime ?? ""));
-      const { data, error } = await admin.from("guest_stories").insert({
+      const rows = await databaseRequest("POST", "guest_stories", { select: "id,profile_client_id,media_url,media_type,caption,created_at,expires_at,profile:guest_profiles!guest_stories_profile_client_id_fkey(client_id,display_name,username,avatar_url)" }, {
         profile_client_id: clientId, media_url: uploaded.url, media_type: uploaded.mime, caption,
-      }).select("id,profile_client_id,media_url,media_type,caption,created_at,expires_at,profile:guest_profiles!guest_stories_profile_client_id_fkey(client_id,display_name,username,avatar_url)").single();
-      if (error) throw error;
-      return json(data, 201);
+      }, "return=representation");
+      return json(rows?.[0] ?? {}, 201);
     }
 
     const displayName = String(body.display_name ?? "").trim();
     const username = String(body.username ?? "").trim().toLowerCase();
     if (!/^[0-9a-f-]{36}$/i.test(clientId) || !/^[0-9a-f-]{36}$/i.test(token)) return json({ error: "No se pudo validar este perfil." }, 400);
     if (displayName.length < 1 || displayName.length > 40 || !/^[a-z0-9_.]{3,20}$/.test(username)) return json({ error: "Revisa tu nombre (1–40) y @usuario (3–20; letras, números, _ o .)." }, 400);
-    const existing = await ownerProfile(clientId, token);
-    if (!existing && await admin.from("guest_profiles").select("client_id").eq("client_id", clientId).maybeSingle().then(({ data }) => !!data)) return json({ error: "Este perfil pertenece a otra instalación." }, 403);
-    const { data: current } = await admin.from("guest_profiles").select("avatar_url,cover_url").eq("client_id", clientId).maybeSingle();
-    const avatarUrl = body.avatar_base64 ? (await uploadImage("samplay-profiles", clientId, `avatar-${crypto.randomUUID()}`, String(body.avatar_base64), String(body.avatar_mime ?? ""))).url : (body.remove_avatar ? null : current?.avatar_url ?? null);
-    const coverUrl = body.cover_base64 ? (await uploadImage("samplay-profiles", clientId, `cover-${crypto.randomUUID()}`, String(body.cover_base64), String(body.cover_mime ?? ""))).url : (body.remove_cover ? null : current?.cover_url ?? null);
+    const existingRows = await databaseRequest("GET", "guest_profiles", {
+      select: "owner_token_hash,avatar_url,cover_url", client_id: `eq.${clientId}`, limit: "1",
+    });
+    const existing = existingRows?.[0];
+    if (existing && existing.owner_token_hash !== await ownerHash(token)) return json({ error: "Este perfil pertenece a otra instalación." }, 403);
+    const avatarUrl = body.avatar_base64 ? (await uploadImage("samplay-profiles", clientId, `avatar-${crypto.randomUUID()}`, String(body.avatar_base64), String(body.avatar_mime ?? ""))).url : (body.remove_avatar ? null : existing?.avatar_url ?? null);
+    const coverUrl = body.cover_base64 ? (await uploadImage("samplay-profiles", clientId, `cover-${crypto.randomUUID()}`, String(body.cover_base64), String(body.cover_mime ?? ""))).url : (body.remove_cover ? null : existing?.cover_url ?? null);
     const row = { client_id: clientId, display_name: displayName, username, avatar_url: avatarUrl, cover_url: coverUrl, cover_animated: Boolean(body.cover_animated), owner_token_hash: await ownerHash(token), updated_at: new Date().toISOString() };
-    const { data, error } = await admin.from("guest_profiles").upsert(row, { onConflict: "client_id" }).select("client_id,display_name,username,avatar_url,cover_url,cover_animated,updated_at").single();
-    if (error) return json({ error: /guest_profiles_username_ci_idx|duplicate key/i.test(error.message) ? "Ese @usuario ya está ocupado. Prueba otro." : error.message }, 409);
-    return json(data);
+    const rows = await databaseRequest("POST", "guest_profiles", { on_conflict: "client_id", select: "client_id,display_name,username,avatar_url,cover_url,cover_animated,updated_at" }, row, "resolution=merge-duplicates,return=representation");
+    return json(rows?.[0] ?? {}, 200);
   } catch (error) {
     console.error(error);
     return json({ error: error instanceof Error ? error.message : "No se pudo completar la acción." }, 500);
