@@ -3,6 +3,7 @@ package com.myiptv.clean.ui.compose
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -13,23 +14,33 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,17 +59,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.myiptv.clean.data.repository.LocalShortsPreferenceStore
 import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.ShortClip
+import com.myiptv.clean.data.repository.ShortsComment
+import com.myiptv.clean.data.repository.ShortsInteractionState
+import com.myiptv.clean.data.repository.ShortsInteractionsRepository
 import com.myiptv.clean.data.repository.SHORTS_BATCH_SIZE
 import com.myiptv.clean.data.repository.ShortsPreferenceStore
 import com.myiptv.clean.data.repository.recommendShortClips
@@ -93,6 +110,7 @@ internal fun ShortsScreen(
         }
     }
     val preferences: ShortsPreferenceStore = remember(context) { LocalShortsPreferenceStore(context) }
+    val interactions = remember(context) { ShortsInteractionsRepository(context) }
     var genreCounts by remember(preferences) { mutableStateOf(preferences.genreCounts()) }
     val candidates = remember(playlist.items, playlist.sources) { shortsCandidates(playlist) }
     val clips = remember { mutableStateListOf<ShortClip>() }
@@ -149,7 +167,79 @@ internal fun ShortsScreen(
                 val isNextPage = page == pagerState.currentPage + 1
                 var elapsedMs by remember(page, candidate.playbackId, clip.durationMs) { mutableLongStateOf(0L) }
                 var savedPreference by remember(page, candidate.playbackId) { mutableStateOf(false) }
+                var interactionState by remember(page, candidate.playbackId, clip.startAtMs, clip.durationMs) {
+                    mutableStateOf(ShortsInteractionState())
+                }
+                var interactionMessage by remember(page, candidate.playbackId, clip.startAtMs, clip.durationMs) { mutableStateOf<String?>(null) }
+                var commentsOpen by remember(page, candidate.playbackId, clip.startAtMs, clip.durationMs) { mutableStateOf(false) }
+                var commentSending by remember(page, candidate.playbackId, clip.startAtMs, clip.durationMs) { mutableStateOf(false) }
+                var commentDraft by remember(page, candidate.playbackId, clip.startAtMs, clip.durationMs) { mutableStateOf("") }
+                val interactionClipId = remember(candidate.playbackId, clip.startAtMs, clip.durationMs) {
+                    "${candidate.playbackId}|${clip.startAtMs ?: -1L}|${clip.durationMs}"
+                }
                 val fullscreen = remember(page, candidate.playbackId) { PlayerFullscreenState(null) }
+
+                LaunchedEffect(interactions, interactionClipId) {
+                    runCatching { interactions.load(interactionClipId) }
+                        .onSuccess { interactionState = it; interactionMessage = null }
+                        .onFailure { interactionMessage = "No se pudieron cargar las acciones. Revisa tu conexión." }
+                }
+
+                fun refreshInteractions() {
+                    scope.launch {
+                        runCatching { interactions.load(interactionClipId) }
+                            .onSuccess { interactionState = it; interactionMessage = null }
+                            .onFailure { interactionMessage = "No se pudo actualizar. Inténtalo de nuevo." }
+                    }
+                }
+                fun toggleReaction() {
+                    val previous = interactionState
+                    val nextLiked = !previous.liked
+                    interactionState = previous.copy(
+                        liked = nextLiked,
+                        likeCount = (previous.likeCount + (if (nextLiked) 1 else -1)).coerceAtLeast(0)
+                    )
+                    scope.launch {
+                        runCatching { interactions.setLiked(interactionClipId, nextLiked) }
+                            .onSuccess { refreshInteractions() }
+                            .onFailure {
+                                interactionState = previous
+                                interactionMessage = "No se pudo guardar la reacción. Inténtalo de nuevo."
+                            }
+                    }
+                }
+                fun shareShort() {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "${candidate.media.title} · Clip de SamPlay")
+                    }
+                    try {
+                        val chooser = Intent.createChooser(shareIntent, "Compartir clip")
+                        if (activity != null) activity.startActivity(chooser)
+                        else context.startActivity(chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        scope.launch {
+                            runCatching { interactions.recordShare(interactionClipId) }
+                                .onSuccess { refreshInteractions() }
+                                .onFailure { interactionMessage = "No se pudo registrar el compartido." }
+                        }
+                    } catch (_: Exception) {
+                        interactionMessage = "No se pudo abrir el menú para compartir."
+                    }
+                }
+                fun submitComment() {
+                    val text = commentDraft.trim()
+                    if (text.isEmpty() || commentSending) return
+                    commentSending = true
+                    scope.launch {
+                        runCatching { interactions.addComment(interactionClipId, text) }
+                            .onSuccess {
+                                commentDraft = ""
+                                refreshInteractions()
+                            }
+                            .onFailure { interactionMessage = "No se pudo publicar el comentario. Inténtalo de nuevo." }
+                        commentSending = false
+                    }
+                }
 
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                     if (isCurrentPage || isNextPage) VlcPlayerScreen(
@@ -183,6 +273,34 @@ internal fun ShortsScreen(
                         },
                     )
 
+                    if (isCurrentPage) {
+                        Column(
+                            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ShortsInteractionAction(
+                                icon = if (interactionState.liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                label = if (interactionState.liked) "Quitar reacción" else "Me gusta",
+                                count = interactionState.likeCount,
+                                tint = if (interactionState.liked) Color(0xFFFF4F78) else Color.White,
+                                onClick = ::toggleReaction
+                            )
+                            ShortsInteractionAction(
+                                icon = Icons.Filled.ChatBubbleOutline,
+                                label = "Comentarios",
+                                count = interactionState.commentCount,
+                                onClick = { commentsOpen = true }
+                            )
+                            ShortsInteractionAction(
+                                icon = Icons.Filled.Share,
+                                label = "Compartir",
+                                count = interactionState.shareCount,
+                                onClick = ::shareShort
+                            )
+                        }
+                    }
+
                     LinearProgressIndicator(
                         progress = (elapsedMs.toFloat() / clip.durationMs.coerceAtLeast(1L)).coerceIn(0f, 1f),
                         modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp)
@@ -205,7 +323,7 @@ internal fun ShortsScreen(
                     Column(
                         modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()
                             .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f))))
-                            .padding(start = 20.dp, end = 18.dp, top = 42.dp, bottom = 24.dp)
+                            .padding(start = 20.dp, end = 82.dp, top = 42.dp, bottom = 24.dp)
                     ) {
                         Text(
                             candidate.media.title,
@@ -222,6 +340,10 @@ internal fun ShortsScreen(
                         ).joinToString("  •  ")
                         if (metadata.isNotBlank()) {
                             Text(metadata, color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.bodySmall,
+                                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+                        }
+                        interactionMessage?.let { message ->
+                            Text(message, color = Color(0xFFFFC1C1), style = MaterialTheme.typography.labelSmall,
                                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
                         }
                         Row(
@@ -245,6 +367,18 @@ internal fun ShortsScreen(
                         }
                     }
                 }
+                if (isCurrentPage && commentsOpen) {
+                    ShortsCommentsDialog(
+                        comments = interactionState.comments,
+                        totalCount = interactionState.commentCount,
+                        draft = commentDraft,
+                        sending = commentSending,
+                        message = interactionMessage,
+                        onDraftChange = { commentDraft = it.take(500) },
+                        onSend = ::submitComment,
+                        onDismiss = { commentsOpen = false }
+                    )
+                }
             }
             !playlist.loaded -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
             else -> ShortsEmptyState(onBack)
@@ -263,6 +397,104 @@ private fun CircleAction(onClick: () -> Unit, content: @Composable () -> Unit) {
     ) {
         Box(contentAlignment = Alignment.Center) { content() }
     }
+}
+
+@Composable
+private fun ShortsInteractionAction(
+    icon: ImageVector,
+    label: String,
+    count: Int,
+    tint: Color = Color.White,
+    onClick: () -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.size(50.dp),
+            shape = CircleShape,
+            color = Color.Black.copy(alpha = 0.48f),
+            contentColor = tint
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(28.dp))
+            }
+        }
+        Text(shortInteractionCount(count), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun ShortsCommentsDialog(
+    comments: List<ShortsComment>,
+    totalCount: Int,
+    draft: String,
+    sending: Boolean,
+    message: String?,
+    onDraftChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(modifier = Modifier.fillMaxSize().padding(18.dp), contentAlignment = Alignment.Center) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp).heightIn(max = 560.dp),
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFF17191E),
+                contentColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Comentarios · ${shortInteractionCount(totalCount)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    if (message != null) {
+                        Text(message, color = Color(0xFFFFC1C1), style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (comments.isEmpty()) {
+                        Text("Aún no hay comentarios. ¡Sé el primero!", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f, fill = false).heightIn(max = 320.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(comments, key = ShortsComment::id) { comment ->
+                                Surface(shape = RoundedCornerShape(10.dp), color = Color.White.copy(alpha = 0.08f)) {
+                                    Text(comment.body, modifier = Modifier.fillMaxWidth().padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = onDraftChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Escribe un comentario") },
+                        supportingText = { Text("${draft.length}/500") },
+                        maxLines = 3
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Cerrar") }
+                        Button(onClick = onSend, enabled = draft.isNotBlank() && !sending, modifier = Modifier.weight(1f)) {
+                            if (sending) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else {
+                                Icon(Icons.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (sending) "Enviando" else "Publicar")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun shortInteractionCount(count: Int): String = when {
+    count < 1_000 -> count.coerceAtLeast(0).toString()
+    count < 10_000 -> "${count / 1_000}.${(count % 1_000) / 100} mil"
+    count < 1_000_000 -> "${count / 1_000} mil"
+    else -> "${count / 1_000_000} M"
 }
 
 @Composable

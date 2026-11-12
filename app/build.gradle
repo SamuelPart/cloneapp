@@ -11,6 +11,8 @@ if (localPropertiesFile.exists()) {
     localPropertiesFile.withInputStream { localProperties.load(it) }
 }
 def tmdbApiKey = localProperties.getProperty('tmdb.api.key', System.getenv('TMDB_API_KEY') ?: '')
+def supabaseUrl = localProperties.getProperty('supabase.url', System.getenv('SUPABASE_URL') ?: 'https://cbjnntxiytyaonfrknng.supabase.co')
+def supabasePublishableKey = localProperties.getProperty('supabase.publishable.key', System.getenv('SUPABASE_PUBLISHABLE_KEY') ?: 'sb_publishable_jkHz_zJDmldOKfEDLkamWg_9kbod4D9')
 
 android {
     namespace 'com.myiptv.clean'
@@ -23,6 +25,8 @@ android {
         versionCode 16
         versionName '1.2.13'
         buildConfigField 'String', 'TMDB_API_KEY', '"' + tmdbApiKey + '"'
+        buildConfigField 'String', 'SUPABASE_URL', '"' + supabaseUrl + '"'
+        buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', '"' + supabasePublishableKey + '"'
     }
 
     // Keep the existing GitHub updater only in its APK; Play updates through Google Play.
