@@ -18,6 +18,18 @@ class PlayerVolumeMuteTest {
         assertEquals(67, volume)
     }
 
+    @Test fun shortsPreloadWaitsForPositiveVolumeBeforeRememberingRestoreLevel() {
+        var volume = 0
+        val mute = PlayerVolumeMute({ volume }, { volume = it; 0 })
+        assertFalse(mute.setMuted(true, requirePositiveVolume = true))
+        assertEquals(0, volume)
+        volume = 73 // LibVLC has now initialized the audio output.
+        assertTrue(mute.setMuted(true, requirePositiveVolume = true))
+        assertEquals(0, volume)
+        assertTrue(mute.setMuted(false))
+        assertEquals(73, volume)
+    }
+
     @Test fun waitsForAudioAndDoesNotClaimSuccessOnFailure() {
         var volume = -1
         var fails = true

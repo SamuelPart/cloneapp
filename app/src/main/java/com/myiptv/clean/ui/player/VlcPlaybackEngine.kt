@@ -34,6 +34,9 @@ internal class VlcPlaybackEngine(
     /** Returns false if LibVLC has not initialized its audio output or rejected the change. */
     fun setMuted(muted: Boolean): Boolean = audioMute.setMuted(muted)
 
+    /** Wait for a real output level before muting a preload, avoiding restoring startup zero. */
+    fun setMutedForShortPreload(muted: Boolean): Boolean = audioMute.setMuted(muted, requirePositiveVolume = true)
+
     override fun setListener(listener: ((PlaybackEvent) -> Unit)?) {
         if (listener == null) {
             player.setEventListener(null)

@@ -191,7 +191,7 @@ internal fun VlcPlayerScreen(
             val newController = PlaybackController(
                 newEngine,
                 onPlaybackEvent = { event ->
-                    if (latestShortClipPreload.value && event == PlaybackEvent.Playing) newEngine.setMuted(true)
+                    if (latestShortClipPreload.value && event == PlaybackEvent.Playing) newEngine.setMutedForShortPreload(true)
                     latestPlaybackEventCallback.value(event)
                 }
             ) { state = it }
@@ -237,12 +237,12 @@ internal fun VlcPlayerScreen(
             when {
                 shortClipActive -> {
                     current.controller.onForeground()
-                    current.engine.setMuted(false)
+                    current.engine.setMutedForShortPreload(false)
                     current.controller.play()
                 }
                 shortClipPreload -> {
                     current.controller.onForeground()
-                    current.engine.setMuted(true)
+                    current.engine.setMutedForShortPreload(true)
                 }
                 else -> current.controller.onBackground()
             }
@@ -251,8 +251,17 @@ internal fun VlcPlayerScreen(
     LaunchedEffect(binding, shortClipPreload, state.isPlaying, state.isBuffering) {
         val current = binding ?: return@LaunchedEffect
         if (shortClipDurationMs != null && shortClipPreload && state.isPlaying && !state.isBuffering) {
-            current.engine.setMuted(true)
-            current.controller.pause()
+            // Audio output initialization can lag behind VLC's Playing event. Retry briefly and
+            // pause only after mute succeeds, otherwise a zero startup volume could become sticky.
+            var attempts = 0
+            while (attempts < 10 && isActive && latestShortClipPreload.value) {
+                if (current.engine.setMutedForShortPreload(true)) {
+                    current.controller.pause()
+                    break
+                }
+                attempts++
+                delay(120L)
+            }
         }
     }
     LaunchedEffect(binding, state.isSeekable, state.durationMs, shortClipDurationMs, shortClipStartAtMs) {
@@ -488,6 +497,29 @@ internal fun VlcPlayerScreen(
                 )
             } else if (shortClipActive && state.isBuffering) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(30.dp), color = Color.White, strokeWidth = 2.dp)
+            }
+            if (shortClipActive) {
+                val clipAction = when {
+                    state.error != null || state.ended -> Icons.Filled.Replay
+                    state.isPlaying -> Icons.Filled.Pause
+                    else -> Icons.Filled.PlayArrow
+                }
+                val clipActionLabel = when {
+                    state.error != null -> "Reintentar clip"
+                    state.ended -> "Reproducir clip de nuevo"
+                    state.isPlaying -> "Pausar clip"
+                    else -> "Reproducir clip"
+                }
+                Box(
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp).size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.58f))
+                        .clickable(onClick = ::togglePlayback)
+                        .semantics { contentDescription = clipActionLabel },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(clipAction, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+                }
             }
         } else if (phonePreview && !controlsVisible && state.isBuffering && state.error == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(28.dp), color = Color.White, strokeWidth = 2.dp)
