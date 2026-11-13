@@ -28,6 +28,27 @@ class CatalogUpdatesTest {
         assertTrue(updateStoredCatalog(StoredCatalog(bundled), bundled)!!.pending.isEmpty())
     }
 
+    @Test fun appendedCatalogEntriesHaveNumericTmdbIdsAndNoConflictingDuplicateTitles() {
+        val asset = listOf(File("src/main/assets/samplay_catalog.m3u"), File("app/src/main/assets/samplay_catalog.m3u"))
+            .firstOrNull(File::isFile) ?: error("No se encontró el catálogo incluido")
+        val text = asset.readText()
+        val lines = text.lineSequence().toList()
+        val marker = lines.indexOf("# SamPlay additions: direct playable M3U entries; each must have a numeric TMDb match ID.")
+        assertTrue("Falta el marcador de entradas verificadas", marker >= 0)
+        val additions = lines.drop(marker + 1).filter(String::isNotBlank)
+        val metadata = additions.filter { it.startsWith("#EXTINF:") }
+        assertTrue("No hay películas añadidas", metadata.isNotEmpty())
+        metadata.forEach { entry ->
+            val id = Regex("""\btmdb-match-id="([1-9]\d*)"""").find(entry)?.groupValues?.get(1)
+            assertNotNull("Falta un ID TMDb válido: $entry", id)
+        }
+        assertEquals("Cada entrada debe tener una fuente", metadata.size, additions.count { it.startsWith("http://") || it.startsWith("https://") })
+        assertTrue("No se admiten enlaces torrent", additions.none { ".torrent" in it.lowercase() })
+        val parsed = parseRemoteCatalog(text)
+        assertNotNull("El catálogo remoto no debe descartarse", parsed)
+        assertEquals("No debe haber filas ignoradas en la actualización", 0, parsed!!.ignoredEntries)
+    }
+
     @Test fun newMovieAndSeriesAreIdentifiedOnceByTheirRealTitles() {
         val before = catalog(movie("Marsupilami (2026)"))
         val after = catalog(movie("Marsupilami (2026)"), movie("Otra película"), episode(1), episode(2))

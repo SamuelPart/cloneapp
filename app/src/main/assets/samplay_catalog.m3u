@@ -921,6 +921,7 @@ https://dl.dropboxusercontent.com/scl/fi/o4bax634t8bgyhven2f4c/L4Q1G4A-D41E-L1A-
 https://dn720004.ca.archive.org/0/items/04-dragon-ball-el-camino-hacia-el-mas-fuerte_202008/2%20Dragon%20Ball%20GT%20100%20a%C3%B1os%20despues.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="27273", The Flight of Dragons (1982)
 https://archive.org/download/el-vuelo-de-los-dragones-latino/El%20Vuelo%20de%20los%20Dragones%20Latino.avi
+# SamPlay additions: direct playable M3U entries; each must have a numeric TMDb match ID.
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1128377", Contra las cuerdas (2026)
 https://dl.dropbox.com/scl/fi/oa0qc5jh6157cl7uliwjd/f-sica.mp4?rlkey=9ag8hycf2i9q64vux1byyklr0&st=l0qyiok3&dl=1
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1319951", 40 Acres (2025)
@@ -979,10 +980,6 @@ https://pomf2.lain.la/f/f5gxmqrd.mp4
 https://pomf2.lain.la/f/r6vlkny.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1422", Infiltrados (2006)
 https://dl.dropbox.com/scl/fi/7ualm7qj07zj3loiavqnx/05.mp4?rlkey=fm76bolqvd5ozx0ban3y5xeat&st=4lfzthfc&dl=1
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", En busca de venganza 2 (2025)
-https://pomf2.lain.la/f/vob9d876.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", En busca de venganza (2023)
-https://pomf2.lain.la/f/hlbbj67.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="35019", Bang (2025)
 https://pomf2.lain.la/f/64p0uqsb.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1217602", London Calling (2025)
@@ -993,8 +990,6 @@ https://pomf2.lain.la/f/lnr9rf5k.mp4
 https://pomf2.lain.la/f/uzssb56b.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1387382", Hunting Season (2025)
 https://pomf2.lain.la/f/t8gamu55.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", John Wick 4 (2023) 480p latino
-https://dl.dropboxusercontent.com/scl/fi/wfley6gbdthmvx325hzqt/J1H3ON-W1ICFK-4.mp4?rlkey=67es8jxdnyuyzdpx94b2lq7la&st=hih3y17c
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1512623", Risqué (2025)
 https://pomf2.lain.la/f/epnr0qn.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1319895", Hostile Takeover (2025)
@@ -1009,8 +1004,6 @@ https://pomf2.lain.la/f/duegk7w9.mp4
 https://pomf2.lain.la/f/rh3oafiw.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1426968", The Gentleman (2025)
 https://pomf2.lain.la/f/e2uwp5l1.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", 13 días, 13 noches: en el infierno de Kabul (2025)
-https://dl.dropbox.com/scl/fi/z2iyadbmsw3no6qxmmgj0/sociales.mp4?rlkey=i7c4ip78mieenh1ct73f64jwv&st=tkyb2usl&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1296504", Venganza justificada (2025)
 https://pomf2.lain.la/f/wqb7cxbw.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="941109", Juego sucio (2025)
@@ -1047,8 +1040,6 @@ https://dl.dropbox.com/scl/fi/p9b0ai5ezvu67cxz4o62k/matematica.mp4?rlkey=xytz2j0
 https://archive.org/download/rider-latino/Rider%20Latino.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="110109", Policías de la Mafia
 https://archive.org/download/fisica-cuantica-2/fisica%20cuantica%20%287%29.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Noche Santa: Cazadores de demonios (2025)
-https://dl.dropbox.com/scl/fi/fpidwwl9rrkasd2f76mfm/sociales-4.mp4?rlkey=mntiwryz0r2iv0qfav3y28j72&st=8ttkoz8s&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1125899", Cleaner (2025)
 https://dl.dropbox.com/scl/fi/47323x5fzz54b75gekfqy/f-sica.mp4?rlkey=50013sufjqeclatyo6jat24c5&st=lyfaxmcq&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="9598", El valiente (2025)
@@ -1071,18 +1062,10 @@ https://dl.dropbox.com/scl/fi/ujn7xoyzcidbs5kwrtcgg/sociales.mp4?rlkey=91hgrkqfd
 https://dl.dropbox.com/scl/fi/72s8mf9f8pifm4ormjat9/sociales.mp4?rlkey=hxcftjcxtf9e5amx5n5m4qhn5&st=35s8gxrb&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1212855", Fight or Flight (2025)
 https://dl.dropbox.com/scl/fi/n4xieea0aqano3cor9cbp/sociales.mp4?rlkey=y56qsjj2b89rbpz2i4vf91vur&st=j210f1dt&dl=0
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1250", Rider (2025)
-https://archive.org/download/ver-los-desenredos-del-amor-2025-online-gratis-espanol-pelisplus/Rider%20-%20Ver%20Online%20en%20Espa%C3%B1ol%20Latino.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1006540", Tren bala (2022)
 https://dl.dropbox.com/scl/fi/0cbqo21pk0d479c4rory2/lengua.mp4?rlkey=e9f014nn4xcjjr5fqtgizaygp&st=2dqqquq7&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1297860", Inheritance (2025)
 https://dl.dropbox.com/scl/fi/rrrqxsae0xvncki9r4okz/fisica.mp4?rlkey=gok7dq8cxbai1n3ua53r9g7c&st=l2zpes38&dl=0
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Una línea de fuego (2025)
-https://archive.org/download/en-la-l-nea-de-fuego-2025-2castellano/en-la-l-nea-de-fuego-2025-2%5Bcastellano%5D.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Una línea de fuego (2025)
-https://dl.dropbox.com/scl/fi/1c41xyr3byu9400l8b3na/sociales.mp4?rlkey=vdzbad2fg6zv17bgnhl3a2o2l&st=rzulorxm&dl=0
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Grandes aguas blancas (2025)
-https://dl.dropbox.com/scl/fi/z9fz5ouvam5ou09z18vlz/matematica.mp4?rlkey=3nx6xamhel3eg6us0czgm7n37&st=c6ifp7cc&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1407861", Colmillos del Bayou (2025)
 https://dl.dropbox.com/scl/fi/04so1rwsmke7v4f8t0fgd/matematica.mp4?rlkey=jf6yx91nyaucfntupa6ka3r0t&st=u3ol9ccm&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="785663", Old Henry (2021)
@@ -1115,16 +1098,12 @@ https://archive.org/download/01_20250621_20250621_2307/02.ia.mp4
 https://dl.dropbox.com/scl/fi/suhc9w3scy5h74w7aw9b2/01.mp4?rlkey=8m8j3su2a90cxhg2bhtcez6ba&st=f19bcn3l&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1197306", Rescate implacable (2025)
 https://dl.dropbox.com/scl/fi/v55veqggm1wyqt2q630df/02.mp4?rlkey=3gy4n8fbnvn7aaerurj7a685k&st=rrc5dzpy&dl=0
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Tierras perdidas (2025) SUB
-https://dl.dropbox.com/scl/fi/vapwrmmkonfsvn49qh6kn/TR2025.mp4?rlkey=ng5o0v6ms5vk990bi681aol54&st=aexnd7n9&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="575265", Mission: Impossible - The Final Reckoning (2025)
 https://dl.dropbox.com/scl/fi/vjk17j6msqze0a1ocgy65/eovkyoqxilgg.mp4?rlkey=23szy25dmqv96b4m45t7m71cn&st=mqxj59jj&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1233413", Los pecadores (2025)
 https://dl.dropbox.com/scl/fi/15233zxofnswbhmw8ecsu/P2015.mp4?rlkey=zzcyucht6gyizcnho9n0xbun3&st=02h6lxj2&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1249289", Alarum: Código Letal (2025)
 https://archive.org/download/bflixelys-1um/BFLIX.alarum.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Riesgo de Vuelo (2025)
-https://dl.dropbox.com/scl/fi/iwlwuigiy2ur1509e0nu8/BFLIX.mp4?rlkey=7tnuzapzqxxrzhtygdqslhzup&st=410v4032&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="604685", Juego de ladrones 2: Pantera (2025)
 https://archive.org/download/d3vu37t4.4.747cc10n/ju3g0sd3l4dr0n352.ia.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="993710", De vuelta a la acción (2025)
@@ -1133,8 +1112,6 @@ https://archive.org/download/d3vu37t4.4.747cc10n/d3vu37t4.4.747cc10n.ia.mp4
 https://dl.dropbox.com/scl/fi/r89zxe9kqpjmqv45gyk3t/BFLIX13.mp4?rlkey=ae6mu3pfzq0gtzbd2tv68vh0s&st=r2xj981v&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1410082", Sniper: La última resistencia (2025)
 https://archive.org/download/d3vu37t4.4.747cc10n/BFLIXThe1L4st1St4nd.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Troya (2004)
-https://dl.dropbox.com/scl/fi/bfuyppqtf2u68rdnm34jg/f-sica.mp4?rlkey=ycq3sqd9r2t7twdlvx7leodik&st=pi7gkdgc&dl=0
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="646097", La Gran Muralla (2016)
 https://dl.dropbox.com/s/mn8wtasq82xrken/342536476587912344.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="58", Piratas del Caribe 2: El cofre de la muerte
@@ -1145,14 +1122,6 @@ https://dl.dropbox.com/s/vzv0dsmu8uoynui/Pirates.of.the.caribbean.at.worlds.end.
 https://dl.dropbox.com/s/baipaq04q2imj5g/l4m0m14.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="882569", El Pacto (2023)
 https://archive.org/download/the-king-of-fighters-2002-magic-plus-ll/The.Covenant.2023.DVDRip-Lat.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Niño de Shangai (2000)
-https://ia601608.us.archive.org/8/items/c-4rs-hd-720p-699968/Shangha41_Kid___del_este_al_oeste_HD__720p___1123111.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Nueva historia policial (2004)
-https://ia601608.us.archive.org/8/items/c-4rs-hd-720p-699968/New_Policia_Story_DVDRip__1420285.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Historia policial / Police History (1985)
-https://archive.org/download/refrigeradora/refrigeradora.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Shangai niño 2 (2003)
-https://ia601608.us.archive.org/8/items/c-4rs-hd-720p-699968/Shangh41_Kid_en_Londres_DVDRip__1139272.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="10951", Máximo Rival (1999)
 https://ia801608.us.archive.org/8/items/c-4rs-hd-720p-699968/M_ximo_rival_DVDRip__1094396.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="122857", Soldado Universal 4: El Juicio Final
@@ -1173,8 +1142,6 @@ https://dl.dropbox.com/s/nw9b7sdrknpxrv8/EL%20cuervo%20de%20brandon%20lee.mp4
 https://archive.org/download/026_20200428/026.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="849743", Devoción (2022)
 https://archive.org/download/devotion-720p-dual-1.4-gb/Devotion%20720p%20DUAL%201.4%20GB.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas", Chico libre (2021)
-https://archive.org/download/manguera_20210927/_Fr33%205uy.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="2501", El caso Bourne (2002)
 https://archive.org/download/boupe/boupe.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="2502", La supremacía Bourne (2004)
