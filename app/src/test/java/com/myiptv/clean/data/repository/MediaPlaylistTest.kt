@@ -96,6 +96,9 @@ class MediaPlaylistTest {
         assertEquals(0, catalog.ignoredEntries)
         assertTrue(catalog.sources.values.all { it.url.startsWith("https://") || it.url.startsWith("http://") })
         assertEquals(catalog.items.size, catalog.items.map { it.id }.distinct().size)
+        assertTrue("Los atributos pegados dentro del título deben corregirse antes de publicar", catalog.items.none {
+            it.title.contains("\" tvg-logo=") || it.title.contains("\" group-title=")
+        })
     }
 
     @Test

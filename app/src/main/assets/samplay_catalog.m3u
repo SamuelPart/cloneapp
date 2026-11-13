@@ -59,7 +59,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/285471.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/285470.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="192139", Al filo de la guerra (2026)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/285469.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Joven (1947)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/liMmXOj2TSVKuWuHo3ptZOfGnPY.jpg" group-title="→ VOD ESPECIAL CANTINFLAS ←",A Volar, Joven (1947)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/liMmXOj2TSVKuWuHo3ptZOfGnPY.jpg" group-title="→ VOD ESPECIAL CANTINFLAS ←",A Volar, Joven (1947)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/285467.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1471168", Barreda (2026)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/285468.mkv
@@ -153,7 +153,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283675.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283657.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1212763", Evil Dead: En llamas (2026)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283645.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", El último Maestro Aire (2026)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/e2VzQmZufeY3BPH0zWtIyr07Z7w.jpg" group-title="→ VOD ESTRENOS 2026 ←",Avatar: Aang, El último Maestro Aire (2026)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/e2VzQmZufeY3BPH0zWtIyr07Z7w.jpg" group-title="→ VOD ESTRENOS 2026 ←",Avatar: Aang, El último Maestro Aire (2026)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283656.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="505058", Eliminar Amigo
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283275.mkv
@@ -169,7 +169,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283272.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283271.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1284016", Letras Robadas (2026)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283270.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Una sonata en Paris (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/f4cLh2vVzKH8WCbplPFo6aCMpRC.jpg" group-title=" → VOD ESTRENOS 2025 ←",Chopin, Una sonata en Paris (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/f4cLh2vVzKH8WCbplPFo6aCMpRC.jpg" group-title=" → VOD ESTRENOS 2025 ←",Chopin, Una sonata en Paris (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283238.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Spider-Man: Un nuevo día (2026) CAM
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/283198.mp4
@@ -493,7 +493,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/281018.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280880.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1601797", ¿Quieres Ser Mi Novia? (2026)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280879.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", no (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fJm3kmd9NLZWypMas7g34oNFgbk.jpg" group-title=" → VOD ESTRENOS 2025 ←",Honey, no (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fJm3kmd9NLZWypMas7g34oNFgbk.jpg" group-title=" → VOD ESTRENOS 2025 ←",Honey, no (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280881.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1318447", Apex (2026)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280852.mkv
@@ -543,7 +543,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280557.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280559.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="39016", Más vivo que muerto (1954)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280552.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", mi conejo y yo (1958)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/kPAFgEl0GFeLg7mNWRNhOD4t9JS.jpg" group-title="→ VOD CLÁSICAS ←",Tú, mi conejo y yo (1958)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/kPAFgEl0GFeLg7mNWRNhOD4t9JS.jpg" group-title="→ VOD CLÁSICAS ←",Tú, mi conejo y yo (1958)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280553.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="99377", El Bocon (1967)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/280554.mkv
@@ -697,7 +697,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279647.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279357.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="425274", Los Ilusionistas
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279354.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", ahora no (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fw2sJqvY6wzRLhhAMsPlINVuPOQ.jpg" group-title="→ VOD SAGAS ←",Los ilusionistas 3: Ahora me ves, ahora no (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fw2sJqvY6wzRLhhAMsPlINVuPOQ.jpg" group-title="→ VOD SAGAS ←",Los ilusionistas 3: Ahora me ves, ahora no (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279356.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="291805", Los Ilusionistas 2 (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279355.mp4
@@ -743,7 +743,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279180.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279158.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="999243", Verano infernal (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279125.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", amor (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/u2xyvEmgkXmfMeCQcGf6mERNFfd.jpg" group-title=" → VOD ESTRENOS 2025 ←",Mátate, amor (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/u2xyvEmgkXmfMeCQcGf6mERNFfd.jpg" group-title=" → VOD ESTRENOS 2025 ←",Mátate, amor (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279126.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1259102", Eternity (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/279127.mp4
@@ -771,7 +771,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278787.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278784.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1244953", Cuestion de Confianza (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278783.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", June (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ygsMOnttVCekvJZgvmnvaemxPHA.jpg" group-title=" → VOD ESTRENOS 2025 ←",Adios, June (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ygsMOnttVCekvJZgvmnvaemxPHA.jpg" group-title=" → VOD ESTRENOS 2025 ←",Adios, June (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278782.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1255775", Merv (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278781.mp4
@@ -807,7 +807,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278702.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278701.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="2019", Hard Target
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278675.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", príncipe de los ladrones " tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/b0pJ0SZ9xAEpqo0tx7WOQ9xv8Ns.jpg" group-title="→ VOD AVENTURAS ←",Robin Hood, príncipe de los ladrones
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/b0pJ0SZ9xAEpqo0tx7WOQ9xv8Ns.jpg" group-title="→ VOD AVENTURAS ←",Robin Hood, príncipe de los ladrones
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278676.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1181540", Fritos a balazos (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278677.mp4
@@ -819,7 +819,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278670.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278667.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1267905", Los Rose (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278668.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", un deseo (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/uvSQ60H3F1AOPc44iibwk9ob1AV.jpg" group-title=" → VOD ESTRENOS 2025 ←",Dos mundos, un deseo (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/uvSQ60H3F1AOPc44iibwk9ob1AV.jpg" group-title=" → VOD ESTRENOS 2025 ←",Dos mundos, un deseo (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278661.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1323475", El Encanto del champan (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/278647.mp4
@@ -963,7 +963,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277921.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277917.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="501979", Bill y Ted salvan el universo
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277922.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", todo (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/p2t6pV9LlPuwHH2VKwWfHwxvPZc.jpg" group-title=" → VOD ESTRENOS 2025 ←",Contigo, todo (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/p2t6pV9LlPuwHH2VKwWfHwxvPZc.jpg" group-title=" → VOD ESTRENOS 2025 ←",Contigo, todo (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277916.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="941109", Juego Sucio (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277915.mp4
@@ -1061,7 +1061,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277280.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277275.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1083433", Sé lo que hicieron el verano pasado (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277273.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", casada, viuda, divorciada 2 (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/7vGti5pNo3qsAiZJHDo1ipxSmU5.jpg" group-title=" → VOD ESTRENOS 2025 ←",Soltera, casada, viuda, divorciada 2 (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/7vGti5pNo3qsAiZJHDo1ipxSmU5.jpg" group-title=" → VOD ESTRENOS 2025 ←",Soltera, casada, viuda, divorciada 2 (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277274.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1522847", Millonario (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/277263.mp4
@@ -1353,7 +1353,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272491.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272492.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1140535", Presence (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272489.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", del universo de John Wick (2025) CAM" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/vAlIRnwdp17A6HsOcEoqZJk0ZqJ.jpg" group-title="→ VOD CAM 2025 ←",Ballerina, del universo de John Wick (2025) CAM
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/vAlIRnwdp17A6HsOcEoqZJk0ZqJ.jpg" group-title="→ VOD CAM 2025 ←",Ballerina, del universo de John Wick (2025) CAM
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272488.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="870028", El Contador 2 (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272469.mp4
@@ -1363,7 +1363,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272466.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272470.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="339527", Premonicion
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272471.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", a las puertas de la Eternidad " tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/1pQCcuuXuc7XDReovgWZlbK7TN1.jpg" group-title="→ VOD DRAMA ←",Van Gogh, a las puertas de la Eternidad
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/1pQCcuuXuc7XDReovgWZlbK7TN1.jpg" group-title="→ VOD DRAMA ←",Van Gogh, a las puertas de la Eternidad
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272473.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="154400", La Entrega
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/272467.mp4
@@ -1667,7 +1667,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270468.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270467.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1442293", Desconectados 2: Reconectados (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270421.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", horrible, espantoso, horroroso (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/wMhEwAbb9sCaat4hjkhYByaLn1a.jpg" group-title=" → VOD ESTRENOS 2025 ←",Alexander y el viaje terrible, horrible, espantoso, horroroso (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/wMhEwAbb9sCaat4hjkhYByaLn1a.jpg" group-title=" → VOD ESTRENOS 2025 ←",Alexander y el viaje terrible, horrible, espantoso, horroroso (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270417.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="935766", Chico Bento e a Goiabeira Maraviosa (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270418.mp4
@@ -1703,7 +1703,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270311.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270306.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1155828", Las vidas de Sing Sing (2024)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270302.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", de Tyler Perry (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/k4fJun2pJ70BBFMgGAZddk3m7sg.jpg" group-title=" → VOD ESTRENOS 2025 ←",Duplicidad, de Tyler Perry (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/k4fJun2pJ70BBFMgGAZddk3m7sg.jpg" group-title=" → VOD ESTRENOS 2025 ←",Duplicidad, de Tyler Perry (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270304.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1000837", Aún Estoy Aquí (2024)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270303.mp4
@@ -1727,7 +1727,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270266.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270263.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1139937", Frogman (2024)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270264.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", ¡Me muero! (2024)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zRjj0HjUL1wXuSqV0ctKn5ObJu5.jpg" group-title=" → VOD ESTRENOS 2024 ←",María, ¡Me muero! (2024)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zRjj0HjUL1wXuSqV0ctKn5ObJu5.jpg" group-title=" → VOD ESTRENOS 2024 ←",María, ¡Me muero! (2024)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270265.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="777443", Estado Electrico (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270259.mp4
@@ -1769,7 +1769,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270213.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270215.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="661539", Un Completo Desconocido (2024)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270211.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", la película (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fCvwQJVcbjNub2PiKzZmQXR7i1I.jpg" group-title=" → VOD ESTRENOS 2025 ←",Plankton, la película (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fCvwQJVcbjNub2PiKzZmQXR7i1I.jpg" group-title=" → VOD ESTRENOS 2025 ←",Plankton, la película (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270210.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="667276", El Origen
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270209.mp4
@@ -1827,7 +1827,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270097.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270096.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="26125", El Defensor
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270095.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", sin Duda (2025)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/iwggouPpTK9VP0Z9bRQKtywUieL.jpg" group-title=" → VOD ESTRENOS 2025 ←",Ricos, sin Duda (2025)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/iwggouPpTK9VP0Z9bRQKtywUieL.jpg" group-title=" → VOD ESTRENOS 2025 ←",Ricos, sin Duda (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270094.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1422179", Por el mal Camino (2025)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/270093.mp4
@@ -1969,7 +1969,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/269758.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/269724.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="838240", Robot Dreams
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/269722.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", un mundo que salvar (2024)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/337MqZW7xii2evUDVeaWXAtopff.jpg" group-title=" → VOD ESTRENOS 2024 ←",Flow, un mundo que salvar (2024)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/337MqZW7xii2evUDVeaWXAtopff.jpg" group-title=" → VOD ESTRENOS 2024 ←",Flow, un mundo que salvar (2024)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/269723.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="438695", Sing 2
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/269714.mp4
