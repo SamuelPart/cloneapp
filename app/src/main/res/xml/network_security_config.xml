@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- All API, profile and ad traffic must use TLS. Only legacy archive.org media URLs opt out. -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- M3U and live-TV providers can use HTTP. Prefer HTTPS: HTTP media is not encrypted. -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
