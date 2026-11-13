@@ -99,6 +99,26 @@ class MediaPlaylistTest {
     }
 
     @Test
+    fun remoteAhsokaSeasonHasEightPlayableTmdbLinkedEpisodes() {
+        val asset = listOf(File("src/main/assets/samplay_catalog.m3u"), File("app/src/main/assets/samplay_catalog.m3u"))
+            .firstOrNull(File::isFile) ?: error("No se encontró el catálogo incluido")
+        val text = asset.readText(Charsets.UTF_8)
+        val catalog = MediaPlaylistParser.parse(text)
+        val series = catalog.items.single { it.tmdbId == 114461L }
+        assertEquals(MediaKind.SERIES, series.kind)
+        assertEquals("Ahsoka", series.title)
+        assertEquals(listOf(1), catalog.seasons(series.id))
+        assertEquals((1..8).toList(), catalog.episodes(series.id, 1).map { it.number })
+        assertEquals(8, catalog.sources.keys.count { it.startsWith("tmdb_tv_114461_s1_e") })
+        assertEquals(0, catalog.ignoredEntries)
+        for (episode in 1..8) {
+            val source = catalog.source("tmdb_tv_114461_s1_e$episode")
+            assertTrue("Falta la fuente directa de Ahsoka S1E$episode", source?.url?.startsWith("https://") == true)
+            assertEquals(MediaPlaybackType.DIRECT, source?.type)
+        }
+    }
+
+    @Test
     fun blankOptionalTmdbIdsAreEquivalentToMissingForMoviesAndEpisodes() {
         val text = """
             #EXTM3U
