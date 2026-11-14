@@ -113,7 +113,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/1972.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/1973.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="508570", El único y gran Iván (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/1974.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="594328", La película: Candace contra el universo (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/i5rPRIEf88IKSCM2loRy3iN2lQc.jpg" group-title="→ VOD ESTRENOS 2020 ←",Phineas y Ferb, La película: Candace contra el universo (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/i5rPRIEf88IKSCM2loRy3iN2lQc.jpg" group-title="→ VOD ESTRENOS 2020 ←" tmdb-match-id="594328",Phineas y Ferb, La película: Candace contra el universo (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/1975.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="589049", La fotografía (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/1976.mkv
@@ -191,7 +191,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2012.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2013.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="604822", Agentes Vanguard (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2014.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Divorciada y Fantástica (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/wpC0bIYYfAY0wLa8sjlzIspMQr4.jpg" group-title="→ VOD ESTRENOS 2020 ←",Veinteañera, Divorciada y Fantástica (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/wpC0bIYYfAY0wLa8sjlzIspMQr4.jpg" group-title="→ VOD ESTRENOS 2020 ←" tmdb-match-id="",Veinteañera, Divorciada y Fantástica (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2015.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="340971", Viena and the Fantomes (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2016.mkv
@@ -233,9 +233,9 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2033.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2034.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="551804", Freaky (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2035.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Scooby Doo! (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/lA6Z28Xye8iLzwUobx4eNeJYcSz.jpg" group-title="→ VOD ESTRENOS 2020 ←",¡Feliz Halloween, Scooby Doo! (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/lA6Z28Xye8iLzwUobx4eNeJYcSz.jpg" group-title="→ VOD ESTRENOS 2020 ←" tmdb-match-id="",¡Feliz Halloween, Scooby Doo! (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2036.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Doraemon 2 (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pGtjmJpYUO556JIJHl0TFVeb5wd.jpg" group-title="→ VOD ESTRENOS 2020 ←",Quédate conmigo, Doraemon 2 (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pGtjmJpYUO556JIJHl0TFVeb5wd.jpg" group-title="→ VOD ESTRENOS 2020 ←" tmdb-match-id="",Quédate conmigo, Doraemon 2 (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2038.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="736593", El Escape de Akilla (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2037.mkv
@@ -471,7 +471,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2480.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2481.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="520763", Un Lugar En Silencio: Parte 2 (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2482.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el chico caimán (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/oOQMJM7G2W8v2AEK722k8welIJY.jpg" group-title="→ VOD ESTRENOS 2021 ←",Arlo, el chico caimán (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/oOQMJM7G2W8v2AEK722k8welIJY.jpg" group-title="→ VOD ESTRENOS 2021 ←" tmdb-match-id="",Arlo, el chico caimán (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2483.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="503736", El ejército de los muertos (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/2484.mkv
@@ -977,7 +977,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72380.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72519.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="507089", Five Nights at Freddy's (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72520.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", casada, viuda, divorciada (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/9VIL1A787VntKNXbvsAQYlEnVAq.jpg" group-title="→ VOD ESTRENOS 2023 ←",Soltera, casada, viuda, divorciada (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/9VIL1A787VntKNXbvsAQYlEnVAq.jpg" group-title="→ VOD ESTRENOS 2023 ←" tmdb-match-id="",Soltera, casada, viuda, divorciada (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72522.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Hermana Muerte (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72523.mkv
@@ -1057,7 +1057,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72921.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72919.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="790459", Amame hasta con las uñas (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72920.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", pasión oculta (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fIbgMCU9lOGxJ7yR6owBgDqBVxT.jpg" group-title="→ VOD ESTRENOS 2023 ←",Bihter, pasión oculta (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fIbgMCU9lOGxJ7yR6owBgDqBVxT.jpg" group-title="→ VOD ESTRENOS 2023 ←" tmdb-match-id="",Bihter, pasión oculta (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72939.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="11011", Ricky Ricón (1994)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/72945.mkv
@@ -1119,7 +1119,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/74105.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/74417.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Cerrar los ojos (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/74418.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", soy del futuro (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zaJw3h9eyvEInR0IgClxjCFzAVC.jpg" group-title="→ VOD ESTRENOS 2023 ←",Tranquilo, soy del futuro (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zaJw3h9eyvEInR0IgClxjCFzAVC.jpg" group-title="→ VOD ESTRENOS 2023 ←" tmdb-match-id="",Tranquilo, soy del futuro (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/74441.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Todos los nombres de Dios (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/74419.mp4
@@ -1371,7 +1371,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/55022.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/55043.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Pasante de moda LAT (2015)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/55046.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", más furioso (2003)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/iZUSbYbUXol5AezpNIJwwENdyE0.jpg" group-title="→ VOD SAGA RÁPIDOS Y FURIOSOS ←",Más rápido, más furioso (2003)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/iZUSbYbUXol5AezpNIJwwENdyE0.jpg" group-title="→ VOD SAGA RÁPIDOS Y FURIOSOS ←" tmdb-match-id="",Más rápido, más furioso (2003)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/55356.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="385687", Rápidos y furiosos X (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/55354.mkv
@@ -1463,7 +1463,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/58324.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/58325.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1128720", Lo Desconocido: La Cueva de los Huesos (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/58327.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", me engaña (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fCcc6pc7PLSoIVdKkU6QzkEIIki.jpg" group-title="→ VOD ESTRENOS 2023 ←",Me miente, me engaña (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/fCcc6pc7PLSoIVdKkU6QzkEIIki.jpg" group-title="→ VOD ESTRENOS 2023 ←" tmdb-match-id="",Me miente, me engaña (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/58326.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Muerte Infinita (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/59154.mp4
@@ -1473,7 +1473,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/59759.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/59755.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Flash (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/59155.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", guardiana del bosque (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/qo8KSDeqFpCK9T7CJLx0wWbgWWj.jpg" group-title="→ VOD ESTRENOS SUBTITULADOS ←",Mavka, guardiana del bosque (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/qo8KSDeqFpCK9T7CJLx0wWbgWWj.jpg" group-title="→ VOD ESTRENOS SUBTITULADOS ←" tmdb-match-id="",Mavka, guardiana del bosque (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/59792.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="256274", Así en la Tierra como en el Infierno (2014)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/59387.mkv
@@ -1539,7 +1539,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/62290.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/62291.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="8987", Río salvaje (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/62292.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el chico problema (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zE1ytx8qXVh89vjAm0dYK9hLIAw.jpg" group-title="→ VOD ESTRENOS 2023 ←",Al descubierto: Jake Paul, el chico problema (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zE1ytx8qXVh89vjAm0dYK9hLIAw.jpg" group-title="→ VOD ESTRENOS 2023 ←" tmdb-match-id="",Al descubierto: Jake Paul, el chico problema (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/62293.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="682507", La chica salvaje (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/62294.mkv
@@ -1573,9 +1573,9 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/63792.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64560.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", El pico del diablo (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64559.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", blanco y sangre azul (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/5XGt6CpWpkGnGOrrjfOMhNzDDSS.jpg" group-title="→ VOD ESTRENOS 2023 ←",Rojo, blanco y sangre azul (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/5XGt6CpWpkGnGOrrjfOMhNzDDSS.jpg" group-title="→ VOD ESTRENOS 2023 ←" tmdb-match-id="",Rojo, blanco y sangre azul (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/63791.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Blanco y Sangre Azul (2023) CAST" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/7Hk7in9Vck0tW6KG7LD2l5DrjdB.jpg" group-title="→ VOD CASTELLANO 2023 ←",Rojo, Blanco y Sangre Azul (2023) CAST
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/7Hk7in9Vck0tW6KG7LD2l5DrjdB.jpg" group-title="→ VOD CASTELLANO 2023 ←" tmdb-match-id="",Rojo, Blanco y Sangre Azul (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64562.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="884605", Hazme el favor (2023) CAST
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64561.mp4
@@ -1583,7 +1583,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64561.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64564.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="821890", Pintemos (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64565.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1157400", Jet, Go! Campamento Espacial La Pelicula (2023)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/uLBQPfDvkOGFD6SVs72F7Sz0rky.jpg" group-title="→ VOD ESTRENOS 2023 ←",¡Ready, Jet, Go! Campamento Espacial La Pelicula (2023)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/uLBQPfDvkOGFD6SVs72F7Sz0rky.jpg" group-title="→ VOD ESTRENOS 2023 ←" tmdb-match-id="1157400",¡Ready, Jet, Go! Campamento Espacial La Pelicula (2023)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64566.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="18785", ¿Que Paso Ayer? (2009)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/64636.mp4
@@ -1643,7 +1643,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/65135.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/65452.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1830", El señor de la guerra (2005)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/65453.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el momento de la verdad (1984)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/sH7HK7phjO6NKsUaNi7tOWQ1k0t.jpg" group-title="→ VOD ACCIÓN ←",Karate Kid, el momento de la verdad (1984)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/sH7HK7phjO6NKsUaNi7tOWQ1k0t.jpg" group-title="→ VOD ACCIÓN ←" tmdb-match-id="",Karate Kid, el momento de la verdad (1984)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/65454.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="8856", Karate Kid II: La Historia Continúa (1986)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/65455.mp4
@@ -1683,7 +1683,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7526.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7527.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="333318", Scherzo diabólico (2015)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7528.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", toc (2015)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/hRDVNV7einjCZHGQJ3j6Mqcjdaa.jpg" group-title="→ VOD TERROR ←",Toc, toc (2015)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/hRDVNV7einjCZHGQJ3j6Mqcjdaa.jpg" group-title="→ VOD TERROR ←" tmdb-match-id="",Toc, toc (2015)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7529.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="334175", Siccîn (2014)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7531.mp4
@@ -1989,7 +1989,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7687.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7688.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="6529", Hondo (1953)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7689.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el malo y el feo (1966)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/vd9uj5KLlOrJnvNH03exLDlMAE0.jpg" group-title="→ VOD WESTERN ←",El bueno, el malo y el feo (1966)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/vd9uj5KLlOrJnvNH03exLDlMAE0.jpg" group-title="→ VOD WESTERN ←" tmdb-match-id="",El bueno, el malo y el feo (1966)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7691.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="771894", Yo soy la ley (1991)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7690.mkv
@@ -1999,7 +1999,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7693.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7692.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="44921", La ley del talión (1972)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7694.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Jr. (1942)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/64hcwJuJPIM305yrIr7OBUje5ZA.jpg" group-title="→ VOD WESTERN ←",Jesse James, Jr. (1942)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/64hcwJuJPIM305yrIr7OBUje5ZA.jpg" group-title="→ VOD WESTERN ←" tmdb-match-id="",Jesse James, Jr. (1942)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7695.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="537996", La balada de Buster Scruggs (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7696.mkv
@@ -2013,7 +2013,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7698.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7700.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="9359", Maverick (1994)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7702.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", La flor del mal (2019)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/nDpcuZKg6lahhqEkUrXUa3XkNeh.jpg" group-title="→ VOD WESTERN ←",Luz, La flor del mal (2019)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/nDpcuZKg6lahhqEkUrXUa3XkNeh.jpg" group-title="→ VOD WESTERN ←" tmdb-match-id="",Luz, La flor del mal (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7701.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="496882", Mis demonios nunca juraron soledad (2017)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7703.mkv
@@ -2093,7 +2093,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7741.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7742.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="9086", Jóvenes pistoleros II (1990)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7743.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el malo y el feo (1966)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/vd9uj5KLlOrJnvNH03exLDlMAE0.jpg" group-title="→ VOD WESTERN ←",El bueno, el malo y el feo (1966)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/vd9uj5KLlOrJnvNH03exLDlMAE0.jpg" group-title="→ VOD WESTERN ←" tmdb-match-id="",El bueno, el malo y el feo (1966)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7744.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="41857", Bandolero (1968)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7745.avi
@@ -2107,7 +2107,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7748.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7749.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="600583", El Poder Del Perro (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7750.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el rey del oeste (1970)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/dzfh0KKuXai0n8F4zX5nc1DTlZL.jpg" group-title="→ VOD WESTERN ←",Chisum, el rey del oeste (1970)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/dzfh0KKuXai0n8F4zX5nc1DTlZL.jpg" group-title="→ VOD WESTERN ←" tmdb-match-id="",Chisum, el rey del oeste (1970)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7752.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="150226", Giù la testa... hombre (1971)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7751.mkv
@@ -2143,7 +2143,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7768.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7769.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="12106", Rápida y mortal (1995)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7770.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el desconocido (1953)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/goDI3aR3Yncm0dWs1OLyhZpmfoX.jpg" group-title="→ VOD WESTERN ←",Shane, el desconocido (1953)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/goDI3aR3Yncm0dWs1OLyhZpmfoX.jpg" group-title="→ VOD WESTERN ←" tmdb-match-id="",Shane, el desconocido (1953)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7771.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="169", Depredador 2 (1990)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/8968.mp4
@@ -2457,9 +2457,9 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6575.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6577.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="405458", Mini Force: Los nuevos superhéroes (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6574.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", una aventura tropical (2016)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/kpIVvfpP7ye5TexmvnuL8j3hMol.jpg" group-title="→ VOD INFANTILES ←",Robinson, una aventura tropical (2016)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/kpIVvfpP7ye5TexmvnuL8j3hMol.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Robinson, una aventura tropical (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6576.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", patos (2018)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/96NP9cZh43GJYSmr4E3lqpQoSrB.jpg" group-title="→ VOD INFANTILES ←",Al aire, patos (2018)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/96NP9cZh43GJYSmr4E3lqpQoSrB.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Al aire, patos (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6578.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="487670", La muerte de Superman (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6579.mp4
@@ -2481,7 +2481,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6587.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6588.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="385722", Los superhéroes (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6586.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Arnold!: Una peli en la jungla (2017)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zprqN4OxmCKlel6BfU5WeqzTyCf.jpg" group-title="→ VOD INFANTILES ←",¡Ey, Arnold!: Una peli en la jungla (2017)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/zprqN4OxmCKlel6BfU5WeqzTyCf.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",¡Ey, Arnold!: Una peli en la jungla (2017)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6589.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="476631", Barbie y Los delfines mágicos (2017)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6590.mp4
@@ -2507,7 +2507,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6600.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6601.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="504997", Lego DC Comics Super Heroes: Flash (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6602.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el zorro de cinco colas (2007)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/mZD7eTo5Lc9Qytws9ft476unYI6.jpg" group-title="→ VOD INFANTILES ←",Yobi, el zorro de cinco colas (2007)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/mZD7eTo5Lc9Qytws9ft476unYI6.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Yobi, el zorro de cinco colas (2007)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6603.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="326215", ¡Upsss! ¿Dónde está Noé...? (2015)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6604.mp4
@@ -2523,7 +2523,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6607.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6608.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="446893", Trolls 2: Gira Mundial (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6611.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="454626", la película (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/rK25c71fYVi0Bv7RrTChK7NAQjC.jpg" group-title="→ VOD INFANTILES ←",Sonic, la película (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/rK25c71fYVi0Bv7RrTChK7NAQjC.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="454626",Sonic, la película (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6610.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="412117", Mascotas 2 (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6609.mkv
@@ -2565,7 +2565,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6651.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6652.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="274862", La Lego Ninjago película (2017)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6650.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Mighty Pups: Super PAWs (2018)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ePXH5P1t8MpOUSzhwEWmNTA0Sc2.jpg" group-title="→ VOD INFANTILES ←",PAW Patrol, Mighty Pups: Super PAWs (2018)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ePXH5P1t8MpOUSzhwEWmNTA0Sc2.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",PAW Patrol, Mighty Pups: Super PAWs (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6655.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="408220", La Liga de la Justicia Oscura (2017)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6653.mp4
@@ -2631,7 +2631,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6686.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6687.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="529790", Pachamama (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6689.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Mighty Pups: Super PAWs (2018)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ePXH5P1t8MpOUSzhwEWmNTA0Sc2.jpg" group-title="→ VOD INFANTILES ←",PAW Patrol, Mighty Pups: Super PAWs (2018)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ePXH5P1t8MpOUSzhwEWmNTA0Sc2.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",PAW Patrol, Mighty Pups: Super PAWs (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6690.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="494407", La película Pokémon: El poder de todos (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6691.mp4
@@ -2715,7 +2715,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6730.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6732.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="242643", Batman: El asalto de Arkham (2014)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6731.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", una aventura en miniatura (1998)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/3zc9gBzw0egrp7lMrE0zqFkNMms.jpg" group-title="→ VOD INFANTILES ←",Bichos, una aventura en miniatura (1998)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/3zc9gBzw0egrp7lMrE0zqFkNMms.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Bichos, una aventura en miniatura (1998)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6734.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="366924", Batman: Mala sangre (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6733.mkv
@@ -2885,7 +2885,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6816.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6817.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="153158", Futbolín (2013)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6818.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="21385", Donald y Goofy: Los tres mosqueteros (2004)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/5Ksryc9HHjSikRJNaX4LvBThROS.jpg" group-title="→ VOD INFANTILES ←",Mickey, Donald y Goofy: Los tres mosqueteros (2004)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/5Ksryc9HHjSikRJNaX4LvBThROS.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="21385",Mickey, Donald y Goofy: Los tres mosqueteros (2004)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6819.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="20352", Gru. Mi villano favorito (2010)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6820.mkv
@@ -2893,7 +2893,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6820.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6821.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="9297", Monster House (2006)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6822.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", S.A. (2001)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/g3SgHEb5ej2MioGfYLrZVshF909.jpg" group-title="→ VOD INFANTILES ←",Monstruos, S.A. (2001)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/g3SgHEb5ej2MioGfYLrZVshF909.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Monstruos, S.A. (2001)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6823.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="62211", Monstruos University (2013)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6824.mkv
@@ -2909,15 +2909,15 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6828.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6830.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="28032", Pulgarcita (1994)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6829.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el robosapien (2013)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/gaqSskw7kNNpyZjtW5QA8nnKQUn.jpg" group-title="→ VOD INFANTILES ←",Cody, el robosapien (2013)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/gaqSskw7kNNpyZjtW5QA8nnKQUn.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Cody, el robosapien (2013)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6832.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", la cigüeña (2017)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/IaXwzJU42eYni9rU5bJFodaOE6.jpg" group-title="→ VOD INFANTILES ←",Richard, la cigüeña (2017)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/IaXwzJU42eYni9rU5bJFodaOE6.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Richard, la cigüeña (2017)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6831.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="46195", Rio (2011)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6833.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="172385", Rio 2 (2014)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6834.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", felices para siempre (2010)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/3MyKXb1ozCfq61tPNKpIggwvP6J.jpg" group-title="→ VOD INFANTILES ←",Shrek, felices para siempre (2010)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/3MyKXb1ozCfq61tPNKpIggwvP6J.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Shrek, felices para siempre (2010)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6836.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="21956", Scooby-Doo y el monstruo de México (2003)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6835.mp4
@@ -2953,7 +2953,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6850.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6851.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="62177", Indomable (2012)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6852.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Doraemon 2 (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pGtjmJpYUO556JIJHl0TFVeb5wd.jpg" group-title="→ VOD INFANTILES ←",Stand by Me, Doraemon 2 (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pGtjmJpYUO556JIJHl0TFVeb5wd.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Stand by Me, Doraemon 2 (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6853.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="12599", Pokémon 2: El poder de uno (1999)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6854.mkv
@@ -2975,7 +2975,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6860.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6862.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="47292", Pokémon: Giratina y el defensor de los cielos (2008)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6863.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el maestro de ilusiones (2010)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/wyIzCXga51hExOLrSa60W64lxCD.jpg" group-title="→ VOD INFANTILES ←",Pokémon:  Zoroark, el maestro de ilusiones (2010)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/wyIzCXga51hExOLrSa60W64lxCD.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Pokémon:  Zoroark, el maestro de ilusiones (2010)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6864.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="10228", Pokémon: La película (1998)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6865.mkv
@@ -3011,7 +3011,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6878.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6880.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="381719", Peter Rabbit (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6881.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="544052", el pequeño dragón. Aventuras en la Jungla (2018)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/tYLiyeoRBwNosk0NNh5uoqeEgEj.jpg" group-title="→ VOD INFANTILES ←",Coco, el pequeño dragón. Aventuras en la Jungla (2018)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/tYLiyeoRBwNosk0NNh5uoqeEgEj.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="544052",Coco, el pequeño dragón. Aventuras en la Jungla (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6882.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="2062", Ratatouille (2007)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6883.mkv
@@ -3073,7 +3073,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6910.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6911.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="580461", Super papá oso (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6912.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Scooby Doo! (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/lA6Z28Xye8iLzwUobx4eNeJYcSz.jpg" group-title="→ VOD INFANTILES ←",¡Feliz Halloween, Scooby Doo! (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/lA6Z28Xye8iLzwUobx4eNeJYcSz.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",¡Feliz Halloween, Scooby Doo! (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6913.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="724475", Ben 10 contra el Universo: La película (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6914.mp4
@@ -3081,7 +3081,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6914.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6915.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="627661", Academia Cranston: Escuela de Monstruos (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6916.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="594328", la película: Candace contra el universo (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/i5rPRIEf88IKSCM2loRy3iN2lQc.jpg" group-title="→ VOD INFANTILES ←",Phineas y Ferb, la película: Candace contra el universo (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/i5rPRIEf88IKSCM2loRy3iN2lQc.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="594328",Phineas y Ferb, la película: Candace contra el universo (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6917.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="560050", Más allá de la Luna (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6918.mkv
@@ -3099,7 +3099,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6923.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6924.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="529203", Los Croods: Una nueva era (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6925.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Go Wild (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/c1ShGitHkuHYaO6ohaNRdq0UMKl.jpg" group-title="→ VOD INFANTILES ←",Curious George: Go West, Go Wild (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/c1ShGitHkuHYaO6ohaNRdq0UMKl.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Curious George: Go West, Go Wild (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6926.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="732721", Super Wombat (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6927.mp4
@@ -3137,7 +3137,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6943.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6944.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="50359", Hop (2011)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6945.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el chico caimán (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/oOQMJM7G2W8v2AEK722k8welIJY.jpg" group-title="→ VOD INFANTILES ←",Arlo, el chico caimán (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/oOQMJM7G2W8v2AEK722k8welIJY.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Arlo, el chico caimán (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6946.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="326359", Frozen Fever (2015)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6947.mkv
@@ -3159,7 +3159,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6954.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6955.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="394759", Ovejas y lobos (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6956.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", la leyenda de Ladygragon (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/r6zthVPVoq1urTOsLgofPGel89d.jpg" group-title="→ VOD INFANTILES ←",Miraculous World:  Shanghái, la leyenda de Ladygragon (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/r6zthVPVoq1urTOsLgofPGel89d.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Miraculous World:  Shanghái, la leyenda de Ladygragon (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6957.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="555457", 4 chicos y "Esto" (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6958.mp4
@@ -3181,11 +3181,11 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6967.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6968.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="459151", El bebé jefazo: Negocios de familia (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6969.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el malo y Loki (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/u10ZfFwbCMB4UrFy7OlHq08fBRr.jpg" group-title="→ VOD INFANTILES ←",Los Simpson: la buena, el malo y Loki (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/u10ZfFwbCMB4UrFy7OlHq08fBRr.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Los Simpson: la buena, el malo y Loki (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6970.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="16000", Ben 10: Carrera contrarreloj (2008)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6971.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", la leyenda de Ladygragon (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/r6zthVPVoq1urTOsLgofPGel89d.jpg" group-title="→ VOD INFANTILES ←",Miraculous World:  Shanghái, la leyenda de Ladygragon (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/r6zthVPVoq1urTOsLgofPGel89d.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Miraculous World:  Shanghái, la leyenda de Ladygragon (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6972.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="379686", Space Jam: Nuevas Leyendas (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6974.mkv
@@ -3209,7 +3209,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6981.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6982.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="851281", Monster Hunter: Leyendas del gremio (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6983.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", ciudad santuario (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/jjV1DY1SlGI1eUJAXSdre8bpw7t.jpg" group-title="→ VOD INFANTILES ←",Daisy Quokka, ciudad santuario (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/jjV1DY1SlGI1eUJAXSdre8bpw7t.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Daisy Quokka, ciudad santuario (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6984.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="17421", G.I. Joe: La Película (1987)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6985.mkv
@@ -3217,9 +3217,9 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6985.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6986.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="573164", Un rescate de huevitos (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6987.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", un héroe muy especial (2018)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/xXeXUDBWjzrntL1D9vo1y4jIEdH.jpg" group-title="→ VOD INFANTILES ←",Sargento Stubby, un héroe muy especial (2018)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/xXeXUDBWjzrntL1D9vo1y4jIEdH.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Sargento Stubby, un héroe muy especial (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6988.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el perro cobarde (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/g9cyiDTw5SQhbI7SRDjBUMr14kV.jpg" group-title="→ VOD INFANTILES ←",¡Scooby-Doo! Conoce a Agallas, el perro cobarde (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/g9cyiDTw5SQhbI7SRDjBUMr14kV.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",¡Scooby-Doo! Conoce a Agallas, el perro cobarde (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6989.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="850818", Barbie: Grandes sueños en la gran ciudad (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/6990.mkv
@@ -3255,7 +3255,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7004.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7006.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="774741", El diario de Greg (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7010.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Doraemon 2 (2020)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pGtjmJpYUO556JIJHl0TFVeb5wd.jpg" group-title="→ VOD INFANTILES ←",Stand by Me, Doraemon 2 (2020)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pGtjmJpYUO556JIJHl0TFVeb5wd.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Stand by Me, Doraemon 2 (2020)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7007.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="482321", Ron da error (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7008.mkv
@@ -3293,13 +3293,13 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7025.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7026.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="585083", Hotel Transilvania: Transformanía (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7027.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", vaquero! (2022)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/muIaHotSaSUQr0KZCIJOYQEe7y2.jpg" group-title="→ VOD INFANTILES ←",Tom y Jerry: ¡Arriba, vaquero! (2022)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/muIaHotSaSUQr0KZCIJOYQEe7y2.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Tom y Jerry: ¡Arriba, vaquero! (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7029.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="756403", Riverdance - La aventura animada (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7028.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="774825", Ice Age: Las aventuras de Buck (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7030.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="879097", la invasión: Especial Misión a Marte (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/7arpOTIATZAcSzTLWhYyyGPGf5v.jpg" group-title="→ VOD INFANTILES ←",Rabbids, la invasión: Especial Misión a Marte (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/7arpOTIATZAcSzTLWhYyyGPGf5v.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="879097",Rabbids, la invasión: Especial Misión a Marte (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7031.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="508947", Red (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7032.mkv
@@ -3329,7 +3329,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7043.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7046.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="14787", Tom y Jerry: el anillo mágico (2002)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7045.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", el polloliebre (2022)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/eU0QHFGA3f9yEQpLnkJjFs0vrUF.jpg" group-title="→ VOD INFANTILES ←",Hopper, el polloliebre (2022)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/eU0QHFGA3f9yEQpLnkJjFs0vrUF.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Hopper, el polloliebre (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7047.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="952217", Rey Piolín (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7048.mkv
@@ -3403,7 +3403,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7081.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7082.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="939210", La Gran Aventura De Blue En La Ciudad (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7083.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", mi amigo el cocodrilo (2022)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/piJK8RL8YBP4QZ2ZY1hLGS5uMa4.jpg" group-title="→ VOD INFANTILES ←",Lilo, mi amigo el cocodrilo (2022)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/piJK8RL8YBP4QZ2ZY1hLGS5uMa4.jpg" group-title="→ VOD INFANTILES ←" tmdb-match-id="",Lilo, mi amigo el cocodrilo (2022)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7084.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="394723", El hilo rojo (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7100.mp4
@@ -3415,9 +3415,9 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7102.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7103.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="497514", Mi Enamorado Secreto (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7105.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Romance & Chocolate (2019)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/l0ay0Td2gxq2zEdAlphb2RsdeTX.jpg" group-title="→ VOD ROMANCE ←",Love, Romance & Chocolate (2019)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/l0ay0Td2gxq2zEdAlphb2RsdeTX.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",Love, Romance & Chocolate (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7104.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", más allá del amor (2018)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pCYPA1yWkTGpEAyMOOGiEQqAoBo.jpg" group-title="→ VOD ROMANCE ←",Uma, más allá del amor (2018)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/pCYPA1yWkTGpEAyMOOGiEQqAoBo.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",Uma, más allá del amor (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7106.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="565391", El hombre del mañana (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7107.mp4
@@ -3455,7 +3455,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7122.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7123.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="428836", Ophelia (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7126.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", nada (2018)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/2VTHRTwLlnFDlNUxc8MEeFwCQTm.jpg" group-title="→ VOD ROMANCE ←",De tonta, nada (2018)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/2VTHRTwLlnFDlNUxc8MEeFwCQTm.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",De tonta, nada (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7125.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="487624", Cat Skin (2017)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7124.mp4
@@ -3469,7 +3469,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7129.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7130.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="432167", #Selfi 69 (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7131.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Ramona! (2019)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/mscdZrk8k6VTVOgbVF5IpsaA8sK.jpg" group-title="→ VOD ROMANCE ←",Oh, Ramona! (2019)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/mscdZrk8k6VTVOgbVF5IpsaA8sK.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",Oh, Ramona! (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7132.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="513576", Quizás para siempre (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7133.mp4
@@ -3493,7 +3493,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7141.mp4
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7142.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="507612", Tonari no Kaibutsu-kun (2018)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7143.mp4
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", I Love You (2019)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/i9LdjJWgYIaOkvG7NtTcq5Ox4nO.jpg" group-title="→ VOD ROMANCE ←",Berlin, I Love You (2019)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/i9LdjJWgYIaOkvG7NtTcq5Ox4nO.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",Berlin, I Love You (2019)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7145.mp4
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="413543", Dear Zindagi (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7146.mp4
@@ -3611,11 +3611,11 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7201.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7203.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="4688", A traves del universo (2007)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7202.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", pudor y lágrimas (1999)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/1j3TiCXSguHi3IGumXKpQymvUKH.jpg" group-title="→ VOD ROMANCE ←",Sexo, pudor y lágrimas (1999)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/1j3TiCXSguHi3IGumXKpQymvUKH.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",Sexo, pudor y lágrimas (1999)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7204.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="1725", Amor sin barreras (1961)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7205.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Cámara y Romance (2021)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ne85kCEdV3hopUPnfhuvOOJfpFH.jpg" group-title="→ VOD ROMANCE ←",Luces,Cámara y Romance (2021)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/ne85kCEdV3hopUPnfhuvOOJfpFH.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",Luces,Cámara y Romance (2021)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7207.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="11036", Diario de una pasión (2004)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7206.mkv
@@ -3633,7 +3633,7 @@ http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7212.mkv
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7214.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="345920", Belleza inesperada (2016)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7215.mkv
-#EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="", Todos a Bailar (2011)" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/o6aYS5DEN58E3lVe4BIb2b1Fidl.jpg" group-title="→ VOD ROMANCE ←",Footloose, Todos a Bailar (2011)
+#EXTINF:-1 media-type="movie" tvg-logo="https://image.tmdb.org/t/p/w600_and_h900_bestv2/o6aYS5DEN58E3lVe4BIb2b1Fidl.jpg" group-title="→ VOD ROMANCE ←" tmdb-match-id="",Footloose, Todos a Bailar (2011)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7217.mkv
 #EXTINF:-1 tvg-logo="" group-title="Peliculas" tmdb-match-id="38050", Los agentes del destino (2011)
 http://myultratv.com:8080/movie/8712479/7T8g5r4ED6F/7216.mkv
