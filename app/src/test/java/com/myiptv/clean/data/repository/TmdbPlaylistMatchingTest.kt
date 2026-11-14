@@ -49,6 +49,30 @@ class TmdbPlaylistMatchingTest {
     }
 
     @Test
+    fun tmdbSearchStripsPlaylistQualityLabelsAndKeepsTheYear() = runBlocking {
+        val asset = listOf(File("src/main/assets/samplay_catalog.m3u"), File("app/src/main/assets/samplay_catalog.m3u"))
+            .firstOrNull(File::isFile) ?: error("No se encontró el catálogo incluido")
+        val playlist = MediaPlaylistParser.parse(asset.readText(Charsets.UTF_8))
+        val odyssey = playlist.items.single { it.title == "La Odisea (2026) CAM" }
+        val search = playlistTmdbSearch(odyssey)
+        assertEquals(PlaylistTmdbSearch(MediaKind.MOVIE, "La Odisea", 2026), search)
+        assertEquals(
+            PlaylistTmdbSearch(MediaKind.MOVIE, "La Odisea", 2026),
+            playlistTmdbSearch(odyssey.copy(title = "La Odisea (CAM) (2026)", year = 0))
+        )
+        val elio = playlist.items.single { it.title == "Elio (2025) QEPD TOMIII 11 CAM" }
+        assertEquals(PlaylistTmdbSearch(MediaKind.MOVIE, "Elio", 2025), playlistTmdbSearch(elio))
+
+        val match = findPlaylistTmdbMatch(search!!) { request, page ->
+            assertEquals(1, page)
+            assertEquals("La Odisea", request.title)
+            assertEquals(2026, request.year)
+            TmdbPageResponse(listOf(TmdbMediaResponse(id = 99, title = "La Odisea", releaseDate = "2026-07-17")))
+        }
+        assertEquals(99L, match?.id)
+    }
+
+    @Test
     fun metadataOnlyIdKeepsExistingM3uIdsAndRejectsConflictingEpisodeIds() {
         val plain = catalog()
         val withIds = MediaPlaylistParser.parse(

@@ -12,16 +12,34 @@ internal data class PlaylistTmdbSearch(val kind: MediaKind, val title: String, v
 
 private const val MAX_MATCH_PAGES = 5
 private val trailingYear = Regex("""\s+\(((?:19|20)\d{2})\)\s*$""")
+private val sourceQualityToken = """(?:CAM|CAST|SUB|DUAL|LAT|FULL\s*HD|(?:480|720|1080|2160)P|HD|C/ANUNCIOS|QEPD(?:\s+[A-Z0-9]+)*)"""
+private val trailingSourceQuality = Regex("""(?i)(?:\s+(?:$sourceQualityToken|\($sourceQualityToken\)))+$""")
 private val combiningMarks = Regex("\\p{M}+")
 private val titleSeparators = Regex("[^\\p{L}\\p{N}]+")
 
+/** Remove playlist/source labels without sending them as part of the title search. */
+private fun stripSourceQuality(title: String): String {
+    var clean = title.trim()
+    while (true) {
+        val stripped = trailingSourceQuality.replace(clean, "").trim()
+        if (stripped == clean) return clean
+        clean = stripped
+    }
+}
+
 /** The year in a title or M3U attribute must agree; a conflict is not a safe match. */
 internal fun playlistTmdbSearch(item: MediaItem): PlaylistTmdbSearch? {
-    val yearMatch = trailingYear.find(item.title)
+    val withoutTrailingLabels = stripSourceQuality(item.title)
+    val yearMatch = trailingYear.find(withoutTrailingLabels)
     val titleYear = yearMatch?.groupValues?.get(1)?.toIntOrNull()
     val attributeYear = item.year.takeIf { it > 0 }
     if (titleYear != null && attributeYear != null && titleYear != attributeYear) return null
-    val title = (if (yearMatch != null) item.title.substring(0, yearMatch.range.first) else item.title).trim()
+    val titleWithPossibleLabel = if (yearMatch != null) {
+        withoutTrailingLabels.substring(0, yearMatch.range.first)
+    } else {
+        withoutTrailingLabels
+    }
+    val title = stripSourceQuality(titleWithPossibleLabel)
     if (normalizedTmdbTitle(title).isBlank()) return null
     return PlaylistTmdbSearch(item.kind, title, attributeYear ?: titleYear)
 }
