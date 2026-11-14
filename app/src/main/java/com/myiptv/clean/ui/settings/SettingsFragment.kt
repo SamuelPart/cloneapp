@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import com.myiptv.clean.BuildConfig
 import com.myiptv.clean.R
 import com.myiptv.clean.databinding.FragmentSettingsBinding
 
@@ -24,7 +25,7 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.versionLabel.text = getString(R.string.app_version)
+        binding.versionLabel.text = getString(R.string.app_version, BuildConfig.VERSION_NAME)
     }
 
     override fun onDestroyView() {

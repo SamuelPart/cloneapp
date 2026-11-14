@@ -23,6 +23,32 @@ interface TmdbApi {
         @Query("page") page: Int
     ): TmdbPageResponse
 
+    @GET("trending/all/week")
+    suspend fun trendingThisWeek(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
+    @GET("discover/movie")
+    suspend fun discoverMovies(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("with_genres") genreId: Int,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
+    @GET("discover/tv")
+    suspend fun discoverSeries(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("with_genres") genreId: Int,
+        @Query("with_origin_country") originCountry: String? = null,
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
     @GET("genre/movie/list")
     suspend fun movieGenres(
         @Query("api_key") apiKey: String,
@@ -40,6 +66,26 @@ interface TmdbApi {
         @Query("api_key") apiKey: String,
         @Query("language") language: String,
         @Query("query") query: String,
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
+    @GET("search/movie")
+    suspend fun searchMovies(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("query") query: String,
+        @Query("primary_release_year") year: Int? = null,
+        @Query("include_adult") includeAdult: Boolean = false,
+        @Query("page") page: Int = 1
+    ): TmdbPageResponse
+
+    @GET("search/tv")
+    suspend fun searchSeries(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String,
+        @Query("query") query: String,
+        @Query("first_air_date_year") year: Int? = null,
         @Query("include_adult") includeAdult: Boolean = false,
         @Query("page") page: Int = 1
     ): TmdbPageResponse

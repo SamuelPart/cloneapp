@@ -18,5 +18,15 @@ data class IptvOrgStream(
     val url: String? = null,
     val referrer: String? = null,
     @SerializedName("user_agent") val userAgent: String? = null,
-    val labels: List<String>? = null
+    val labels: List<String>? = null,
+    val quality: String? = null
+)
+
+/** Optional artwork metadata; SVGs and other unsupported formats are ignored. */
+data class IptvOrgLogo(
+    val channel: String? = null,
+    val feed: String? = null,
+    @SerializedName("in_use") val inUse: Boolean? = null,
+    val format: String? = null,
+    val url: String? = null
 )

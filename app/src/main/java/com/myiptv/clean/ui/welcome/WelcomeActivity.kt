@@ -2,169 +2,241 @@ package com.myiptv.clean.ui.welcome
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
+import android.view.KeyEvent
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.LiveTv
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.myiptv.clean.R
+import com.myiptv.clean.CleanIPTVApp
 import com.myiptv.clean.ui.compose.CleanIPTVTheme
 import com.myiptv.clean.ui.compose.IptvActivity
+import com.myiptv.clean.ui.compose.TvBrandLogo
+import com.myiptv.clean.ui.compose.isTelevisionDevice
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class WelcomeActivity : AppCompatActivity() {
+    private var isTelevision = false
+    private val navigationGate = WelcomeNavigationGate()
+    private val ads get() = (application as CleanIPTVApp).ads
+    private var firstResume = true
+    private var pendingAfterAd = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(9, 13, 20)
-        window.navigationBarColor = android.graphics.Color.rgb(9, 13, 20)
+        val background = ContextCompat.getColor(this, R.color.background)
+        isTelevision = isTelevisionDevice()
+        window.statusBarColor = background
+        window.navigationBarColor = background
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+            if (isTelevision) {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
         setContent {
             CleanIPTVTheme {
-                WelcomeScreen(onContinue = {
-                    startActivity(Intent(this, IptvActivity::class.java))
-                    finish()
-                })
+                WelcomeScreen(
+                    onContinue = { openContent(allowAppOpen = false) },
+                    onTimeout = { openContent(allowAppOpen = true) },
+                )
+            }
+        }
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                if (pendingAfterAd) navigateWhenResumed()
             }
         }
     }
-}
 
-@Composable
-private fun WelcomeScreen(onContinue: () -> Unit) {
-    val focusRequester = remember { FocusRequester() }
-    var buttonFocused by remember { mutableStateOf(false) }
-    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(Color(0xFF090D14))) {
-        val isTv = maxWidth >= 840.dp
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(Brush.linearGradient(listOf(Color(0xFF10172A), Color(0xFF090D14), Color(0xFF101C25))))
-            drawCircle(Color(0xFF9870FF).copy(alpha = 0.18f), radius = size.maxDimension * 0.35f, center = Offset(size.width * 0.88f, size.height * 0.16f))
-            drawCircle(Color(0xFF6DE3CF).copy(alpha = 0.11f), radius = size.maxDimension * 0.3f, center = Offset(size.width * 0.12f, size.height * 0.92f))
-            drawCircle(Color.White.copy(alpha = 0.14f), radius = size.minDimension * 0.18f, center = Offset(size.width * 0.83f, size.height * 0.22f), style = Stroke(width = 1.5.dp.toPx()))
-            for (index in 0..9) {
-                drawLine(Color.White.copy(alpha = 0.035f), Offset(size.width * index / 10f, 0f), Offset(size.width * (index + 1) / 10f, size.height), 1.dp.toPx())
-            }
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = if (isTv) 80.dp else 26.dp, vertical = if (isTv) 48.dp else 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier.size(if (isTv) 96.dp else 80.dp).clip(RoundedCornerShape(28.dp)).background(
-                    Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, Color(0xFF7252D2)))
-                ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.LiveTv, contentDescription = "CLEAN IPTV", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(if (isTv) 48.dp else 40.dp))
-            }
-            Spacer(Modifier.height(18.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("CLEAN IPTV", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, letterSpacing = 4.sp)
-                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color(0xFFFFD38B), modifier = Modifier.size(18.dp))
-            }
-            Spacer(Modifier.height(18.dp))
-            Text(
-                "Tu contenido,\na tus fuentes.",
-                modifier = Modifier.fillMaxWidth(if (isTv) 0.75f else 1f),
-                color = Color.White,
-                style = if (isTv) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.Center,
-                lineHeight = if (isTv) 62.sp else 43.sp
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "Canales de TV en directo de distintos países, metadatos de películas y series y enlaces que configuras en tu dispositivo.",
-                modifier = Modifier.fillMaxWidth(if (isTv) 0.58f else 0.94f),
-                color = Color.White.copy(alpha = 0.73f),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(22.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
-                WelcomeFeature("TV en directo")
-                WelcomeFeature("TMDb")
-                WelcomeFeature("Directo / iframe")
-            }
-            Spacer(Modifier.height(30.dp))
-            Button(
-                onClick = onContinue,
-                modifier = Modifier
-                    .fillMaxWidth(if (isTv) 0.38f else 0.82f)
-                    .height(54.dp)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { buttonFocused = it.isFocused }
-                    .border(if (buttonFocused) 2.dp else 0.dp, if (buttonFocused) MaterialTheme.colorScheme.secondary else Color.Transparent, RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)
-            ) {
-                Text("Explorar contenido", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-            }
-            Spacer(Modifier.height(15.dp))
-            Text(
-                "La reproducción requiere enlaces públicos y autorizados.",
-                modifier = Modifier.fillMaxWidth(if (isTv) 0.68f else 1f),
-                color = Color.White.copy(alpha = 0.52f),
-                style = MaterialTheme.typography.labelMedium,
-                textAlign = TextAlign.Center
-            )
-        }
+    override fun onResume() {
+        super.onResume()
+        ads.onActivityResumed(this, newLaunch = firstResume, isWelcome = true)
+        firstResume = false
     }
-    LaunchedEffect(Unit) {
-        delay(180)
-        runCatching { focusRequester.requestFocus() }
-    }
-}
 
-@Composable
-private fun WelcomeFeature(label: String) {
-    Surface(
-        modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(50)),
-        shape = RoundedCornerShape(50),
-        color = Color.White.copy(alpha = 0.06f)
+    override fun onPause() {
+        ads.onActivityPaused(this)
+        super.onPause()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean = when (
+        welcomeKeyResult(isTelevision, event.keyCode, event.action, event.isCanceled)
     ) {
-        Text(label, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), color = Color.White.copy(alpha = 0.86f), style = MaterialTheme.typography.labelMedium)
+        WelcomeKeyResult.OPEN_CONTENT -> {
+            openContent(allowAppOpen = false)
+            true
+        }
+        WelcomeKeyResult.CONSUME -> true
+        WelcomeKeyResult.PASS_THROUGH -> super.dispatchKeyEvent(event)
     }
+
+    /** The timer and a tap/remote OK can finish together; open the content only once. */
+    private fun openContent(allowAppOpen: Boolean) {
+        if (isFinishing || isDestroyed || !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) ||
+            !navigationGate.tryOpen()
+        ) return
+        // A tap/OK must enter immediately; only the automatic splash timeout may show
+        // an already-loaded ad. Never wait for a download or show it on Android TV.
+        if (!allowAppOpen || isTelevision || !ads.showAppOpenOnWelcome(this, ::navigateWhenResumed)) {
+            navigateWhenResumed()
+        }
+    }
+
+    private fun navigateWhenResumed() {
+        if (isFinishing || isDestroyed) return
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            pendingAfterAd = true
+            return
+        }
+        pendingAfterAd = false
+        startActivity(Intent(this, IptvActivity::class.java).putExtra(IptvActivity.EXTRA_FROM_WELCOME, true))
+        finish()
+    }
+
+}
+
+@Composable
+private fun WelcomeScreen(onContinue: () -> Unit, onTimeout: () -> Unit) {
+    val context = LocalContext.current
+    val uiMode = LocalConfiguration.current.uiMode
+    val isTelevision = remember(context, uiMode) { context.isTelevisionDevice(uiMode) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentOnTimeout by rememberUpdatedState(onTimeout)
+    var savedElapsedMs by rememberSaveable { mutableLongStateOf(0L) }
+    val clock = remember { LionVisibleClock(savedElapsedMs) }
+    var expression by remember { mutableStateOf(LionWelcomeTimeline.expressionAt(savedElapsedMs)) }
+    var eyeScale by remember { mutableFloatStateOf(LionWelcomeTimeline.eyeScaleAt(savedElapsedMs)) }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            clock.resume(SystemClock.elapsedRealtime())
+            try {
+                while (true) {
+                    val elapsed = clock.elapsedAt(SystemClock.elapsedRealtime())
+                    if (LionWelcomeTimeline.isFinished(elapsed)) {
+                        currentOnTimeout()
+                        break
+                    }
+                    expression = LionWelcomeTimeline.expressionAt(elapsed)
+                    eyeScale = LionWelcomeTimeline.eyeScaleAt(elapsed)
+                    val waitMs = LionWelcomeTimeline.millisUntilVisualUpdate(elapsed)
+                    if (waitMs > 0L) delay(waitMs) else withFrameNanos { }
+                }
+            } finally {
+                val now = SystemClock.elapsedRealtime()
+                clock.pause(now)
+                savedElapsedMs = clock.elapsedAt(now)
+            }
+        }
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        val isTvLayout = isTelevision || maxWidth >= 840.dp
+        val availableWidth = (maxWidth - 48.dp).coerceAtLeast(48.dp)
+        val availableHeight = (maxHeight - 104.dp).coerceAtLeast(48.dp)
+        val lionSize = minOf(availableWidth, availableHeight, if (isTvLayout) 360.dp else 300.dp)
+
+        Column(
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            AnimatedLion(expression = expression, eyeScale = eyeScale, size = lionSize, onContinue = onContinue)
+            Spacer(Modifier.height(8.dp))
+            TvBrandLogo(Modifier.width(170.dp).height(56.dp))
+        }
+    }
+}
+
+@Composable
+private fun AnimatedLion(expression: LionExpression, eyeScale: Float, size: Dp, onContinue: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val skipLabel = stringResource(R.string.welcome_skip_animation)
+    Box(
+        modifier = Modifier.size(size).clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            role = Role.Button,
+            onClickLabel = skipLabel,
+            onClick = onContinue,
+        )
+    ) {
+        Image(
+            painter = painterResource(R.drawable.samplay_lion_animation_base),
+            contentDescription = stringResource(R.string.welcome_lion_description),
+            modifier = Modifier.fillMaxSize(),
+        )
+        Image(
+            painter = painterResource(expression.eyeDrawable()),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize().graphicsLayer {
+                scaleY = eyeScale
+                // The overlays use a 512 x 512 viewport; pivot at the center of the eyes.
+                transformOrigin = TransformOrigin(0.5f, 247f / 512f)
+            },
+        )
+    }
+}
+
+private fun LionExpression.eyeDrawable(): Int = when (this) {
+    LionExpression.HALF_CLOSED -> R.drawable.samplay_lion_eyes_01
+    LionExpression.WORRIED -> R.drawable.samplay_lion_eyes_02
+    LionExpression.WINK -> R.drawable.samplay_lion_eyes_03
+    LionExpression.DETERMINED -> R.drawable.samplay_lion_eyes_04
+    LionExpression.SKEPTICAL -> R.drawable.samplay_lion_eyes_05
+    LionExpression.NEUTRAL -> R.drawable.samplay_lion_eyes_06
+    LionExpression.HAPPY -> R.drawable.samplay_lion_eyes_07
+    LionExpression.SLEEPY -> R.drawable.samplay_lion_eyes_08
+    LionExpression.CURIOUS -> R.drawable.samplay_lion_eyes_09
+    LionExpression.DIZZY -> R.drawable.samplay_lion_eyes_10
+    LionExpression.CONNECTED -> R.drawable.samplay_lion_eyes_11
+    LionExpression.SQUEEZED -> R.drawable.samplay_lion_eyes_12
 }

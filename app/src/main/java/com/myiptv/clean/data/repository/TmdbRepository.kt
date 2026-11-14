@@ -28,7 +28,9 @@ object TmdbRepository {
             .create(TmdbApi::class.java)
     }
 
-    private val mediaCache = ConcurrentHashMap<String, MediaItem>()
+    private data class CachedMedia(val item: MediaItem, val hasDetails: Boolean)
+
+    private val mediaCache = ConcurrentHashMap<String, CachedMedia>()
     private var movieGenresById: Map<Int, String> = emptyMap()
     private var seriesGenresById: Map<Int, String> = emptyMap()
 
@@ -41,6 +43,15 @@ object TmdbRepository {
         val response = api.popularSeries(BuildConfig.TMDB_API_KEY, LANGUAGE, 1)
         return response.toMediaItems("tv", seriesGenresById)
     }
+
+    suspend fun trendingThisWeek(): List<MediaItem> =
+        api.trendingThisWeek(BuildConfig.TMDB_API_KEY, LANGUAGE).toMixedMediaItems()
+
+    suspend fun discoverMovies(genreId: Int): List<MediaItem> =
+        api.discoverMovies(BuildConfig.TMDB_API_KEY, LANGUAGE, genreId).toMediaItems("movie", movieGenresById)
+
+    suspend fun discoverSeries(genreId: Int, originCountry: String? = null): List<MediaItem> =
+        api.discoverSeries(BuildConfig.TMDB_API_KEY, LANGUAGE, genreId, originCountry).toMediaItems("tv", seriesGenresById)
 
     suspend fun genreNames(kind: MediaKind): List<String> {
         val response = if (kind == MediaKind.MOVIE) {
@@ -58,23 +69,42 @@ object TmdbRepository {
     suspend fun search(query: String): List<MediaItem> {
         if (query.isBlank()) return emptyList()
         val response = api.searchMulti(BuildConfig.TMDB_API_KEY, LANGUAGE, query.trim())
-        return response.results.orEmpty()
-            .filter { it.mediaType == "movie" || it.mediaType == "tv" }
-            .mapNotNull { media ->
-                val type = media.mediaType ?: return@mapNotNull null
-                media.toMediaItem(type, genreMapFor(type)).also { mediaCache[it.id] = it }
-            }
+        return response.toMixedMediaItems()
+    }
+
+    /** Resolve an M3U title without ever changing its local ID or its video source. */
+    suspend fun playlistMetadata(local: MediaItem): MediaItem? {
+        if (!isConfigured) return null
+        return resolvePlaylistTmdbMetadata(
+            local = local,
+            search = { search ->
+                val match = findPlaylistTmdbMatch(search) { request, page ->
+                    if (request.kind == MediaKind.MOVIE) {
+                        api.searchMovies(BuildConfig.TMDB_API_KEY, LANGUAGE, request.title, request.year, page = page)
+                    } else {
+                        api.searchSeries(BuildConfig.TMDB_API_KEY, LANGUAGE, request.title, request.year, page = page)
+                    }
+                }
+                val type = if (search.kind == MediaKind.MOVIE) "movie" else "tv"
+                match?.toMediaItem(type, genreMapFor(type))?.also(::cacheSummary)
+            },
+            detail = { id, type -> details("tmdb_${type}_$id") }
+        )
     }
 
     suspend fun details(itemId: String): MediaItem? {
-        val parsed = parseTmdbId(itemId) ?: return mediaCache[itemId]
+        mediaCache[itemId]?.takeIf(CachedMedia::hasDetails)?.let { return it.item }
+        val parsed = parseTmdbId(itemId) ?: return mediaCache[itemId]?.item
         val (tmdbId, mediaType) = parsed
         val detail = if (mediaType == "movie") {
             api.movieDetails(tmdbId, BuildConfig.TMDB_API_KEY, LANGUAGE)
         } else {
             api.seriesDetails(tmdbId, BuildConfig.TMDB_API_KEY, LANGUAGE)
         }
-        return detail.toMediaItem(mediaType, genreMapFor(mediaType)).also { mediaCache[it.id] = it }
+        if (detail.id != tmdbId) return null
+        return detail.toMediaItem(mediaType, genreMapFor(mediaType)).also { item ->
+            synchronized(mediaCache) { mediaCache[item.id] = CachedMedia(item, hasDetails = true) }
+        }
     }
 
     suspend fun seasonEpisodes(seriesId: Long, seasonNumber: Int): List<MediaEpisode> {
@@ -82,15 +112,31 @@ object TmdbRepository {
         return response.episodes.orEmpty().map { it.toMediaEpisode() }
     }
 
-    fun cachedMedia(itemId: String): MediaItem? = mediaCache[itemId]
+    fun cachedMedia(itemId: String): MediaItem? = mediaCache[itemId]?.item
 
-    fun cachedCatalog(): List<MediaItem> = mediaCache.values.toList()
+    fun cachedCatalog(): List<MediaItem> = mediaCache.values.map(CachedMedia::item)
 
     private fun TmdbPageResponse.toMediaItems(
         mediaType: String,
         genreMap: Map<Int, String>
     ): List<MediaItem> = results.orEmpty().map { media ->
-        media.toMediaItem(mediaType, genreMap).also { mediaCache[it.id] = it }
+        media.toMediaItem(mediaType, genreMap).also(::cacheSummary)
+    }
+
+    /** Only movies and series from mixed search/trending responses can be opened as media. */
+    internal fun TmdbPageResponse.toMixedMediaItems(): List<MediaItem> =
+        results.orEmpty().mapNotNull { media ->
+            val type = media.mediaType?.takeIf { it == "movie" || it == "tv" } ?: return@mapNotNull null
+            media.toMediaItem(type, genreMapFor(type)).also(::cacheSummary)
+        }
+
+    private fun cacheSummary(item: MediaItem) {
+        // Trending/discover requests can finish after a detail request; keep the richer ficha.
+        synchronized(mediaCache) {
+            if (mediaCache[item.id]?.hasDetails != true) {
+                mediaCache[item.id] = CachedMedia(item, hasDetails = false)
+            }
+        }
     }
 
     private fun TmdbMediaResponse.toMediaItem(
@@ -126,6 +172,12 @@ object TmdbRepository {
             tmdbMediaType = mediaType,
             castNames = credits?.cast.orEmpty().take(12).mapNotNull { cast -> cast.name?.takeIf(String::isNotBlank) },
             seasonCount = numberOfSeasons,
+            directorNames = credits?.crew.orEmpty()
+                .filter { it.job.equals("Director", ignoreCase = true) }
+                .mapNotNull { it.name?.takeIf(String::isNotBlank) }
+                .distinct()
+                .take(3),
+            countryNames = productionCountries.orEmpty().mapNotNull { it.name?.takeIf(String::isNotBlank) }.distinct(),
             episodeCount = numberOfEpisodes
         )
     }
@@ -144,7 +196,7 @@ object TmdbRepository {
     private fun parseTmdbId(itemId: String): Pair<Long, String>? {
         val parts = itemId.split('_')
         if (parts.size != 3 || parts[0] != "tmdb" || parts[1] !in setOf("movie", "tv")) return null
-        val id = parts[2].toLongOrNull() ?: return null
+        val id = parts[2].toLongOrNull()?.takeIf { it > 0 } ?: return null
         return id to parts[1]
     }
 

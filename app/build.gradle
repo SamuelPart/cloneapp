@@ -11,18 +11,34 @@ if (localPropertiesFile.exists()) {
     localPropertiesFile.withInputStream { localProperties.load(it) }
 }
 def tmdbApiKey = localProperties.getProperty('tmdb.api.key', System.getenv('TMDB_API_KEY') ?: '')
+def supabaseUrl = localProperties.getProperty('supabase.url', System.getenv('SUPABASE_URL') ?: 'https://cbjnntxiytyaonfrknng.supabase.co')
+def supabasePublishableKey = localProperties.getProperty('supabase.publishable.key', System.getenv('SUPABASE_PUBLISHABLE_KEY') ?: 'sb_publishable_jkHz_zJDmldOKfEDLkamWg_9kbod4D9')
 
 android {
     namespace 'com.myiptv.clean'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.myiptv.clean'
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName '1.0.0'
+        versionCode 16
+        versionName '1.2.13'
         buildConfigField 'String', 'TMDB_API_KEY', '"' + tmdbApiKey + '"'
+        buildConfigField 'String', 'SUPABASE_URL', '"' + supabaseUrl + '"'
+        buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', '"' + supabasePublishableKey + '"'
+    }
+
+    // Keep the existing GitHub updater only in its APK; Play updates through Google Play.
+    flavorDimensions += 'distribution'
+    productFlavors {
+        github {
+            dimension 'distribution'
+        }
+        play {
+            dimension 'distribution'
+            targetSdk 36
+        }
     }
 
     compileOptions {
@@ -46,7 +62,10 @@ android {
 
     buildTypes {
         release {
+            debuggable false
+            // LibVLC loads JNI/native code dynamically; keep the signed release aligned with debug.
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -54,6 +73,9 @@ android {
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'com.google.zxing:core:3.5.3'
+    // Inject the ad-layer guard at document start, including third-party iframe documents.
+    implementation 'androidx.webkit:webkit:1.11.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.fragment:fragment-ktx:1.6.2'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
@@ -66,17 +88,23 @@ dependencies {
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
 
-    // Player libraries are ready for a future HLS/DASH source integration.
-    implementation 'com.google.android.exoplayer:exoplayer:2.19.1'
-    implementation 'com.google.android.exoplayer:exoplayer-hls:2.19.1'
-    implementation 'com.google.android.exoplayer:exoplayer-dash:2.19.1'
-    implementation 'com.google.android.exoplayer:exoplayer-ui:2.19.1'
+    // Last Google Mobile Ads release compatible with Android 5.0 (API 21).
+    // Google deprecated 23.x and plans to sunset it on 2027-06-30; plan its replacement.
+    implementation 'com.google.android.gms:play-services-ads:23.6.0'
+    // UMP 3.x still supports API 21. Collect privacy choices before initializing ads.
+    implementation 'com.google.android.ump:user-messaging-platform:3.2.0'
+
+    // VLC's native engine handles direct channels and videos on phones and Android TV.
+    implementation 'org.videolan.android:libvlc-all:3.6.4'
 
     implementation platform('androidx.compose:compose-bom:2024.06.00')
     implementation 'androidx.activity:activity-compose:1.8.2'
+    implementation 'androidx.compose.runtime:runtime'
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.animation:animation-core'
     implementation 'androidx.compose.ui:ui-graphics'
     implementation 'androidx.compose.ui:ui-tooling-preview'
     implementation 'androidx.compose.material3:material3'

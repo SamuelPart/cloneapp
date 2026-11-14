@@ -1,81 +1,187 @@
-# Clean IPTV
+# SamPlay
 
-Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. El catálogo de películas y series usa metadatos de TMDb; los canales combinan la lista pública de TDTChannels con emisiones directas de IPTV-org de distintos países. TMDb no proporciona vídeo: cada película o serie necesita que el usuario configure una fuente de reproducción directa o un embed iframe autorizado.
+Aplicación Android en Kotlin y Jetpack Compose para móvil y Android TV. Los metadatos de películas y series pueden obtenerse de TMDb; los canales proceden de TDTChannels e IPTV-org. TMDb no proporciona vídeos: las fuentes de películas y series se añaden al catálogo M3U del proyecto.
 
 ## Fuentes y comportamiento
 
-- **Películas y series:** TMDb aporta títulos, géneros, búsqueda, fichas, reparto, temporadas, episodios, pósteres e imágenes. Sin una API Key válida, la app muestra estados vacíos/configuración; no sustituye resultados por contenido de muestra.
-- **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta canales y streams directos desde `https://iptv-org.github.io/api/channels.json` y `streams.json`, sin limitar por país ni por etiquetas del catálogo. Se muestran entradas con nombre y URL HTTP/HTTPS directa; no se extraen enlaces de páginas embed ni se eluden bloqueos. Algunas señales pueden estar caídas o restringidas por su proveedor. La programación EPG no está integrada.
-- **Reproducción de vídeo:** admite enlaces directos compatibles con ExoPlayer (incluidos HLS/DASH) y páginas/URLs de embed iframe mediante WebView. Las fuentes de películas y series se guardan en el almacenamiento privado del dispositivo; no hay catálogo de enlaces de vídeo incluido.
-- **Descargas e historial:** todavía no están implementados y muestran estados vacíos, no datos ficticios.
-- **Favoritos:** se mantienen en memoria durante la sesión actual.
-- **Android TV:** navegación lateral, foco visible y controles aptos para mando; móvil usa navegación inferior.
+- **Películas y series:** TMDb aporta títulos, géneros, fichas, reparto, temporadas, episodios e imágenes cuando hay una API Key configurada. El M3U también puede incluir títulos propios sin ID de TMDb. Sin datos disponibles, la app muestra estados vacíos en vez de contenido ficticio.
+- **Vídeos:** `app/src/main/assets/samplay_catalog.m3u` contiene el catálogo de películas y series mantenido por su propietario; puede cambiar con el tiempo. Admite enlaces HTTP/HTTPS directos que pueda reproducir LibVLC (incluidos HLS y DASH) y URLs o código de iframe/embed. Los vídeos guardados localmente en versiones anteriores siguen sirviendo como respaldo; no hay botones para añadir o cambiar enlaces en las fichas. Si existen ambas fuentes para el mismo título o episodio, prevalece la del M3U. No se ha verificado la disponibilidad de estos enlaces.
+- **Canales:** TDTChannels se carga desde `https://www.tdtchannels.com/lists/tv.m3u8`. IPTV-org aporta canales y streams directos de distintos países. Solo se muestran entradas con nombre y URL HTTP/HTTPS directa; no se extraen enlaces de páginas embed ni se eluden bloqueos. Las señales dependen de sus proveedores y no hay programación EPG integrada. En móvil se muestran la categoría, el país y la calidad máxima cuando la fuente los facilita, no títulos de programas inventados. Los números son posiciones en la lista visible de SamPlay, no números oficiales del operador. Los logotipos de IPTV-org se consultan aparte y de manera opcional; si tardan, fallan o no son compatibles, se muestran las iniciales sin retrasar la reproducción.
+- **Descargas e historial:** todavía no están implementados y muestran estados vacíos.
+- **Favoritos:** se guardan localmente para que sigan disponibles al cerrar la app y al instalar una actualización sobre ella con la misma firma. Las versiones antiguas solo los mantenían en memoria y no pueden recuperar favoritos ya perdidos.
 
-Usa únicamente emisiones abiertas y enlaces para los que tengas autorización. Respeta las condiciones de TDTChannels y los proveedores de cada contenido. La app no intenta eludir DRM, geobloqueos, autenticación ni otras restricciones. Para admitir algunas fuentes públicas, Android permite tráfico HTTP sin cifrar; prefiere HTTPS cuando esté disponible y ten en cuenta que HTTP puede ser interceptado.
+Usa únicamente emisiones y enlaces para los que tengas autorización. La app no intenta eludir DRM, geobloqueos, autenticación ni otras restricciones. Para admitir algunas fuentes públicas, Android permite tráfico HTTP sin cifrar; prefiere HTTPS cuando esté disponible.
+
+## Interfaz y reproductor
+
+El icono de SamPlay muestra el leoncito de cristal blanco sobre negro: es adaptable en Android 8 o superior y tiene versiones para dispositivos anteriores. El inicio de Android TV utiliza un banner de 320 × 180 con la mascota y el nombre. En la bienvenida, la mascota muestra 12 expresiones de ojos, una por segundo, con un parpadeo breve entre ellas, SamPlay debajo y el mismo fondo de antes. Al terminar se abre el contenido; también se puede entrar antes tocando la mascota o pulsando OK en el mando. Si la app pasa a segundo plano, la animación se pausa y continúa al regresar.
+
+SamPlay conserva su fondo oscuro en móvil y TV. En móvil, Inicio muestra un carrusel de destacados, pestañas de catálogo y filas de pósteres reales del M3U o TMDb; Películas, Series, Kids y Anime usan una cuadrícula vertical de pósteres. La barra inferior conserva los mismos cinco accesos en Inicio y Canales, y el menú superior mantiene las demás secciones. El carrusel se puede deslizar y se pausa al salir de la app. La pantalla móvil de canales muestra el vídeo arriba, pestañas de canales y favoritos, filtros horizontales y una lista con los datos disponibles. La vista previa se ajusta al espacio disponible y conserva la proporción de la señal. Toca una fila para cambiar la señal, la flecha para abrir su ficha y el corazón del reproductor para guardarla; la lupa busca en los canales y el botón de recarga actualiza las fuentes. El icono de compartir envía el nombre y la URL directa de la señal a la aplicación elegida. La vista previa y los cambios de canal empiezan directamente; al ampliar a pantalla completa o reproducir desde una ficha, puede aparecer una invitación opcional con «Ver anuncio», «Usar monedas» y «Continuar gratis». Si no hay un anuncio disponible, hay un pase activo o no se dispone de una clasificación apta, se continúa sin espera. No se ofrece en TV, Kids ni a menores o con edad desconocida. La expansión gratuita conserva el mismo reproductor. En TV se conserva el menú lateral izquierdo y el foco para el mando. «Tendencias esta semana» y «Documentales» usan datos reales de TMDb. Kids y Anime requieren TMDb; Kids no sustituye la supervisión parental.
+
+En móvil, **Buscar** abre una pantalla independiente con un campo, botones de volver y cancelar y una lista numerada. Si TMDb responde se muestran sus títulos populares; si no, se ofrecen títulos reales del M3U, sin presentarlos como estadísticas de búsquedas. La recarga permite ver más sugerencias o reintentar TMDb. Al escribir se buscan películas, series, géneros y canales, incluso sin tildes; TMDb necesita su clave y conexión y puede devolver fichas sin enlace. Volver o cancelar regresa a la pantalla anterior y restaura la barra inferior. Android TV conserva su búsqueda anterior.
+
+Los canales y vídeos directos utilizan **LibVLC 3.6.4**, integrado en SamPlay; no hace falta instalar la aplicación VLC aparte. Se conservan los campos `userAgent` y `referrer` de los canales cuando el proveedor los facilita. El motor ofrece mayor compatibilidad con formatos de audio, pero el sonido sigue dependiendo de la señal y del dispositivo: no puede garantizarse en todos los canales. Si una señal ofrece varias pistas, usa **Audio** para seleccionar una; si no hay ninguna disponible, se indicará en pantalla.
+
+En móvil, los controles de SamPlay se ocultan tras unos segundos sin interacción, incluso si el vídeo está pausado; el primer toque los muestra y, con ellos visibles, tocar el centro pausa o reanuda. En la vista previa de canales, el botón de sonido silencia solo ese reproductor; al expandirlo se usa el mismo VLC, sin crear una segunda sesión. En páginas con controles del proveedor, el toque también llega a la página y sus propios controles pueden comportarse de otra manera. El botón **Pantalla completa** gira el reproductor en horizontal y oculta las barras de estado/notificaciones y navegación; al salir o pulsar Atrás se restauran la orientación solicitada y las barras anteriores. La orientación final también depende de la rotación y el bloqueo del dispositivo. Android puede mostrar las barras temporalmente al deslizar desde el borde. Un reproductor web que solicite su propia pantalla completa utiliza el mismo modo inmersivo en móvil.
+
+En móvil, **Ajustes** muestra el saldo de Monedas SamPlay y agrupa catálogo, notificaciones, actualizaciones, privacidad de anuncios y atribuciones en secciones desplegables con movimientos suaves. Los detalles y acciones existentes se conservan al abrir cada sección. La notificación de una actualización abre su sección correspondiente; cerrar una sección no cancela una descarga en curso. **Monedas SamPlay** mantiene una página independiente para consultar recompensas y canjes. Android TV conserva sus Ajustes anteriores y no muestra el acceso de monedas.
+
+En la sección TV de Android TV se mantienen el menú izquierdo y el fondo actual; el vídeo aparece en el centro y la lista de canales reales, a la derecha. Selecciona un canal de la lista y enfoca la vista previa: **OK** abre el mismo vídeo en pantalla completa sin reiniciarlo y **Atrás** vuelve a la lista. Los botones **CH+ / CH−** avanzan o retroceden en el orden de la lista, también en pantalla completa. La ficha y los favoritos del canal, la búsqueda, los filtros y la actualización están en la cabecera de la lista.
+
+La supervisión revisa los eventos de VLC alrededor de los 3–5 segundos. No considera un tiempo de espera o una carga lenta como prueba de que el enlace está caído, ni abre una segunda conexión mientras VLC sigue cargando o reproduciendo: algunos proveedores solo permiten una sesión. Si VLC informa de un fallo terminal, hace una comprobación HTTP limitada con los encabezados del canal; ante una respuesta inconclusa, una URL que responde o una señal que ya había reproducido, reintenta una vez. Si después sigue sin poder confirmar el fallo, espera en vez de saltar una señal posiblemente lenta. Las respuestas de la comprobación y de VLC pueden diferir; no siempre es posible decidir en 3–5 segundos. Si no hay red, espera y vuelve a probar el mismo canal. El avance automático no vuelve a visitar canales fallidos indefinidamente; al agotar la lista, permite seleccionar uno para reintentar.
+
+En pantalla completa, el botón central del mando pausa o reanuda cuando el vídeo tiene el foco; con las flechas puedes revelar los controles y desplazarte entre ellos. La barra y los saltos de 10 segundos aparecen solo cuando VLC permite buscar en la fuente; en emisiones que no admiten pausa, la app lo indica. Una pausa elegida por el usuario no provoca un cambio automático de canal. Al salir de la app se detiene el audio; al regresar se intenta recuperar la posición en los vídeos que permiten búsqueda y el estado de pausa.
+
+Las páginas web y embeds se abren en WebView. Un **bot local basado en reglas** (no un servicio de IA externo) intenta detectar el vídeo, pulsar Play o iniciarlo automáticamente y cerrar u ocultar capas de anuncios reconocibles. Además, si el WebView admite `DOCUMENT_START_SCRIPT`, SamPlay ejecuta un filtro de capas publicitarias al comienzo de cada página y cada iframe, incluidos los de otro origen. En WebViews antiguos utiliza un filtro de respaldo en la página y los iframes accesibles del mismo origen. El filtro no pulsa enlaces y procura conservar los vídeos, iframes de reproducción y controles; no puede reconocer todos los anuncios ni eliminar los que están integrados en la imagen o el audio del vídeo.
+
+También se bloquean ventanas emergentes, recursos de varias redes publicitarias conocidas y navegaciones principales fuera del proveedor; los iframes de vídeo en otros dominios siguen permitidos salvo que coincidan con la lista de anuncios. El bloqueo es limitado y puede afectar a algún proveedor que necesite una redirección externa. Si una redirección bloqueada impide cargar la página, la app muestra el dominio y permite autorizarlo explícitamente solo durante esa reproducción; nunca autoriza redes publicitarias conocidas ni rebajas de HTTPS a HTTP. No se incluyen credenciales ni se instala una interfaz JavaScript con acceso nativo.
+
+Cuando el bot puede acceder al elemento de vídeo HTML de la página o de un iframe del mismo origen, muestra los controles de SamPlay para reproducir, pausar y buscar. El botón **Controles web** vuelve a los originales del proveedor. Si el proveedor rechaza el inicio automático por exigir un toque, la app muestra sus controles para que el usuario lo inicie. Si el vídeo está en un iframe de otro origen, protegido o sin una API accesible, se mantienen los controles del proveedor: el bot no puede garantizar inicio automático, pausa, avance ni eliminación completa de anuncios en esos casos. Las páginas externas, sus enlaces y audio no se han probado en un dispositivo. Al pasar al fondo se intenta pausar el vídeo accesible; un iframe que el bot no puede controlar se descarga y vuelve a cargar al regresar, por lo que puede perder su posición. VLC y su selector de audio se usan solo con fuentes directas.
+
+LibVLC añade bibliotecas nativas para varias arquitecturas, por lo que puede aumentar el tamaño del APK. Consulta el [proyecto y la licencia de LibVLC](https://github.com/videolan/vlc-android) antes de distribuir la aplicación.
+
+Las imágenes de las fichas aparecen suavemente al cargar y mantienen un fondo de reserva si fallan. La tipografía [Inter](https://github.com/rsms/inter/tree/66647c0bbbe41a850d79d9c76fb13add3378940f) se distribuye bajo SIL Open Font License 1.1; la licencia está en `app/src/main/assets/licenses/Inter-OFL.txt`.
+
+## Distribuciones GitHub y Google Play
+
+SamPlay tiene dos variantes para conservar ambas formas de distribución:
+
+| Variante | Formato habitual | SDK mínimo | SDK de destino | Actualizaciones de la app |
+| --- | --- | --- | --- | --- |
+| `githubRelease` | APK firmado | 21 | 34 | Release de GitHub con el instalador de SamPlay descrito abajo |
+| `playRelease` | AAB firmado | 21 | 36 | Google Play; sin descargador/instalador de APK de GitHub |
+
+Ambas comparten `applicationId` (`com.myiptv.clean`), catálogo, favoritos y la mayor parte de la interfaz. La compilación usa SDK 36; el **mínimo** sigue siendo Android 5.0 (API 21), distinto del SDK de destino. La configuración actual usa `versionCode 16` y `versionName 1.2.13`; antes de publicar confirma en Play Console que el código no haya sido utilizado y auméntalo si fuera necesario. No se ha generado ni firmado automáticamente ningún AAB ni APK.
+
+Para generar el AAB de Play en Android Studio:
+
+1. Trae los últimos cambios de la rama `arena/2b6cd77d-cloneapp`, sincroniza Gradle y permite instalar Android SDK Platform 36 si Studio lo solicita. Usa JDK 17 y una versión de Android Studio compatible con AGP 8.10, como Meerkat Feature Drop o posterior.
+2. Elige **Build → Generate Signed Bundle / APK → Android App Bundle**, selecciona la **misma clave de carga** que usaste antes y, en las variantes, marca **`playRelease`**, no `githubRelease`. Guarda la clave fuera del repositorio y no compartas la contraseña.
+3. Sube el AAB recién generado al borrador de prueba interna, retirando el AAB anterior si sigue seleccionado. Comprueba en Play Console que indique paquete `com.myiptv.clean`, versión `16 (1.2.13)`, mínimo 21 y destino 36. Revisa el manifiesto combinado de `playRelease`: no debe contener `REQUEST_INSTALL_PACKAGES`, `AppUpdateSyncJob` ni `AppUpdateFileProvider`; el trabajo del catálogo debe conservarse.
+4. Prueba en móvil y TV, especialmente Android 15/16, barras del sistema, mando y reproducción a pantalla completa. Play puede realizar comprobaciones adicionales y estas instrucciones no garantizan su aceptación.
+
+Para GitHub, elige **APK → `githubRelease`**, fírmalo con el mismo certificado que la instalación que deseas actualizar y sigue las instrucciones de publicación de abajo. Android solo puede actualizar una instalación conservando sus datos si los certificados son compatibles y el nuevo código de versión es mayor. Play App Signing puede usar un certificado de distribución distinto de la clave de carga; el APK `debug` también suele tener otra firma. **No desinstales una instalación con favoritos sin protegerlos o usar otro dispositivo/perfil de prueba.**
+
+La lista M3U y sus notificaciones siguen actualizándose en línea en ambas variantes, independientemente del mecanismo que actualiza la aplicación. El `release` no activa ofuscación: la advertencia de desofuscación no requiere habilitar R8 para resolver el error de destino. Los símbolos nativos son útiles para diagnosticar fallos, pero una biblioteca precompilada puede no incluirlos. Como LibVLC incluye código nativo, comprueba también la [compatibilidad de páginas de 16 KB](https://developer.android.com/guide/practices/page-sizes) del AAB final.
+
+## Actualizaciones de la aplicación desde GitHub
+
+Esta sección solo se aplica a la variante **`github`**. El código y los recursos incluidos en un APK no cambian solo por subir un commit. SamPlay puede consultar una nueva versión publicada, pero Android debe instalarla; con el mismo identificador y la misma firma se instala **sobre** la aplicación anterior, sin desinstalarla y conservando los datos guardados. Los favoritos de versiones anteriores que solo estaban en memoria no se pueden recuperar tras cerrar esa versión. Para activar este mecanismo hay que instalar una vez la versión que lo incorpora.
+
+- SamPlay consulta la última **release pública** de `SamuelPart/cloneapp` al abrir la app, aproximadamente cada 12 horas mientras está abierta y mediante un trabajo periódico en segundo plano. Android puede retrasar ese trabajo por batería, red o una detención forzada. Si hay una versión nueva, muestra el estado en **Ajustes → Actualizaciones de SamPlay** y, cuando los permisos lo permiten, una notificación que abre esa sección.
+- El usuario decide cuándo descargar e instalar. SamPlay limita la descarga a HTTPS y servidores de GitHub, verifica el tamaño y SHA-256 publicado por GitHub, y comprueba que el APK tenga el mismo paquete y certificado de firma que la app instalada y el número de versión esperado. Después, el instalador de Android realiza sus propias comprobaciones y pide confirmación. En Android 8 o superior puede ser necesario permitir instalaciones desde SamPlay; algunos dispositivos TV pueden no ofrecer un instalador compatible.
+- Para publicar una versión futura: aumenta `versionCode` y `versionName` en `app/build.gradle`, genera un **APK universal** firmado con la misma clave de la instalación anterior y publícalo en una release estable de este repositorio. Usa una etiqueta sencilla, por ejemplo `v1.2.3`, y nombra el archivo con el formato `SamPlay-<versionCode>-<versionName>.apk`; para ese ejemplo, `SamPlay-6-1.2.3.apk`. La release debe contener un único APK con ese formato y GitHub debe mostrar su digest `sha256` en la API. En Android Studio se puede usar **Build → Generate Signed Bundle / APK → APK → `githubRelease`** y después adjuntar el archivo en **GitHub → Releases**. El proyecto no configura una clave de firma release ni publica el APK automáticamente; conserva la clave fuera de Git y nunca la subas al repositorio.
+- Si no existe una release, no tiene un APK compatible o GitHub no responde, la app lo indica; no inventa una actualización. Una descarga interrumpida o que no supere las verificaciones no se instala. Las notificaciones dependen de los permisos y ajustes de Android. Subir código a la rama por sí solo no publica un APK firmado.
+- Este mecanismo es para la distribución por APK desde GitHub, no sustituye las actualizaciones de Google Play. Los cambios arbitrarios de código, pantallas o reproductor requieren una nueva versión del APK; el catálogo M3U sigue teniendo su propia actualización en línea, descrita a continuación.
+
+## Añadir vídeos al catálogo M3U
+
+La versión con actualización en línea debe instalarse **una vez** sobre la anterior (con la misma firma si se quiere actualizar sin desinstalar). Después, los cambios de la lista no requieren reinstalar la app:
+
+1. Abre [samplay_catalog.m3u en la rama `arena/2b6cd77d-cloneapp`](https://github.com/SamuelPart/cloneapp/blob/arena/2b6cd77d-cloneapp/app/src/main/assets/samplay_catalog.m3u) y conserva la primera línea `#EXTM3U`. La app consulta específicamente esta rama, no `main`.
+2. Añade una entrada `#EXTINF` seguida, en la línea siguiente, por el enlace directo o el iframe. Sustituye los valores de ejemplo por datos reales y autorizados.
+3. Guarda el cambio en esa rama y súbelo a GitHub (haz commit y push si editaste el proyecto localmente). **Ajustes → Actualizar catálogo** permite buscarlo manualmente; también se busca al abrir la app y, mientras está abierta, aproximadamente cada 15 minutos.
+
+La app usa HTTPS para leer la lista pública en GitHub y conserva una copia local de la última versión válida; el M3U incluido en el APK sirve como respaldo inicial. Si no hay conexión, la descarga está incompleta o alguna entrada tiene un formato inválido, se mantiene la copia anterior y Ajustes informa del fallo. Un archivo con solo `#EXTM3U` sí se considera una lista vacía intencionada. El tamaño máximo de descarga es 4 MiB. GitHub puede tardar en reflejar un cambio por su caché.
+
+El seguimiento en segundo plano usa `JobScheduler` con un intervalo periódico mínimo de 15 minutos, no un servicio push: Android puede retrasarlo por batería, conectividad o restricciones del dispositivo. Si se fuerza la detención de la app, hay que abrirla de nuevo. La rama debe seguir disponible; si se elimina o el archivo deja de ser público, SamPlay sigue usando la copia guardada y ya no recibirá futuras ediciones de esa dirección.
+
+Al detectar películas, series o episodios nuevos se crean avisos diferenciados con sus nombres y el sonido original de SamPlay; los episodios nuevos de una misma temporada pueden agruparse en un aviso. Cada aviso abre la ficha de esa película o serie; los avisos de episodios abren la ficha de su serie. Si el título se retiró después del aviso, la ficha indicará que ya no está disponible. La lista incluida en el APK es la base inicial, por lo que no se anuncia todo de nuevo al instalar. La app pide permiso en Android 13 o superior; también puedes revisar **Ajustes → Notificaciones de novedades**. Si los avisos están desactivados, se guardan como pendientes hasta que se permitan; si se sincroniza su retirada antes de habilitar los avisos, no se anuncia. El sonido, la agrupación y la aparición dependen de los ajustes y límites del sistema, el modo silencio y la compatibilidad de notificaciones de cada Android TV.
+
+Puedes usar el formato sencillo incluido en el catálogo. Una película y un capítulo se escriben así, con la URL en texto plano en la siguiente línea:
+
+```m3u
+#EXTINF:-1 tvg-logo="" group-title="Peliculas",Marsupilami (2026)
+https://nupload.my/watch/60SsUrowOEw2cDkHmN3M0iIojHFkXJ8oFYM3jz37kz7IctGTs
+
+#EXTINF:-1 tvg-logo="" group-title="La Brea Temporada 1",Capítulo 1
+https://nupload.my/watch/o3xAJQ7kz7MBPKokvwmPuBO9MmRijQgxxIUPl0zF0WoUmE
+```
+
+En series, repite el mismo nombre antes de `Temporada N` y numera cada `Capítulo N`: la app agrupa las temporadas bajo una sola serie. También acepta `Episodio N`, espacios en blanco y enlaces de Markdown. Un `tvg-logo` vacío no genera una imagen ficticia. Si no conoces el ID de TMDb, puedes omitir `tmdb-match-id` o `tmdb-id` o dejarlos vacíos: se tratarán como no indicados. Un ID no vacío inválido o contradictorio sigue rechazándose para proteger la copia anterior. Las versiones anteriores a esta corrección pueden rechazar atributos vacíos; deben actualizarse una vez. Con una clave TMDb válida, la app busca los títulos M3U en segundo plano y agrega fichas e imágenes sin cambiar sus enlaces. Si hay una identificación válida, también consulta los episodios de cada temporada; los que no tienen enlace se muestran sin botón de reproducción.
+
+El formato anterior más explícito también sigue funcionando, por ejemplo:
+
+```m3u
+#EXTINF:-1 media-type="movie",TÍTULO DE LA PELÍCULA
+https://TU_DOMINIO/RUTA/VIDEO.mp4
+```
+
+Para relacionar una película con una ficha de TMDb, indica su ID **numérico** y el tipo. Puedes encontrarlo en la URL de la ficha de TMDb, después de `/movie/` para películas o `/tv/` para series. `tvg-logo`, `year`, `genre` y `description` son opcionales; sustituye sus valores por los tuyos o elimínalos:
+
+```m3u
+#EXTINF:-1 media-type="movie" tmdb-id="ID_NUMÉRICO_TMDB" year="AÑO" tvg-logo="https://TU_DOMINIO/POSTER.jpg" genre="GÉNERO",TÍTULO DE LA PELÍCULA
+https://TU_DOMINIO/RUTA/VIDEO.m3u8
+```
+
+Para una serie, proporciona el mismo ID y `series-title` en todos sus episodios, y un número real de `season` y `episode` en cada entrada. Sin `tmdb-id`, los episodios con el mismo `series-title` se agrupan como serie propia del M3U:
+
+```m3u
+#EXTINF:-1 media-type="series" tmdb-id="ID_NUMÉRICO_TMDB" series-title="TÍTULO DE LA SERIE" season="1" episode="1",TÍTULO DEL EPISODIO
+https://TU_DOMINIO/RUTA/EPISODIO.mp4
+```
+
+Para un embed, usa `playback-type="iframe"` con la URL de la página del reproductor:
+
+```m3u
+#EXTINF:-1 media-type="movie" playback-type="iframe",TÍTULO DE LA PELÍCULA
+https://TU_DOMINIO/RUTA/EMBED
+```
+
+También se puede poner una etiqueta `<iframe src="https://TU_DOMINIO/RUTA/EMBED"></iframe>` en la línea del enlace; la app extrae únicamente su `src`. Solo se aceptan URLs HTTP/HTTPS. Las rutas evidentes `/watch/`, `/embed/`, `/iframe/` y las páginas `.html` se reconocen como web; las extensiones de vídeo conocidas, como `.mp4` o `.m3u8`, se reproducen con VLC. Los enlaces ambiguos se consideran directos para conservar el comportamiento previo. Usa `playback-type="iframe"` o `playback-type="direct"` si necesitas indicar el tipo explícitamente.
+
+En vez de `tmdb-id` y `media-type`, puedes usar `tvg-id="tmdb_movie_ID"`, `tvg-id="tmdb_tv_ID"` o `tvg-id="tmdb_tv_ID_sTEMPORADA_eEPISODIO"`, sustituyendo cada marcador por sus números.
+
+Para entradas sencillas **sin ID**, la búsqueda automática compara el tipo y el título completo o el título original, sin distinguir mayúsculas, acentos ni puntuación. Si se indica un año, también debe coincidir; por ejemplo, `Nombre (2026)`. Solo se usa una coincidencia única y se consultan como máximo cinco páginas: si hay ambigüedad o demasiados resultados, se mantiene la entrada local sin inventar datos. Para resolver esos casos, añade el ID real. El atributo opcional `tmdb-match-id="ID_NUMÉRICO_TMDB"` fija solo los metadatos sin cambiar el ID M3U existente; en una serie agrupada basta ponerlo en un episodio, y los IDs contradictorios se rechazan. El catálogo incluido ya identifica así [*Marsupilami*](https://www.themoviedb.org/movie/1145899-marsupilami) (`1145899`, película) y [*La Brea*](https://www.themoviedb.org/tv/128839-la-brea) (`128839`, serie). El formato sencillo sigue siendo válido para nuevos títulos, sin necesidad de añadir el atributo cuando la coincidencia es inequívoca.
+
+En duplicados para el mismo título o episodio se usa la primera fuente válida. Conserva el nombre o identificador de cada obra al actualizarla: si cambia su identidad, puede detectarse como un título nuevo. En la lista remota, una entrada inválida impide aplicar esa actualización para no perder títulos; corrige el formato y vuelve a guardar. Ajustes muestra el estado de la sincronización.
+
+El catálogo incluido en el APK y su copia en GitHub son públicos. No incluyas contraseñas, credenciales ni enlaces privados que no puedas distribuir; tampoco los subas a Git por accidente. Los enlaces presentes fueron facilitados por el propietario de este proyecto y su funcionamiento, disponibilidad y autorización deben comprobarse antes de distribuir la app.
 
 ## Configurar TMDb
 
-La app lee una API Key v3 desde `local.properties` (recomendado para desarrollo local) o desde la variable de entorno `TMDB_API_KEY`:
+La app lee una API Key v3 desde `local.properties` o desde la variable de entorno `TMDB_API_KEY`:
 
 ```properties
 # Añadir al archivo local.properties de la raíz, sin borrar sdk.dir.
 tmdb.api.key=TU_CLAVE_V3_DE_TMDB
 ```
 
-`local.properties` está excluido por `.gitignore`; no incluyas claves ni tokens en Git. Tras sincronizar Gradle, la clave se usa para las solicitudes de metadatos. La clave cliente queda incorporada en el APK y no es un secreto seguro para distribuir una app pública; restringe la clave según las opciones de TMDb o usa un backend propio. La clave compartida anteriormente quedó expuesta en la conversación: revócala y genera otra antes de usarla.
+`local.properties` está excluido por `.gitignore`; no incluyas claves ni tokens en Git. La clave cliente queda incorporada en el APK y no es un secreto seguro para distribuir una app pública; restríngela según las opciones de TMDb o usa un backend propio. Si una clave se ha compartido públicamente, revócala y genera otra.
 
 Este producto utiliza la API de TMDb, pero no está avalado ni certificado por TMDb.
 
-## Añadir una fuente de vídeo
+## API local opcional para M3U directo autorizado
 
-1. Abre una película o serie del catálogo TMDb.
-2. Pulsa **Añadir enlace** en la ficha, o **Añadir enlace** junto a un episodio para guardar una fuente distinta por episodio.
-3. Selecciona **Directo** para una URL de vídeo compatible o **Embed iframe** para una URL/código iframe.
-4. Guarda el enlace. Se conserva solo en el dispositivo y se puede quitar desde la misma ficha.
-
-No hay enlaces de películas/series preconfigurados: TMDb entrega metadatos e imágenes, no derechos ni fuentes de reproducción.
-
-## API local para M3U directo autorizado
-
-`tools/authorized_m3u_api.py` carga un archivo EXTINF M3U/M3U8 local y expone un catálogo de IDs con una redirección 302 a la URL HTTP/HTTPS exacta de cada stream directo reconocido por extensión (HLS, DASH, audio o vídeo). Ignora enlaces a páginas web y otros formatos; no abre páginas, resuelve iframes, extrae tokens/cookies, evade anti-bot ni retransmite el flujo.
+`tools/authorized_m3u_api.py` es una herramienta separada del catálogo empaquetado de SamPlay. Carga un M3U/M3U8 local y expone IDs con una redirección 302 a cada stream directo HTTP/HTTPS reconocido; no resuelve embeds ni elude bloqueos.
 
 ```bash
 python3 tools/authorized_m3u_api.py /ruta/a/catalogo-autorizado.m3u8
 ```
 
-La API escucha solo en `127.0.0.1:8765`: `GET /catalog`, `GET /health` y `GET /play?id=<id>`. El cliente debe seguir la redirección. No acepta URLs arbitrarias en la petición ni almacena tokens. Un 302 no puede inyectar `Referer`/`User-Agent`; en la app Android se usan únicamente los valores explícitos publicados por IPTV-org para sus streams directos. Ningún método garantiza cero fallos: la disponibilidad, el formato, la región y las condiciones dependen del proveedor.
+La API escucha solo en `127.0.0.1:8765` y ofrece `/catalog`, `/health` y `/play?id=<id>`. Ningún método garantiza que una fuente esté disponible en una región o que el proveedor mantenga el enlace.
 
 ## Abrir en Android Studio
 
-1. Selecciona **Get from VCS** (o **File → New → Project from Version Control**).
-2. Selecciona **Git** y pega `https://github.com/SamuelPart/cloneapp.git`.
-3. Clona el repositorio y abre la carpeta raíz, donde están `settings.gradle` y `gradlew`.
-4. Usa JDK 17 o 21 para Gradle y permite que Android Studio sincronice el proyecto.
-5. Selecciona un emulador o dispositivo con Android 5.0 o posterior y pulsa **Run**.
+1. Selecciona **Get from VCS** o **File → New → Project from Version Control** y clona `https://github.com/SamuelPart/cloneapp.git`.
+2. Abre la carpeta raíz, donde están `settings.gradle` y `gradlew`.
+3. Selecciona la rama `arena/2b6cd77d-cloneapp`, usa JDK 17 y permite que Android Studio sincronice Gradle. Se requiere Android SDK 36 y una versión de Studio compatible con AGP 8.10.
+4. Selecciona la variante `githubDebug` o `playDebug`, un dispositivo o emulador con Android 5.0 o posterior y pulsa **Run**.
 
-También puedes compilar desde terminal:
-
-```bash
-git clone https://github.com/SamuelPart/cloneapp.git
-cd cloneapp
-./gradlew :app:assembleDebug
-```
-
-## Requisitos
-
-- Android Studio compatible con Android Gradle Plugin 8.5.2.
-- JDK 17 o 21 para ejecutar Gradle; el bytecode de la app usa Java 17.
-- Android SDK 34.
-- Conexión a Internet para Gradle, TMDb, TDTChannels e IPTV-org.
-- Python 3.10 o posterior, solo si se utiliza la API local opcional para M3U.
+También puedes ejecutar `./gradlew :app:assembleGithubDebug` o `./gradlew :app:assemblePlayDebug` desde la raíz; `:app:testGithubDebugUnitTest` y `:app:testPlayDebugUnitTest` ejecutan las pruebas de cada variante. Se necesita conexión a Internet para obtener dependencias y consultar las fuentes de datos. Para las pruebas opcionales del bot web, instala Node.js 18 o posterior y ejecuta `npm ci` seguido de `npm run test:web-bot`; Node no es necesario para compilar Android.
 
 ## Estructura
 
-- `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación, reproducción, componentes y ViewModels.
-- `app/src/main/java/com/myiptv/clean/data/api`: clientes de TMDb, TDTChannels e IPTV-org.
-- `app/src/main/java/com/myiptv/clean/data/repository`: catálogos TMDb/TDTChannels/IPTV-org y fuentes de reproducción locales.
-- `app/src/main/java/com/myiptv/clean/data/model`: modelos de respuesta TMDb e IPTV-org.
-- `tools/authorized_m3u_api.py`: API local de redirección para entradas directas de un M3U autorizado.
+- `app/src/main/assets/samplay_catalog.m3u`: catálogo de fuentes de películas y series proporcionadas.
+- `app/src/main/assets/samplay_embed_bot.js`: bot local de reproducción y cierre de capas de anuncios reconocibles.
+- `app/src/main/assets/samplay_frame_adguard.js`: filtro local para capas publicitarias en páginas y iframes compatibles.
+- `app/src/main/java/com/myiptv/clean/notifications`: búsqueda periódica y avisos de novedades.
+- `app/src/github`: actualizador de APK para la distribución GitHub y su manifiesto.
+- `app/src/play`: sustituciones de Play y eliminación preventiva del permiso de instalación.
+- `app/src/main/res/raw/samplay_notification.wav`: sonido original, regenerable con `tools/generate_notification_sound.py`.
+- `app/src/main/java/com/myiptv/clean/ui/compose`: interfaz, navegación y ViewModels.
+- `app/src/main/java/com/myiptv/clean/ui/player`: interacción táctil y con mando del reproductor directo.
+- `app/src/main/java/com/myiptv/clean/data/repository`: catálogos TMDb, canales, M3U y respaldo de fuentes locales.
 - `app/src/main/java/com/myiptv/clean/ui/welcome`: bienvenida inicial.
-- `app/src/main/res`: recursos y pantallas heredadas.
-- `gradle/wrapper`: versión fija de Gradle.
+- `app/src/main/res`: recursos de la aplicación.
+- `tools/authorized_m3u_api.py`: API local opcional para entradas directas de un M3U autorizado.

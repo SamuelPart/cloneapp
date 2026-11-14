@@ -1,0 +1,144 @@
+package com.myiptv.clean.ui.player
+
+import android.content.Context
+import android.net.Uri
+import org.videolan.libvlc.LibVLC
+import org.videolan.libvlc.Media
+import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.util.VLCVideoLayout
+
+/** The only native playback engine for direct channel and video URLs. */
+internal class VlcPlaybackEngine(
+    context: Context,
+    private val sourceUrl: String,
+    private val userAgent: String?,
+    private val referrer: String?,
+    private val useVideoLayoutBounds: Boolean = false
+) : PlaybackEngine {
+    private val libVlc = SharedLibVlc.acquire(context.applicationContext)
+    private val player = try {
+        MediaPlayer(libVlc)
+    } catch (error: Throwable) {
+        SharedLibVlc.release(libVlc)
+        throw error
+    }
+
+    var videoLayout: VLCVideoLayout? = null
+    private val audioMute = PlayerVolumeMute({ player.volume }, { player.setVolume(it) })
+
+    /** Returns false if LibVLC has not initialized its audio output or rejected the change. */
+    fun setMuted(muted: Boolean): Boolean = audioMute.setMuted(muted)
+
+    /** Wait for a real output level before muting a preload, avoiding restoring startup zero. */
+    fun setMutedForShortPreload(muted: Boolean): Boolean = audioMute.setMuted(muted, requirePositiveVolume = true)
+
+    override fun setListener(listener: ((PlaybackEvent) -> Unit)?) {
+        if (listener == null) {
+            player.setEventListener(null)
+            return
+        }
+        // LibVLC posts its listener callbacks to Android's main thread.
+        player.setEventListener { event ->
+            val mapped = when (event.type) {
+                MediaPlayer.Event.Opening -> PlaybackEvent.Opening
+                MediaPlayer.Event.Buffering -> PlaybackEvent.Buffering(event.buffering)
+                MediaPlayer.Event.Playing -> PlaybackEvent.Playing
+                MediaPlayer.Event.Paused -> PlaybackEvent.Paused
+                MediaPlayer.Event.EndReached -> PlaybackEvent.Ended
+                MediaPlayer.Event.EncounteredError -> PlaybackEvent.Error
+                MediaPlayer.Event.TimeChanged, MediaPlayer.Event.LengthChanged,
+                MediaPlayer.Event.PositionChanged, MediaPlayer.Event.SeekableChanged -> PlaybackEvent.ProgressChanged
+                MediaPlayer.Event.PausableChanged -> PlaybackEvent.PausableChanged(event.pausable)
+                MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESDeleted,
+                MediaPlayer.Event.ESSelected -> PlaybackEvent.AudioTracksChanged
+                else -> null
+            }
+            if (mapped != null) listener(mapped)
+        }
+    }
+
+    override fun attach() {
+        if (useVideoLayoutBounds) {
+            // In a portrait phone, the preview itself is landscape. Without this LibVLC
+            // uses the phone orientation, swaps the surface dimensions and shrinks video.
+            player.setUseOrientationFromBounds(true)
+        }
+        player.attachViews(checkNotNull(videoLayout), null, true, false)
+    }
+
+    override fun detach() {
+        player.detachViews()
+    }
+
+    override fun load() {
+        val media = Media(libVlc, Uri.parse(sourceUrl))
+        try {
+            vlcMediaOptions(userAgent, referrer).forEach(media::addOption)
+            player.media = media
+        } finally {
+            media.release()
+        }
+    }
+
+    override fun play() = player.play()
+    override fun pause() = player.pause()
+    override fun stop() = player.stop()
+    override fun isPlaying(): Boolean = player.isPlaying
+
+    override fun progress(): PlaybackProgress = PlaybackProgress(
+        timeMs = player.time,
+        durationMs = player.length,
+        seekable = player.isSeekable
+    )
+
+    override fun seekTo(timeMs: Long) {
+        player.setTime(timeMs)
+    }
+
+    override fun audioTracks(): List<PlayerAudioTrack> = player.audioTracks?.map { track ->
+        PlayerAudioTrack(track.id, track.name.orEmpty())
+    }.orEmpty()
+
+    override fun selectedAudioTrack(): Int? = player.audioTrack.takeIf { it != -1 }
+    override fun selectAudioTrack(id: Int): Boolean = player.setAudioTrack(id)
+
+    override fun release() {
+        try {
+            player.release()
+        } finally {
+            SharedLibVlc.release(libVlc)
+            videoLayout = null
+        }
+    }
+}
+
+/** Keep LibVLC's native runtime warm while current and preloaded Shorts players are alive. */
+private object SharedLibVlc {
+    private var instance: LibVLC? = null
+    private var references = 0
+
+    @Synchronized
+    fun acquire(context: Context): LibVLC {
+        instance?.let {
+            references++
+            return it
+        }
+        // LibVLC 3.x calls System.exit if loading a native library fails. Preflight first so
+        // unsupported devices can display an error instead of terminating the app.
+        listOf("c++_shared", "vlc", "vlcjni").forEach(System::loadLibrary)
+        return LibVLC(context.applicationContext, arrayListOf("--network-caching=600")).also {
+            instance = it
+            references = 1
+        }
+    }
+
+    @Synchronized
+    fun release(libVlc: LibVLC) {
+        if (instance !== libVlc || references == 0) return
+        references--
+        if (references == 0) {
+            instance = null
+            libVlc.release()
+        }
+    }
+}

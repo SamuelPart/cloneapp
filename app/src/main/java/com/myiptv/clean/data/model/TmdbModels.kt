@@ -3,7 +3,8 @@ package com.myiptv.clean.data.model
 import com.google.gson.annotations.SerializedName
 
 data class TmdbPageResponse(
-    val results: List<TmdbMediaResponse>? = null
+    val results: List<TmdbMediaResponse>? = null,
+    @SerializedName("total_pages") val totalPages: Int? = null
 )
 
 data class TmdbGenreListResponse(
@@ -20,6 +21,8 @@ data class TmdbMediaResponse(
     @SerializedName("media_type") val mediaType: String? = null,
     val title: String? = null,
     val name: String? = null,
+    @SerializedName("original_title") val originalTitle: String? = null,
+    @SerializedName("original_name") val originalName: String? = null,
     val overview: String? = null,
     @SerializedName("poster_path") val posterPath: String? = null,
     @SerializedName("backdrop_path") val backdropPath: String? = null,
@@ -32,11 +35,23 @@ data class TmdbMediaResponse(
     @SerializedName("episode_run_time") val episodeRunTime: List<Int>? = null,
     @SerializedName("number_of_seasons") val numberOfSeasons: Int? = null,
     @SerializedName("number_of_episodes") val numberOfEpisodes: Int? = null,
+    @SerializedName("production_countries") val productionCountries: List<TmdbCountryResponse>? = null,
     val credits: TmdbCreditsResponse? = null
 )
 
+data class TmdbCountryResponse(
+    val name: String? = null,
+    @SerializedName("iso_3166_1") val isoCode: String? = null
+)
+
 data class TmdbCreditsResponse(
-    val cast: List<TmdbCastResponse>? = null
+    val cast: List<TmdbCastResponse>? = null,
+    val crew: List<TmdbCrewResponse>? = null
+)
+
+data class TmdbCrewResponse(
+    val name: String? = null,
+    val job: String? = null
 )
 
 data class TmdbCastResponse(

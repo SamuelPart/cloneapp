@@ -9,6 +9,16 @@ local.properties
 .cxx/
 .externalNativeBuild/
 
+# Optional Node-based WebView bot tests
+/node_modules/
+
 # OS and editor files
 .DS_Store
 Thumbs.db
+
+# Never commit private signing keys or local signing passwords.
+*.jks
+*.keystore
+*.p12
+*.pfx
+signing.properties

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = 'CleanIPTV'
+rootProject.name = 'SamPlay'
 include ':app'

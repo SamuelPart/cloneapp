@@ -13,6 +13,9 @@ data class ConfiguredMediaSource(
 )
 
 object LocalMediaSources {
+    fun get(context: Context, mediaId: String, playlist: MediaPlaylist): ConfiguredMediaSource? =
+        playlist.sourceAliases(mediaId).firstNotNullOfOrNull { get(context, it) }
+
     fun get(context: Context, mediaId: String): ConfiguredMediaSource? {
         val preferences = context.applicationContext.getSharedPreferences(MEDIA_SOURCE_PREFERENCES, Context.MODE_PRIVATE)
         val key = encodedKey(mediaId)

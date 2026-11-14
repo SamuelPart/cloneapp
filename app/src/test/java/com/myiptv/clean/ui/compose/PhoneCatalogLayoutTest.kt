@@ -1,0 +1,96 @@
+package com.myiptv.clean.ui.compose
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class PhoneCatalogLayoutTest {
+    @Test
+    fun catalogDesignOnlyAppliesOnPhonesAndTablets() {
+        PHONE_CATALOG_ROUTES.forEach { route ->
+            assertTrue(usePhoneCatalogLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneCatalogLayout(isTvDevice = true, route = route))
+        }
+        listOf("channels", "favorites", "search", "settings", "player/{id}").forEach { route ->
+            assertFalse(usePhoneCatalogLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneCatalogLayout(isTvDevice = true, route = route))
+        }
+    }
+
+    @Test
+    fun tvKeepsItsLayoutAndWidePhonesKeepTheirPhoneCatalog() {
+        for (width in listOf(320f, 720f, 840f, 1200f)) {
+            PHONE_CATALOG_ROUTES.forEach { route ->
+                assertTrue(useSamplayTvLayout(true, route, false, false, width))
+                assertFalse(useSamplayTvLayout(false, route, false, false, width))
+            }
+        }
+        // Other existing layouts, including live playback, keep their previous policy.
+        assertTrue(useSamplayTvLayout(false, "favorites", false, false, 840f))
+        assertFalse(useSamplayTvLayout(false, "channels", false, true, 1200f))
+        assertFalse(useSamplayTvLayout(false, "player/{id}", true, false, 1200f))
+    }
+
+    @Test
+    fun sectionCatalogsKeepMobileLayoutWithoutChangingTv() {
+        PHONE_CATALOG_DETAIL_ROUTES.forEach { route ->
+            assertFalse(usePhoneCatalogLayout(isTvDevice = false, route = route))
+            assertTrue(usePhoneTouchLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneTouchLayout(isTvDevice = true, route = route))
+            for (width in listOf(320f, 720f, 840f, 1200f)) {
+                assertFalse(useSamplayTvLayout(false, route, false, false, width))
+                assertTrue(useSamplayTvLayout(true, route, false, false, width))
+            }
+            assertEquals("home", phoneBottomCatalogRoute(route))
+        }
+    }
+
+    @Test
+    fun searchUsesPhoneLayoutAtEveryWidthButNeverOnTv() {
+        for (width in listOf(240f, 320f, 720f, 840f, 1200f)) {
+            assertTrue(usePhoneSearchLayout(isTvDevice = false, route = "search"))
+            assertFalse(usePhoneSearchLayout(isTvDevice = true, route = "search"))
+            assertFalse(useSamplayTvLayout(false, "search", false, false, width))
+            assertTrue(useSamplayTvLayout(true, "search", false, false, width))
+        }
+        listOf("home", "channels", "movies", "favorites", "settings", "player/{id}").forEach { route ->
+            assertFalse(usePhoneSearchLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneSearchLayout(isTvDevice = true, route = route))
+        }
+    }
+
+    @Test
+    fun settingsAndCoinsStayMobileAtEveryWidthAndNeverOverrideAndroidTv() {
+        for (width in listOf(240f, 320f, 720f, 840f, 1200f)) {
+            listOf("settings", "settings/coins").forEach { route ->
+                assertTrue(usePhoneSettingsLayout(isTvDevice = false, route = route))
+                assertFalse(usePhoneSettingsLayout(isTvDevice = true, route = route))
+                assertFalse(useSamplayTvLayout(false, route, false, false, width))
+                assertTrue(useSamplayTvLayout(true, route, false, false, width))
+            }
+        }
+        listOf("home", "movies", "channels", "search", "favorites", "player/{id}").forEach { route ->
+            assertFalse(usePhoneSettingsLayout(isTvDevice = false, route = route))
+            assertFalse(usePhoneSettingsLayout(isTvDevice = true, route = route))
+        }
+    }
+
+    @Test
+    fun eachCatalogTabKeepsInicioSelectedInTheFiveItemBar() {
+        PHONE_CATALOG_ROUTES.forEach { assertEquals("home", phoneBottomCatalogRoute(it)) }
+        assertEquals("channels", phoneBottomCatalogRoute("channels"))
+        assertEquals("favorites", phoneBottomCatalogRoute("favorites"))
+        assertEquals("settings", phoneBottomCatalogRoute("settings"))
+    }
+
+    @Test
+    fun posterGridFitsCompactPhonesAndWideScreens() {
+        assertEquals(2, phonePosterColumns(279f))
+        assertEquals(3, phonePosterColumns(280f))
+        assertEquals(3, phonePosterColumns(393f))
+        assertEquals(4, phonePosterColumns(600f))
+        assertEquals(4, phonePosterColumns(839f))
+        assertEquals(5, phonePosterColumns(840f))
+    }
+}

@@ -1,17 +1,24 @@
 package com.myiptv.clean.ui.compose
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myiptv.clean.CleanIPTVApp
 import com.myiptv.clean.data.repository.ChannelCatalogRepository
+import com.myiptv.clean.data.repository.MediaPlaylist
 import com.myiptv.clean.data.repository.TmdbRepository
+import com.myiptv.clean.data.repository.mergeMediaCatalog
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+private const val TMDB_DOCUMENTARY_GENRE = 99
 
 class HomeViewModel : ViewModel() {
     var featured by mutableStateOf<MediaItem?>(null)
@@ -19,6 +26,14 @@ class HomeViewModel : ViewModel() {
     var trending by mutableStateOf<List<MediaItem>>(emptyList())
         private set
     var recommended by mutableStateOf<List<MediaItem>>(emptyList())
+        private set
+    var weeklyTrends by mutableStateOf<List<MediaItem>>(emptyList())
+        private set
+    var documentaries by mutableStateOf<List<MediaItem>>(emptyList())
+        private set
+    var isLoadingShelves by mutableStateOf(false)
+        private set
+    var shelvesStatus by mutableStateOf("")
         private set
     var liveChannels by mutableStateOf<List<LiveChannel>>(emptyList())
         private set
@@ -29,6 +44,10 @@ class HomeViewModel : ViewModel() {
 
     private var mediaStatus = if (TmdbRepository.isConfigured) "Consultando catálogo TMDb…" else "TMDb requiere una clave API local."
     private var channelStatus = "Consultando canales de televisión…"
+    private var tvShelvesLoaded = false
+    private var tvShelvesJob: Job? = null
+    private var documentaryMovies: List<MediaItem> = emptyList()
+    private var documentarySeries: List<MediaItem> = emptyList()
 
     init {
         loadChannels()
@@ -68,7 +87,7 @@ class HomeViewModel : ViewModel() {
                 }
                 val all = movies + series
                 featured = movies.firstOrNull() ?: series.firstOrNull()
-                trending = movies.sortedByDescending(MediaItem::rating).take(12)
+                trending = movies.take(12)
                 recommended = series.take(12)
                 mediaStatus = if (all.isEmpty()) "TMDb no devolvió títulos." else "Metadatos e imágenes cargados desde TMDb."
             } catch (_: Exception) {
@@ -76,6 +95,40 @@ class HomeViewModel : ViewModel() {
             } finally {
                 isLoading = false
                 updateStatus()
+            }
+        }
+    }
+
+    /** Optional shelves use TMDb data only and never block the main catalog or live channels. */
+    fun loadTvShelves() {
+        if (!TmdbRepository.isConfigured) {
+            shelvesStatus = "Configura TMDb para cargar tendencias y documentales."
+            return
+        }
+        if (tvShelvesLoaded || tvShelvesJob?.isActive == true) return
+        isLoadingShelves = true
+        shelvesStatus = "Consultando tendencias y documentales…"
+        tvShelvesJob = viewModelScope.launch {
+            try {
+                val result = loadTvShelfData(
+                    loadTrends = { TmdbRepository.trendingThisWeek() },
+                    loadDocumentaryMovies = { TmdbRepository.discoverMovies(TMDB_DOCUMENTARY_GENRE) },
+                    loadDocumentarySeries = { TmdbRepository.discoverSeries(TMDB_DOCUMENTARY_GENRE) }
+                )
+                result.trends?.let { weeklyTrends = it.distinctBy(MediaItem::id).take(12) }
+                result.documentaryMovies?.let { documentaryMovies = it }
+                result.documentarySeries?.let { documentarySeries = it }
+                documentaries = homeGridCatalog(documentaryMovies, documentarySeries, MediaItem::id)
+                // Keep earlier successful results and retry failed shelves when home is reopened.
+                tvShelvesLoaded = result.allSucceeded
+                shelvesStatus = when {
+                    result.allSucceeded && weeklyTrends.isEmpty() && documentaries.isEmpty() -> "No hay títulos disponibles en estas secciones."
+                    result.allSucceeded -> "Tendencias y documentales cargados."
+                    weeklyTrends.isNotEmpty() || documentaries.isNotEmpty() -> "Algunas secciones no pudieron actualizarse."
+                    else -> "No se pudo conectar para cargar estas secciones."
+                }
+            } finally {
+                isLoadingShelves = false
             }
         }
     }
@@ -127,6 +180,27 @@ class ChannelsViewModel : ViewModel() {
     }
 }
 
+internal fun orderPopularCatalogItems(items: List<MediaItem>, tmdbOrder: List<MediaItem>): List<MediaItem> {
+    val rankById = buildMap {
+        tmdbOrder.forEachIndexed { index, remote ->
+            putIfAbsent(remote.id, index)
+            val mediaType = if (remote.kind == MediaKind.MOVIE) "movie" else "tv"
+            remote.tmdbId?.takeIf { it > 0 }?.let { putIfAbsent("tmdb_${mediaType}_$it", index) }
+        }
+    }
+    return items.withIndex()
+        .sortedWith(
+            compareBy<IndexedValue<MediaItem>> { indexed ->
+                val item = indexed.value
+                val mediaType = if (item.kind == MediaKind.MOVIE) "movie" else "tv"
+                rankById[item.id]
+                    ?: item.tmdbId?.takeIf { it > 0 }?.let { rankById["tmdb_${mediaType}_$it"] }
+                    ?: Int.MAX_VALUE
+            }.thenBy { it.index }
+        )
+        .map(IndexedValue<MediaItem>::value)
+}
+
 class MoviesViewModel : ViewModel() {
     private var movieCatalog by mutableStateOf<List<MediaItem>>(emptyList())
     private var seriesCatalog by mutableStateOf<List<MediaItem>>(emptyList())
@@ -172,11 +246,14 @@ class MoviesViewModel : ViewModel() {
         loadCatalog()
     }
 
-    fun genresFor(kind: MediaKind): List<String> =
-        if (kind == MediaKind.MOVIE) movieGenres else seriesGenres
+    fun genresFor(kind: MediaKind, playlistItems: List<MediaItem> = emptyList()): List<String> {
+        val remote = if (kind == MediaKind.MOVIE) movieGenres else seriesGenres
+        return (remote + playlistItems.filter { it.kind == kind }.flatMap(MediaItem::genres)).distinct()
+    }
 
-    fun itemsFor(kind: MediaKind): List<MediaItem> {
-        val source = remoteSearchResults ?: if (kind == MediaKind.MOVIE) movieCatalog else seriesCatalog
+    fun itemsFor(kind: MediaKind, playlistItems: List<MediaItem> = emptyList()): List<MediaItem> {
+        val remote = remoteSearchResults ?: if (kind == MediaKind.MOVIE) movieCatalog else seriesCatalog
+        val source = mergeMediaCatalog(playlistItems, remote)
         val filtered = source.filter { item ->
             item.kind == kind &&
                 (selectedGenre == "Todos" || item.genres.any { it.equals(selectedGenre, ignoreCase = true) }) &&
@@ -185,7 +262,7 @@ class MoviesViewModel : ViewModel() {
         return when (selectedTab) {
             "Mejor valoradas" -> filtered.sortedByDescending(MediaItem::rating)
             "Recientes" -> filtered.sortedByDescending(MediaItem::year)
-            else -> filtered
+            else -> orderPopularCatalogItems(filtered, remote.filter { it.kind == kind })
         }
     }
 
@@ -221,12 +298,27 @@ class MoviesViewModel : ViewModel() {
     }
 }
 
-class FavoritesViewModel : ViewModel() {
-    var savedIds by mutableStateOf(emptySet<String>())
+class FavoritesViewModel(application: Application) : AndroidViewModel(application) {
+    private val favorites = FavoritesCollection(PreferencesFavoritesStore(application))
+    private val coins = if (application.isTelevisionDevice()) null else (application as CleanIPTVApp).coins
+    var savedIds by mutableStateOf(favorites.savedIds)
         private set
 
-    fun toggle(id: String) {
-        savedIds = if (id in savedIds) savedIds - id else savedIds + id
+    init {
+        // Favorites already present before this update must not become "new" by re-adding them.
+        coins?.rememberFavorites(savedIds)
+    }
+
+    fun toggle(id: String, playlist: MediaPlaylist) {
+        val aliases = playlist.mediaAliases(id) + playlist.canonicalMediaId(id)
+        val alreadySaved = savedIds.any { it in aliases }
+        savedIds = favorites.toggle(id, playlist)
+        if (!alreadySaved && savedIds.any { it in aliases }) coins?.recordNewFavorite(aliases)
+    }
+
+    fun canonicalize(playlist: MediaPlaylist) {
+        savedIds = favorites.canonicalize(playlist)
+        coins?.rememberFavorites(playlist.expandedMediaIds(savedIds))
     }
 }
 

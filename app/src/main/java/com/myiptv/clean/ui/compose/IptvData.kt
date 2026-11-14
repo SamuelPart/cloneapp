@@ -28,7 +28,9 @@ data class MediaItem(
     val tmdbMediaType: String? = null,
     val castNames: List<String> = emptyList(),
     val seasonCount: Int? = null,
-    val episodeCount: Int? = null
+    val episodeCount: Int? = null,
+    val directorNames: List<String> = emptyList(),
+    val countryNames: List<String> = emptyList()
 )
 
 data class MediaEpisode(
@@ -49,7 +51,13 @@ data class LiveChannel(
     val logoUrl: String? = null,
     val epgId: String? = null,
     val userAgent: String? = null,
-    val referrer: String? = null
+    val referrer: String? = null,
+    // Optional metadata from the channel provider; absent values are never inferred.
+    val countryCode: String? = null,
+    val feedId: String? = null,
+    val quality: String? = null,
+    // Preserve every provider-supplied category for the conservative ad-safety check.
+    val sourceCategories: List<String> = emptyList()
 )
 
 data class ContentCategory(
